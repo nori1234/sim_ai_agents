@@ -1,0 +1,62 @@
+"""Aggregate measures of the society that emerged from a run."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Metrics:
+    days_run: int = 0
+    population: int = 0
+    survivors: int = 0
+    deaths: int = 0
+
+    # Crime, broken down by kind.
+    crimes_total: int = 0
+    crimes_by_type: dict[str, int] = field(default_factory=dict)
+
+    # Governance.
+    proposals_total: int = 0
+    proposals_passed: int = 0
+    proposals_rejected: int = 0
+
+    # Economy / cooperation.
+    transfers: int = 0
+    frauds: int = 0
+    collaborations: int = 0
+    monuments_built: int = 0
+    granary_deposits: int = 0
+
+    def record_crime(self, kind: str) -> None:
+        self.crimes_total += 1
+        self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
+
+    @property
+    def survival_rate(self) -> float:
+        return self.survivors / self.population if self.population else 0.0
+
+    @property
+    def pass_rate(self) -> float:
+        resolved = self.proposals_passed + self.proposals_rejected
+        return self.proposals_passed / resolved if resolved else 0.0
+
+    def as_dict(self) -> dict:
+        return {
+            "days_run": self.days_run,
+            "population": self.population,
+            "survivors": self.survivors,
+            "deaths": self.deaths,
+            "survival_rate": round(self.survival_rate, 3),
+            "crimes_total": self.crimes_total,
+            "crimes_by_type": dict(self.crimes_by_type),
+            "proposals_total": self.proposals_total,
+            "proposals_passed": self.proposals_passed,
+            "proposals_rejected": self.proposals_rejected,
+            "pass_rate": round(self.pass_rate, 3),
+            "transfers": self.transfers,
+            "frauds": self.frauds,
+            "collaborations": self.collaborations,
+            "monuments_built": self.monuments_built,
+            "granary_deposits": self.granary_deposits,
+        }
