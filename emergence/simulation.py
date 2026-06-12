@@ -9,7 +9,7 @@ from typing import Callable, Optional
 from .actions import Action, ActionType
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
-from .drives import DrivesConfig, can_reproduce
+from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .governance import (
     GovernanceConfig,
@@ -152,7 +152,8 @@ class Simulation:
             granary_food=self.world.granary_food,
             recent_events=recent,
             memory=list(agent.memory),
-            can_reproduce=can_reproduce(agent, self.drives, self.world.day),
+            can_reproduce=is_fertile(agent, self.drives, self.world.day),
+            mating_urge=mating_urge(agent, self.drives),
         )
 
     # ==================================================================
@@ -200,16 +201,26 @@ class Simulation:
     def _do_eat(self, agent: Agent, action: Action) -> None:
         used = agent.take("food", EAT_FOOD_USED)
         agent.energy = min(MAX_ENERGY, agent.energy + used * EAT_ENERGY_PER_FOOD)
-        if self.drives.enabled:
-            agent.hunger = max(0.0, agent.hunger - used * self.drives.eat_hunger_relief)
+        if self.drives.enabled and used:
+            # Pleasure scales with how hungry you were — relief feels good.
+            relief = used * self.drives.eat_hunger_relief
+            self._reward(agent, self.drives.pleasure_per_eat * (agent.hunger / 100.0))
+            agent.hunger = max(0.0, agent.hunger - relief)
 
     def _do_sleep(self, agent: Agent, action: Action) -> None:
         """Relieve fatigue (more effectively under a roof)."""
         f = self.world.facility_at(agent.pos)
         sheltered = f and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}
         relief = self.drives.sleep_relief * (1.3 if sheltered else 1.0)
+        if self.drives.enabled:
+            self._reward(agent, self.drives.pleasure_per_sleep * (agent.fatigue / 100.0))
         agent.fatigue = max(0.0, agent.fatigue - relief)
         agent.energy = min(MAX_ENERGY, agent.energy + self.drives.sleep_energy_gain)
+
+    def _reward(self, agent: Agent, amount: float) -> None:
+        """Bank a hit of pleasure (気持ちよさ) — the reward that motivates."""
+        agent.pleasure += max(0.0, amount)
+        self.metrics.total_pleasure += max(0.0, amount)
 
     def _do_mate(self, agent: Agent, action: Action) -> None:
         if not (self.drives.enabled and self.drives.reproduction):
@@ -217,19 +228,32 @@ class Simulation:
         partner = self._by_id.get(action.params.get("target"))
         if partner is None or partner is agent or not partner.alive:
             return
-        if len([a for a in self.agents if a.alive]) >= self.drives.max_population:
-            return
-        # Both partners must currently qualify and be close together.
-        if not (can_reproduce(agent, self.drives, self.world.day)
-                and can_reproduce(partner, self.drives, self.world.day)):
+        # Driven by instinct — but the body must still be capable (the floor).
+        if not is_fertile(agent, self.drives, self.world.day):
             return
         if chebyshev(agent.pos, partner.pos) > 1:
+            # The urge pulls the agent toward the partner across the map.
             agent.pos = self.world.step_towards(agent.pos, partner.pos)
             return  # spend this turn closing the distance
+        # The partner has to be capable and willing (affection/familiarity).
+        if not is_fertile(partner, self.drives, self.world.day):
+            return
         if agent.trust_of(partner.id) < self.drives.repro_trust_min or \
                 partner.trust_of(agent.id) < self.drives.repro_trust_min:
             return
+        if len([a for a in self.agents if a.alive]) >= self.drives.max_population:
+            # Coupling still happens (and feels good) — it just bears no child.
+            self._discharge_mating(agent, partner)
+            return
+        self._discharge_mating(agent, partner)
         self._spawn_child(agent, partner)
+
+    def _discharge_mating(self, a: Agent, b: Agent) -> None:
+        """Relieve both partners' libido and reward them with pleasure."""
+        for p in (a, b):
+            p.libido = max(0.0, p.libido - self.drives.mate_libido_relief)
+            self._reward(p, self.drives.pleasure_per_mate)
+        self.metrics.matings += 1
 
     def _do_rest(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
@@ -468,6 +492,8 @@ class Simulation:
         d = self.drives
         agent.hunger = min(100.0, agent.hunger + d.hunger_per_tick)
         agent.fatigue = min(100.0, agent.fatigue + d.fatigue_per_tick)
+        if d.reproduction:
+            agent.libido = min(100.0, agent.libido + d.libido_per_tick)
         if agent.hunger > d.hunger_threshold:
             agent.energy -= d.hunger_energy_penalty
         if agent.fatigue > d.fatigue_threshold:

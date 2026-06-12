@@ -14,8 +14,12 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
         f"Survivors:   {m.survivors} living  "
         f"(started with {m.population}, survival rate {m.survival_rate:.0%})"
     )
-    if m.births:
-        lines.append(f"Births:      {m.births} children born during the run")
+    if m.matings or m.births:
+        avg_joy = m.total_pleasure / m.survivors if m.survivors else 0.0
+        lines.append(
+            f"Instinct:    {m.matings} matings -> {m.births} births  "
+            f"(pleasure banked {m.total_pleasure:.0f}, ~{avg_joy:.0f}/survivor)"
+        )
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):

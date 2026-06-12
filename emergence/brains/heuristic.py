@@ -123,27 +123,29 @@ class HeuristicBrain(AgentBrain):
                               rationale="find a bed")
             return Action(ActionType.SLEEP, rationale="sleep rough")
 
-        # Reproduction: well-fed, rested, and eligible — seek a willing mate.
-        # The MATE handler walks the agent toward a distant partner, so we are
-        # willing to court someone across the map, not just an adjacent one.
-        if obs.can_reproduce and self.rng.random() < 0.7:
+        # Reproduction is instinctual: the stronger the built-up urge, the more
+        # likely the agent drops everything to court — 本能と気持ちよさ. It is the
+        # urge that decides, not a rational appraisal of conditions.
+        if obs.can_reproduce and self.rng.random() < obs.mating_urge:
             mate = self._find_mate(agent, obs)
             if mate is not None:
+                # The MATE handler walks toward a distant partner, so we are
+                # willing to chase someone across the map.
                 return Action(ActionType.MATE, {"target": mate["id"]},
-                              rationale="court a partner")
+                              rationale="driven to court a partner")
         return None
 
     def _find_mate(self, agent: Agent, obs: Observation) -> dict | None:
         candidates = [
             o for o in obs.others
-            if o.get("trust", 0.0) >= 0.25
-            and o.get("hunger", 0) <= 55
-            and o.get("fatigue", 0) <= 62
+            if o.get("trust", 0.0) >= 0.2
+            and o.get("hunger", 0) <= 85
+            and o.get("fatigue", 0) <= 88
             and o.get("age_days", 0) >= 2
         ]
         if not candidates:
             return None
-        # Prefer the closest, most-trusted partner.
+        # Prefer the closest, most-trusted (most affectionate) partner.
         return min(candidates, key=lambda o: (o["distance"], -o.get("trust", 0.0)))
 
     # -- survival -------------------------------------------------------

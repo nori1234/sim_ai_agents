@@ -2,7 +2,12 @@ import unittest
 
 from emergence.actions import Action, ActionType
 from emergence.agent import Agent
-from emergence.drives import DrivesConfig, can_reproduce
+from emergence.drives import (
+    DrivesConfig,
+    can_reproduce,
+    is_fertile,
+    mating_urge,
+)
 from emergence.scenario import make_simulation
 from emergence.simulation import SimulationConfig
 from emergence.world import Facility, FacilityType, World
@@ -88,6 +93,64 @@ class TestReproductionEligibility(unittest.TestCase):
         cfg = DrivesConfig(enabled=True, reproduction=False)
         a = _agent(age_days=10, hunger=0, fatigue=0, energy=100)
         self.assertFalse(can_reproduce(a, cfg, day=5))
+
+
+class TestInstinctAndPleasure(unittest.TestCase):
+    def test_libido_builds_over_time(self):
+        from emergence.simulation import Simulation
+        a = _agent()
+        sim = Simulation(world=World(4, 4), agents=[a], brains={},
+                         drives=DrivesConfig(enabled=True, reproduction=True,
+                                             libido_per_tick=10))
+        sim._drive_upkeep(a)
+        self.assertEqual(a.libido, 10.0)
+
+    def test_libido_does_not_build_without_reproduction(self):
+        from emergence.simulation import Simulation
+        a = _agent()
+        sim = Simulation(world=World(4, 4), agents=[a], brains={},
+                         drives=DrivesConfig(enabled=True, reproduction=False,
+                                             libido_per_tick=10))
+        sim._drive_upkeep(a)
+        self.assertEqual(a.libido, 0.0)
+
+    def test_mating_urge_zero_below_threshold(self):
+        cfg = DrivesConfig(enabled=True, reproduction=True, libido_threshold=45)
+        a = _agent(libido=30)
+        self.assertEqual(mating_urge(a, cfg), 0.0)
+
+    def test_mating_urge_grows_with_libido(self):
+        cfg = DrivesConfig(enabled=True, reproduction=True, libido_threshold=45)
+        low = _agent(libido=50)
+        high = _agent(libido=95)
+        self.assertGreater(mating_urge(high, cfg), mating_urge(low, cfg))
+        self.assertLessEqual(mating_urge(high, cfg), 1.0)
+
+    def test_eating_when_hungry_yields_pleasure(self):
+        from emergence.simulation import Simulation
+        a = _agent(hunger=80.0)
+        a.inventory["food"] = 3
+        sim = Simulation(world=World(4, 4), agents=[a], brains={},
+                         drives=DrivesConfig(enabled=True))
+        sim._do_eat(a, Action(ActionType.EAT))
+        self.assertGreater(a.pleasure, 0.0)
+
+    def test_mating_relieves_libido_and_rewards(self):
+        from emergence.simulation import Simulation
+        a = _agent(id="a", libido=90)
+        b = _agent(id="b", libido=90)
+        sim = Simulation(world=World(4, 4), agents=[a, b], brains={},
+                         drives=DrivesConfig(enabled=True, reproduction=True,
+                                             mate_libido_relief=80))
+        sim._discharge_mating(a, b)
+        self.assertLess(a.libido, 90)
+        self.assertGreater(a.pleasure, 0.0)
+        self.assertEqual(sim.metrics.matings, 1)
+
+    def test_near_starvation_blocks_fertility(self):
+        cfg = DrivesConfig(enabled=True, reproduction=True, repro_hunger_max=85)
+        starving = _agent(age_days=10, hunger=95, energy=80)
+        self.assertFalse(is_fertile(starving, cfg, day=5))
 
 
 class TestReproductionEndToEnd(unittest.TestCase):

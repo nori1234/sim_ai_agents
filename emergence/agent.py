@@ -30,12 +30,17 @@ class Agent:
     money: int = 20
     inventory: dict[str, int] = field(default_factory=lambda: {"food": 3, "materials": 0})
 
-    # The three primal drives (only active when DrivesConfig is enabled).
-    #   hunger  : 0 = full, 100 = starving      (rises over time, eat to lower)
-    #   fatigue : 0 = rested, 100 = exhausted   (rises over time, sleep to lower)
-    # Reproduction is gated on these two being satisfied plus age and trust.
+    # The three primal urges (only active when DrivesConfig is enabled). Each is
+    # an instinctual pressure that builds over time and is discharged — with a
+    # hit of pleasure — by the matching act. Behaviour is driven by these urges
+    # and the pleasure of relieving them, not by rational calculation.
+    #   hunger  : 0 = full,   100 = starving    (rises over time, EAT to lower)
+    #   fatigue : 0 = rested, 100 = exhausted   (rises over time, SLEEP to lower)
+    #   libido  : 0 = sated,  100 = desperate   (rises over time, MATE to lower)
     hunger: float = 0.0
     fatigue: float = 0.0
+    libido: float = 0.0
+    pleasure: float = 0.0         # lifetime pleasure accumulated (wellbeing)
     age_days: int = 99            # seeded adults start mature; newborns start at 0
     last_reproduced_day: Optional[int] = None
     parent_ids: tuple[str, ...] = ()
@@ -113,6 +118,7 @@ class Agent:
             "materials": self.materials(),
             "hunger": round(self.hunger, 1),
             "fatigue": round(self.fatigue, 1),
+            "libido": round(self.libido, 1),
             "age_days": self.age_days,
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,

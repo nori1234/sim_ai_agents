@@ -37,6 +37,8 @@ class Metrics:
 
     # Drives / population dynamics.
     births: int = 0
+    matings: int = 0
+    total_pleasure: float = 0.0
 
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
@@ -75,4 +77,6 @@ class Metrics:
             "laws_enacted": self.laws_enacted,
             "gov_form": self.gov_form,
             "births": self.births,
+            "matings": self.matings,
+            "total_pleasure": round(self.total_pleasure, 1),
         }

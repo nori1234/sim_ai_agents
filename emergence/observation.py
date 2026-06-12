@@ -27,8 +27,10 @@ class Observation:
     # Memory of the acting agent (its private recollections).
     memory: list[str] = field(default_factory=list)
 
-    # Drives layer: whether this agent is currently eligible to seek a mate.
+    # Drives layer: whether the body is capable of reproducing right now, and
+    # the instinctual 0..1 strength of the urge to seek a mate.
     can_reproduce: bool = False
+    mating_urge: float = 0.0
 
 
 def _facility_view(f: Facility, dist: int) -> dict:
