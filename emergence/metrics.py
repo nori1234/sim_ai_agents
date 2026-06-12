@@ -28,6 +28,13 @@ class Metrics:
     monuments_built: int = 0
     granary_deposits: int = 0
 
+    # Governance (extended).
+    fines_collected: int = 0
+    tax_days: int = 0
+    elections: int = 0
+    laws_enacted: int = 0
+    gov_form: str = "direct"
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -59,4 +66,9 @@ class Metrics:
             "collaborations": self.collaborations,
             "monuments_built": self.monuments_built,
             "granary_deposits": self.granary_deposits,
+            "fines_collected": self.fines_collected,
+            "tax_days": self.tax_days,
+            "elections": self.elections,
+            "laws_enacted": self.laws_enacted,
+            "gov_form": self.gov_form,
         }

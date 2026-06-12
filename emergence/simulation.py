@@ -10,7 +10,14 @@ from .actions import Action, ActionType
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
-from .governance import Legislature
+from .governance import (
+    GovernanceConfig,
+    GovernanceForm,
+    Legislature,
+    Mayor,
+    PolicyEngine,
+    ProposalStatus,
+)
 from .metrics import Metrics
 from .observation import Observation, _facility_view, _proposal_view
 from .world import (
@@ -54,15 +61,19 @@ class Simulation:
     config: SimulationConfig = field(default_factory=SimulationConfig)
 
     legislature: Legislature = field(default_factory=Legislature)
+    policy: PolicyEngine = field(default_factory=PolicyEngine)
     ledger: Ledger = field(default_factory=Ledger)
     metrics: Metrics = field(default_factory=Metrics)
     daily_log: list[dict] = field(default_factory=list)
     on_event: Optional[Callable[[dict], None]] = None
+    mayor: Optional[Mayor] = None
 
     def __post_init__(self) -> None:
         self.rng = random.Random(self.config.seed)
         self.metrics.population = len(self.agents)
         self._by_id = {a.id: a for a in self.agents}
+        # Sync policy engine with legislature config.
+        self.policy = PolicyEngine(self.legislature.config)
 
     # ==================================================================
     # Top-level run loop
@@ -80,7 +91,6 @@ class Simulation:
         return self.metrics
 
     def _run_tick(self) -> None:
-        # Randomise turn order each tick so no agent is structurally first.
         order = [a for a in self.agents if a.alive]
         self.rng.shuffle(order)
         for agent in order:
@@ -92,9 +102,15 @@ class Simulation:
             self._apply(agent, action)
             self._tick_upkeep(agent)
         # Resolve any proposals that reached quorum this tick.
-        for p in self.legislature.resolve_ready(self._living()):
+        electorate = len(self._eligible_voters())
+        for p in self.legislature.resolve_ready(electorate):
             self.world.log("proposal_resolved", id=p.id, status=p.status.value,
-                            yes=p.yes(), no=p.no())
+                           yes=p.yes(), no=p.no())
+            if p.status is ProposalStatus.PASSED:
+                law = self.policy.enact(p.id, p.text, self.world.day)
+                if law.effects:
+                    fx = ", ".join(e.value for e in law.effects)
+                    self.world.log("law_enacted", id=p.id, effects=fx)
 
     # ==================================================================
     # Observation
@@ -114,7 +130,9 @@ class Simulation:
             snap["distance"] = chebyshev(agent.pos, o.pos)
             snap["trust"] = round(agent.trust_of(o.id), 2)
             others.append(snap)
-        proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()]
+        eligible = self._eligible_voters()
+        proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
+                     if agent.id in eligible or not eligible]
         recent = [self._event_str(e) for e in self.world.events[-self.config.event_log_tail:]]
         return Observation(
             day=self.world.day,
@@ -249,20 +267,25 @@ class Simulation:
 
     # -- governance -----------------------------------------------------
     def _do_propose(self, agent: Agent, action: Action) -> None:
+        eligible = self._eligible_voters()
         text = str(action.params.get("text", "Untitled proposal")).strip()
-        p = self.legislature.propose(agent.id, text, self.world.day)
+        p = self.legislature.propose(agent.id, text, self.world.day,
+                                     eligible_ids=eligible or None)
+        if p is None:
+            return
         agent.proposals_made += 1
         self.metrics.proposals_total += 1
-        # The author backs their own proposal.
-        self.legislature.cast_vote(p.id, agent.id, True)
+        self.legislature.cast_vote(p.id, agent.id, True, eligible_ids=eligible or None)
         self.world.log("proposal", id=p.id, author=agent.id, text=text)
 
     def _do_vote(self, agent: Agent, action: Action) -> None:
+        eligible = self._eligible_voters()
         pid = action.params.get("proposal_id")
         support = bool(action.params.get("support", True))
         if pid is None:
             return
-        if self.legislature.cast_vote(int(pid), agent.id, support):
+        if self.legislature.cast_vote(int(pid), agent.id, support,
+                                      eligible_ids=eligible or None):
             agent.votes_cast += 1
 
     # -- construction & collaboration -----------------------------------
@@ -307,6 +330,8 @@ class Simulation:
 
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
+        if self._deterred(agent):
+            return
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
@@ -318,12 +343,13 @@ class Simulation:
         self._register_crime(agent, "theft", victim)
 
     def _do_attack(self, agent: Agent, action: Action) -> None:
+        if self._deterred(agent):
+            return
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
         self._spend(agent, ActionType.ATTACK)
         victim.energy -= ATTACK_DAMAGE
-        # Violence often comes with plunder.
         agent.money += victim.take("money", 3)
         self._register_crime(agent, "violence", victim)
         if victim.energy <= 0 and victim.alive:
@@ -332,6 +358,8 @@ class Simulation:
             self.world.log("death", agent=victim.id, cause="violence")
 
     def _do_arson(self, agent: Agent, action: Action) -> None:
+        if self._deterred(agent):
+            return
         name = action.params.get("facility_name")
         f = next((x for x in self.world.facilities if x.name == name), None)
         if f is None:
@@ -367,10 +395,20 @@ class Simulation:
         offender.crimes_committed += 1
         victim.times_victimized += 1
         self.metrics.record_crime(kind)
-        # The victim remembers and distrusts; this seeds retaliation spirals.
         victim.adjust_trust(offender.id, -0.6)
         victim.remember(f"Day {self.world.day}: {offender.name} committed {kind} against me.")
         self.world.log(kind, offender=offender.id, victim=victim.id, pos=victim.pos)
+        # If a punishment law is active and the victim is near a police station,
+        # the offender is fined immediately.
+        if self.policy.has_punishment_law():
+            nearest_police = self.world.nearest(victim.pos, FacilityType.POLICE_STATION)
+            if nearest_police and chebyshev(victim.pos, nearest_police.pos) <= self.policy.config.police_range:
+                fine = min(offender.money, self.policy.config.fine_amount)
+                offender.money -= fine
+                victim.money += fine // 2
+                self.world.granary_food += 1
+                self.world.log("fine", offender=offender.id, amount=fine)
+                self.metrics.fines_collected += 1
 
     # ==================================================================
     # Upkeep, day boundaries, finalisation
@@ -383,6 +421,8 @@ class Simulation:
             self.world.log("death", agent=agent.id, cause="starvation")
 
     def _end_of_day(self, verbose: bool) -> None:
+        self._apply_daily_policy()
+        self._maybe_elect_mayor()
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
@@ -392,18 +432,61 @@ class Simulation:
             "passed": passed,
             "rejected": rejected,
             "frauds": self.metrics.frauds,
+            "fines": self.metrics.fines_collected,
             "granary_food": self.world.granary_food,
+            "active_laws": len(self.policy.laws),
+            "mayor": self.mayor.agent_id if self.mayor else None,
         }
         self.daily_log.append(summary)
         if self.on_event:
             self.on_event({"kind": "day_summary", **summary})
         if verbose:
+            gov_tag = self.policy.config.form.value[:4]
+            mayor_tag = f" mayor={self.mayor.agent_id}" if self.mayor else ""
             print(
                 f"Day {summary['day']:>2}: alive={summary['alive']:>2} "
                 f"crimes={summary['crimes_total']:>3} "
                 f"proposals={passed}/{total} passed "
-                f"frauds={summary['frauds']}"
+                f"frauds={summary['frauds']} fines={summary['fines']} "
+                f"laws={summary['active_laws']} gov={gov_tag}{mayor_tag}"
             )
+
+    def _apply_daily_policy(self) -> None:
+        """Run once per day: tax, food redistribution."""
+        living = [a for a in self.agents if a.alive]
+        if not living:
+            return
+        if self.policy.has_tax():
+            # Take a fraction from the richest agents; give to the commons.
+            living_sorted = sorted(living, key=lambda a: a.money, reverse=True)
+            top = living_sorted[: max(1, len(living_sorted) // 3)]
+            for a in top:
+                tribute = int(a.money * self.policy.config.tax_rate)
+                a.money -= tribute
+                self.world.granary_food += tribute // 2  # converts to shared food
+            self.metrics.tax_days += 1
+        if self.policy.has_food_redistribution():
+            # Top-up the granary with a small daily grant and notify agents.
+            grant = max(2, len(living))
+            self.world.granary_food += grant
+
+    def _maybe_elect_mayor(self) -> None:
+        interval = self.policy.config.election_interval
+        if self.world.day % interval != 0:
+            return
+        if self.policy.config.form is GovernanceForm.ANARCHY:
+            return
+        living = [a for a in self.agents if a.alive]
+        if not living:
+            return
+        winner = max(living, key=lambda a: a.votes_cast)
+        self.mayor = Mayor(
+            agent_id=winner.id,
+            elected_day=self.world.day,
+            term_ends_day=self.world.day + interval,
+        )
+        self.world.log("election", mayor=winner.id, day=self.world.day)
+        self.metrics.elections += 1
 
     def _finalize(self, last_day: int) -> None:
         self.metrics.days_run = last_day
@@ -412,9 +495,36 @@ class Simulation:
         self.metrics.proposals_total = total
         self.metrics.proposals_passed = passed
         self.metrics.proposals_rejected = rejected
+        self.metrics.laws_enacted = len(self.policy.laws)
+        self.metrics.gov_form = self.policy.config.form.value
 
     def _living(self) -> int:
         return sum(1 for a in self.agents if a.alive)
+
+    def _eligible_voters(self) -> set[str]:
+        """Returns the set of agent IDs allowed to vote/propose.
+        Empty set means everyone is eligible (direct/constitutional/anarchy)."""
+        cfg = self.policy.config
+        if cfg.form is GovernanceForm.OLIGARCHY:
+            living = [a for a in self.agents if a.alive]
+            top = sorted(living, key=lambda a: a.money, reverse=True)
+            return {a.id for a in top[: cfg.oligarch_count]}
+        return set()
+
+    def _deterred(self, agent: Agent) -> bool:
+        """Return True if the agent should abort a crime due to police presence."""
+        nearest_police = self.world.nearest(agent.pos, FacilityType.POLICE_STATION)
+        if nearest_police is None:
+            return False
+        dist = chebyshev(agent.pos, nearest_police.pos)
+        cfg = self.policy.config
+        if dist > cfg.police_range:
+            return False
+        mult = self.policy.crime_deterrence_multiplier()
+        # Closer to the station → stronger deterrence.
+        proximity_factor = 1.0 - (dist / (cfg.police_range + 1))
+        deterrence_prob = (1.0 - mult) * proximity_factor
+        return self.rng.random() < deterrence_prob
 
     # ==================================================================
     @staticmethod

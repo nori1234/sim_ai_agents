@@ -3,7 +3,7 @@ import unittest
 from emergence.actions import Action, ActionType
 from emergence.agent import Agent
 from emergence.economy import apply_transfer, is_fraudulent_solicitation
-from emergence.governance import Legislature, ProposalStatus
+from emergence.governance import GovernanceConfig, Legislature, ProposalStatus
 from emergence.scenario import make_simulation
 from emergence.simulation import Simulation, SimulationConfig
 from emergence.world import Facility, FacilityType, World
@@ -36,7 +36,7 @@ class TestEconomy(unittest.TestCase):
 
 class TestGovernance(unittest.TestCase):
     def test_proposal_passes_on_majority(self):
-        leg = Legislature(quorum=3)
+        leg = Legislature(GovernanceConfig(quorum=3))
         p = leg.propose("a", "rule", day=1)
         for voter, yes in (("a", True), ("b", True), ("c", False)):
             leg.cast_vote(p.id, voter, yes)
@@ -45,7 +45,7 @@ class TestGovernance(unittest.TestCase):
         self.assertIn(p, resolved)
 
     def test_proposal_rejected_on_minority(self):
-        leg = Legislature(quorum=3)
+        leg = Legislature(GovernanceConfig(quorum=3))
         p = leg.propose("a", "rule", day=1)
         for voter, yes in (("a", True), ("b", False), ("c", False)):
             leg.cast_vote(p.id, voter, yes)

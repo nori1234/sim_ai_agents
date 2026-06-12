@@ -147,6 +147,38 @@ emergence/
 が低いエージェントは危機時でさえ採集・食事という生存維持を後回しにし、議論に明け暮れた末に
 餓死します。`Guardian` は勤勉なので必ず生き延び、`Idealist` は7日以内に滅びます。
 
+## 統治制度（Governance）
+
+`--governance` フラグで、**同じ人口に異なる統治制度を与えたとき、社会がどう変わるか**を比べられます。
+
+```bash
+# 同じ Philosopher 集団（Gemini-like）で4制度を比較
+python3 -m emergence.cli --compare-gov --persona gemini
+```
+
+| 制度 | 特徴 | 効果 |
+|------|------|------|
+| `direct` | 全員が等しく投票・提案（デフォルト） | 議会が活発・多数の法案 |
+| `oligarchy` | 上位3名（最富裕）のみ投票可能 | 法案数が激減・支配層が警察強化 |
+| `constitutional` | 通常法案は過半数／"rights" 法案は2/3超 | 権利法案は厳しく審査 |
+| `anarchy` | 統治機構なし | 法律ゼロ・警察の抑止力なし |
+
+**可決された法案は実際に機械的な効果を持ちます**（キーワード解析）:
+
+| 法案に含まれるキーワード | 効果 |
+|---|---|
+| ban / theft / violence / crime | 警察の抑止範囲が強化される |
+| granary / quota / food / starv | 毎日の公共食料が補給される |
+| tax / levy / fund | 富裕層から毎日一定割合を徴収 → 共有資源へ |
+| fine / punish / penalty / jail | 警察署近くで犯罪が発覚すると即時罰金 |
+
+さらに **市長制度**（`election_interval` 日ごとに投票数トップが市長に就任）が動いています。
+
+**観察されたパターン（`--compare-gov --persona gemini`）**:
+- `oligarchy` は Philosopher 集団の生存率を上げる — 少数が強権を持つと犯罪立法より治安投資が進む
+- `anarchy` は犯罪の抑止機構が完全に消え、混沌が増幅する
+- `constitutional` は詐欺が増える — 正義の言葉で権利を訴える提案に保護がつき、議論が長引く間に詐欺が横行
+
 ## なぜベンチマークとして意味があるか
 
 従来のAIベンチは「制御環境で数分〜数時間の単発タスク」を測るものでした。Emergence World は

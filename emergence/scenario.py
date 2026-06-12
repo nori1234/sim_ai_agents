@@ -7,6 +7,7 @@ import random
 from .agent import Agent
 from .brains.base import AgentBrain
 from .brains.heuristic import HeuristicBrain
+from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
 from .personas import get_persona
 from .simulation import Simulation, SimulationConfig
 from .world import World, build_default_world
@@ -56,6 +57,7 @@ def make_simulation(
     *,
     n_agents: int = 10,
     config: SimulationConfig | None = None,
+    governance: str | GovernanceConfig = "direct",
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -69,6 +71,10 @@ def make_simulation(
     :class:`HeuristicBrain`.
     """
     config = config or SimulationConfig()
+    if isinstance(governance, str):
+        gov_cfg = GOVERNANCE_PRESETS.get(governance, GOVERNANCE_PRESETS["direct"])
+    else:
+        gov_cfg = governance
     rng = random.Random(config.seed)
     world = build_default_world()
     agents = build_population(n_agents, world, rng)
@@ -90,4 +96,9 @@ def make_simulation(
                 persona, random.Random(rng.randint(0, 2**31))
             )
 
-    return Simulation(world=world, agents=agents, brains=brains, config=config)
+    legislature = Legislature(gov_cfg)
+    policy = PolicyEngine(gov_cfg)
+    return Simulation(
+        world=world, agents=agents, brains=brains, config=config,
+        legislature=legislature, policy=policy,
+    )
