@@ -51,3 +51,7 @@ build/
 dist/
 .venv/
 venv/
+
+# Generated visualization output
+out/
+*.html

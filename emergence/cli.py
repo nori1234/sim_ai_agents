@@ -72,6 +72,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument(
+        "--html", metavar="PATH", default=None,
+        help="write a self-contained HTML visualization to PATH",
+    )
+    parser.add_argument(
         "--compare", action="store_true",
         help="run all four archetypes and print a comparison table",
     )
@@ -87,9 +91,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     sim = _run_one(persona_mix, args)
 
+    if args.html:
+        from .viz import write_html
+        write_html(sim, args.html, title=f"Emergence World [{args.persona}]")
+        print(f"Wrote visualization to {args.html}")
+
     if args.json:
         print(json.dumps(sim.metrics.as_dict(), ensure_ascii=False, indent=2))
-    else:
+    elif not args.html:
         print(format_report(sim, title=f"Emergence World [{args.persona}]"))
         print()
         print("Verdict:", one_line_verdict(sim))

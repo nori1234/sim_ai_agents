@@ -25,11 +25,34 @@ python3 -m emergence.cli --persona claude --verbose
 # 性格を混在させてJSONメトリクスを出力
 python3 -m emergence.cli --persona guardian,predator --json
 
+# 自己完結HTMLの可視化を出力（ブラウザで開くだけ・依存ゼロ）
+python3 -m emergence.cli --persona gemini --html out/gemini.html
+
 # デモスクリプト
 python3 examples/run_demo.py
 
 # テスト
 python3 -m unittest discover -s tests
+```
+
+## 可視化（HTML）
+
+`--html PATH` で、実行結果を **1枚の自己完結HTML**（インラインSVG/CSS・外部依存なし）に
+書き出します。ブラウザで開くだけで以下が見られます。
+
+- **メトリクスカード**＋一言の評定
+- **日次タイムライン**：生存数（左軸）・累積犯罪・累積詐欺（右軸）の15日推移
+- **町マップ＋犯罪ヒートマップ**：40以上の施設の上に、犯罪の空間分布を赤の濃淡で重畳
+- **信頼ネットワーク**：終了時点のエージェント間の信頼（緑）／不信（赤）
+
+例えば Claude 系は「犯罪ヒートマップが真っ白」、Gemini 系は「特定セルに犯罪が集中して真っ赤」、
+Grok 系は「信頼ネットワークが不信（赤）だらけ」といった違いが一目で分かります。
+
+```python
+from emergence.viz import write_html
+from emergence.scenario import make_simulation
+sim = make_simulation("gemini"); sim.run()
+write_html(sim, "out/gemini.html", title="Emergence World [gemini]")
 ```
 
 ## 比較結果（`--compare`）

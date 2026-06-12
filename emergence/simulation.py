@@ -340,7 +340,8 @@ class Simulation:
         agent.crimes_committed += 1
         self.metrics.record_crime("arson")
         self.world.log("arson", offender=agent.id,
-                       facility=f.name if f else "unknown")
+                       facility=f.name if f else "unknown",
+                       pos=(f.pos if f else agent.pos))
         # Burning a granary spills the commons.
         if f and f.ftype == FacilityType.GRANARY:
             self.world.granary_food = max(0, self.world.granary_food - 5)
@@ -369,7 +370,7 @@ class Simulation:
         # The victim remembers and distrusts; this seeds retaliation spirals.
         victim.adjust_trust(offender.id, -0.6)
         victim.remember(f"Day {self.world.day}: {offender.name} committed {kind} against me.")
-        self.world.log(kind, offender=offender.id, victim=victim.id)
+        self.world.log(kind, offender=offender.id, victim=victim.id, pos=victim.pos)
 
     # ==================================================================
     # Upkeep, day boundaries, finalisation
