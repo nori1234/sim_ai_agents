@@ -29,6 +29,7 @@ import argparse
 import json
 import sys
 
+from .drives import DrivesConfig
 from .governance import GOVERNANCE_PRESETS
 from .personas import ALIASES, PERSONAS
 from .report import format_report, one_line_verdict
@@ -36,10 +37,18 @@ from .scenario import make_simulation
 from .simulation import SimulationConfig
 
 
+def _drives_from_args(args) -> DrivesConfig:
+    """Build a DrivesConfig from CLI flags (disabled unless --drives)."""
+    repro = getattr(args, "reproduction", False)
+    if not getattr(args, "drives", False) and not repro:
+        return DrivesConfig()
+    return DrivesConfig(enabled=True, reproduction=repro)
+
+
 def _run_one(persona_mix, args, governance: str = "direct"):
     config = SimulationConfig(days=args.days, ticks_per_day=args.ticks, seed=args.seed)
     sim = make_simulation(persona_mix, n_agents=args.agents, config=config,
-                          governance=governance)
+                          governance=governance, drives=_drives_from_args(args))
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -52,14 +61,15 @@ def _compare(args) -> int:
         m = sim.metrics
         rows.append((PERSONAS[key].label, m, one_line_verdict(sim)))
     header = (
-        f"{'Society':<12} {'Surv':>5} {'Crime':>6} {'Pass%':>6} "
+        f"{'Society':<12} {'Surv':>5} {'Born':>5} {'Crime':>6} {'Pass%':>6} "
         f"{'Laws':>5} {'Fines':>6} {'Fraud':>6} {'Collab':>7}  Verdict"
     )
     print(header)
     print("-" * len(header))
     for label, m, verdict in rows:
         print(
-            f"{label:<12} {m.survivors:>2}/{m.population:<2} {m.crimes_total:>6} "
+            f"{label:<12} {m.survivors:>2}/{m.population:<2} {m.births:>5} "
+            f"{m.crimes_total:>6} "
             f"{m.pass_rate:>5.0%} {m.laws_enacted:>5} {m.fines_collected:>6} "
             f"{m.frauds:>6} {m.collaborations:>7}  {verdict}"
         )
@@ -114,6 +124,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--days", type=int, default=15, help="days to simulate")
     parser.add_argument("--ticks", type=int, default=8, help="turns per agent per day")
     parser.add_argument("--seed", type=int, default=42, help="RNG seed")
+    parser.add_argument("--drives", action="store_true",
+                        help="enable the three primal drives (hunger + sleep)")
+    parser.add_argument("--reproduction", action="store_true",
+                        help="also enable reproduction (implies --drives)")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")

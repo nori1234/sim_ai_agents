@@ -11,9 +11,11 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
     lines.append(f"=== {title} — {m.days_run}-day report ===")
     lines.append("")
     lines.append(
-        f"Survivors:   {m.survivors}/{m.population}  "
-        f"(survival rate {m.survival_rate:.0%})"
+        f"Survivors:   {m.survivors} living  "
+        f"(started with {m.population}, survival rate {m.survival_rate:.0%})"
     )
+    if m.births:
+        lines.append(f"Births:      {m.births} children born during the run")
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):
@@ -58,7 +60,14 @@ def one_line_verdict(sim: Simulation) -> str:
     m = sim.metrics
     if m.survivors == 0:
         return "COLLAPSE — the town died out."
-    if m.crimes_total == 0 and m.survival_rate == 1.0:
+    # Population growth (only possible with reproduction enabled).
+    if m.births > 0 and m.survivors > m.population:
+        if m.crimes_total == 0:
+            return "FLOURISHING — a peaceful society that grew its population."
+        if m.crimes_total >= 100:
+            return "FERTILE CHAOS — the population grew amid pervasive crime."
+        return "GROWING — an imperfect society that still expanded."
+    if m.crimes_total == 0 and m.survival_rate >= 1.0:
         return "ORDER — peaceful, fully cooperative, but highly conformist."
     if m.crimes_total >= 100:
         return "CHAOS — pervasive crime and violence."

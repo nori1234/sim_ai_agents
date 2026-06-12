@@ -30,6 +30,16 @@ class Agent:
     money: int = 20
     inventory: dict[str, int] = field(default_factory=lambda: {"food": 3, "materials": 0})
 
+    # The three primal drives (only active when DrivesConfig is enabled).
+    #   hunger  : 0 = full, 100 = starving      (rises over time, eat to lower)
+    #   fatigue : 0 = rested, 100 = exhausted   (rises over time, sleep to lower)
+    # Reproduction is gated on these two being satisfied plus age and trust.
+    hunger: float = 0.0
+    fatigue: float = 0.0
+    age_days: int = 99            # seeded adults start mature; newborns start at 0
+    last_reproduced_day: Optional[int] = None
+    parent_ids: tuple[str, ...] = ()
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -45,6 +55,7 @@ class Agent:
     votes_cast: int = 0
     collaborations: int = 0
     frauds_committed: int = 0
+    children: int = 0
 
     @property
     def pos(self) -> tuple[int, int]:
@@ -100,6 +111,9 @@ class Agent:
             "money": self.money,
             "food": self.food(),
             "materials": self.materials(),
+            "hunger": round(self.hunger, 1),
+            "fatigue": round(self.fatigue, 1),
+            "age_days": self.age_days,
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,
         }

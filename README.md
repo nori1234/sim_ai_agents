@@ -111,6 +111,38 @@ Claude（Anthropic）に向ける場合は `provider="anthropic"`, `model="claud
 `api_key=$ANTHROPIC_API_KEY` を指定します。エンドポイントが落ちていても、
 各エージェントは persona 由来の `HeuristicBrain` に自動フォールバックするので run は止まりません。
 
+## 三大欲求（食欲・睡眠欲・性欲）
+
+`--drives` / `--reproduction` で、人間の **三大欲求** をエージェントに与えられます
+（デフォルトは off ＝ 記事の4社会の再現性は不変）。
+
+| 欲求 | ステータス | 仕組み |
+|------|-----------|--------|
+| **食欲** | `hunger` | 毎ティック上昇。`EAT` で低下。高いとエネルギーを余計に消耗 |
+| **睡眠欲** | `fatigue` | 毎ティック上昇。`SLEEP`（家/病院で効果増）で大きく回復。高いと消耗 |
+| **性欲** | 繁殖 | 成熟・満腹・休息・相互信頼を満たす2体が隣接して `MATE` → **子を出産** |
+
+子は親の persona を継承し、人口動態が生まれます（近接で少しずつ育つ「親密さ」が
+つがいの絆を形成）。`--reproduction` を付けると、**三大欲求が4社会を生殖の観点で截然と分けます**:
+
+```bash
+python3 -m emergence.cli --compare --reproduction
+```
+
+```
+Society       Surv  Born  Crime  Verdict
+Guardian     30/10    20      0   FLOURISHING — 全欲求が満たされ人口が増加
+Philosopher  21/10    19    132   FERTILE CHAOS — 混沌の中でも人口は増える
+Idealist      1/10     0      1   FAILURE — 食事も絆も子も作れず絶滅
+Predator      1/10     0     40   FAILURE — 暴力が信頼を壊し、つがいになれず絶滅
+```
+
+- **Guardian（Claude）**: 全欲求が満たされ人口が10→30に爆発（上限到達）
+- **Idealist（GPT-5）**: 議論ばかりで食事を怠り、絆も子も残せず絶滅
+- **Predator（Grok）**: 暴力で信頼が崩壊し、生殖に必要なつがいが形成されない
+
+`python3 examples/run_with_drives.py` で全アーキタイプを比較できます。
+
 ## 仕組み
 
 ```
@@ -119,8 +151,9 @@ emergence/
   agent.py        エージェント：職業・エネルギー・所持金・在庫・記憶・信頼関係
   actions.py      行動の語彙（移動/採集/食事/労働/送金/勧誘/提案/投票/建築/協調/窃盗/暴力/放火…）
   observation.py  各エージェントが毎ターン受け取る観測
-  governance.py   提案と投票（定足数・多数決・可決率）
+  governance.py   統治制度・可決法案の機械的効果・市長制・政策エンジン
   economy.py      資源移転の台帳と「残高ゼロ詐欺」の検出
+  drives.py       三大欲求（食欲・睡眠欲・性欲/繁殖）の設定と判定
   personas.py     性格アーキタイプ（4モデルを再現するノブ）
   metrics.py      犯罪件数・生存率・可決率・詐欺・協調などの集計
   simulation.py   メインループ：観測→意思決定→行動適用→エネルギー減衰→死→日次集計

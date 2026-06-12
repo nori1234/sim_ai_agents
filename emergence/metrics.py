@@ -35,6 +35,9 @@ class Metrics:
     laws_enacted: int = 0
     gov_form: str = "direct"
 
+    # Drives / population dynamics.
+    births: int = 0
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -71,4 +74,5 @@ class Metrics:
             "elections": self.elections,
             "laws_enacted": self.laws_enacted,
             "gov_form": self.gov_form,
+            "births": self.births,
         }

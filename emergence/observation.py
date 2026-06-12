@@ -27,6 +27,9 @@ class Observation:
     # Memory of the acting agent (its private recollections).
     memory: list[str] = field(default_factory=list)
 
+    # Drives layer: whether this agent is currently eligible to seek a mate.
+    can_reproduce: bool = False
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

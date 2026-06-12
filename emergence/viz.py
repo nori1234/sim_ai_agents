@@ -48,13 +48,15 @@ def _esc(s) -> str:
 # ----------------------------------------------------------------------
 def _cards(sim: Simulation) -> str:
     m = sim.metrics
+    growth = f"+{m.births} born" if m.births else f"{m.survival_rate:.0%} survived"
     cards = [
-        ("Survivors", f"{m.survivors}/{m.population}", f"{m.survival_rate:.0%} survived"),
+        ("Survivors", f"{m.survivors}", f"from {m.population} — {growth}"),
         ("Crimes", f"{m.crimes_total}", "theft / violence / arson"),
         ("Pass rate", f"{m.pass_rate:.0%}", f"{m.proposals_passed}/{m.proposals_total} bills"),
         ("Fraud", f"{m.frauds}", '"I\'m broke" scams'),
         ("Collaboration", f"{m.collaborations}", f"{m.monuments_built} monuments"),
-        ("Days run", f"{m.days_run}", "of scheduled run"),
+        ("Births", f"{m.births}", "children born") if m.births
+        else ("Days run", f"{m.days_run}", "of scheduled run"),
     ]
     html_cards = "".join(
         f'<div class="card"><div class="card-val">{_esc(v)}</div>'

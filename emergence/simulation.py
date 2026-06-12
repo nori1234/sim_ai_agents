@@ -9,6 +9,7 @@ from typing import Callable, Optional
 from .actions import Action, ActionType
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
+from .drives import DrivesConfig, can_reproduce
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .governance import (
     GovernanceConfig,
@@ -67,6 +68,9 @@ class Simulation:
     daily_log: list[dict] = field(default_factory=list)
     on_event: Optional[Callable[[dict], None]] = None
     mayor: Optional[Mayor] = None
+    drives: DrivesConfig = field(default_factory=DrivesConfig)
+    # Mints a brain for a newborn given (child_agent, persona_key, rng).
+    newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
     def __post_init__(self) -> None:
         self.rng = random.Random(self.config.seed)
@@ -74,6 +78,8 @@ class Simulation:
         self._by_id = {a.id: a for a in self.agents}
         # Sync policy engine with legislature config.
         self.policy = PolicyEngine(self.legislature.config)
+        # Counter for minting unique newborn ids.
+        self._next_agent_num = len(self.agents) + 1
 
     # ==================================================================
     # Top-level run loop
@@ -146,6 +152,7 @@ class Simulation:
             granary_food=self.world.granary_food,
             recent_events=recent,
             memory=list(agent.memory),
+            can_reproduce=can_reproduce(agent, self.drives, self.world.day),
         )
 
     # ==================================================================
@@ -193,6 +200,36 @@ class Simulation:
     def _do_eat(self, agent: Agent, action: Action) -> None:
         used = agent.take("food", EAT_FOOD_USED)
         agent.energy = min(MAX_ENERGY, agent.energy + used * EAT_ENERGY_PER_FOOD)
+        if self.drives.enabled:
+            agent.hunger = max(0.0, agent.hunger - used * self.drives.eat_hunger_relief)
+
+    def _do_sleep(self, agent: Agent, action: Action) -> None:
+        """Relieve fatigue (more effectively under a roof)."""
+        f = self.world.facility_at(agent.pos)
+        sheltered = f and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}
+        relief = self.drives.sleep_relief * (1.3 if sheltered else 1.0)
+        agent.fatigue = max(0.0, agent.fatigue - relief)
+        agent.energy = min(MAX_ENERGY, agent.energy + self.drives.sleep_energy_gain)
+
+    def _do_mate(self, agent: Agent, action: Action) -> None:
+        if not (self.drives.enabled and self.drives.reproduction):
+            return
+        partner = self._by_id.get(action.params.get("target"))
+        if partner is None or partner is agent or not partner.alive:
+            return
+        if len([a for a in self.agents if a.alive]) >= self.drives.max_population:
+            return
+        # Both partners must currently qualify and be close together.
+        if not (can_reproduce(agent, self.drives, self.world.day)
+                and can_reproduce(partner, self.drives, self.world.day)):
+            return
+        if chebyshev(agent.pos, partner.pos) > 1:
+            agent.pos = self.world.step_towards(agent.pos, partner.pos)
+            return  # spend this turn closing the distance
+        if agent.trust_of(partner.id) < self.drives.repro_trust_min or \
+                partner.trust_of(agent.id) < self.drives.repro_trust_min:
+            return
+        self._spawn_child(agent, partner)
 
     def _do_rest(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
@@ -415,14 +452,82 @@ class Simulation:
     # ==================================================================
     def _tick_upkeep(self, agent: Agent) -> None:
         agent.energy -= ENERGY_DECAY_PER_TICK
+        if self.drives.enabled:
+            self._drive_upkeep(agent)
         if agent.energy <= 0 and agent.alive:
-            agent.die(self.world.day, "starvation")
+            cause = "starvation"
+            if self.drives.enabled and agent.fatigue >= 100.0:
+                cause = "exhaustion"
+            agent.die(self.world.day, cause)
             self.metrics.deaths += 1
-            self.world.log("death", agent=agent.id, cause="starvation")
+            self.world.log("death", agent=agent.id, cause=cause)
+
+    def _drive_upkeep(self, agent: Agent) -> None:
+        """Raise hunger and fatigue; let unmet drives erode energy; and let
+        neighbours grow familiar (so pair bonds can form for reproduction)."""
+        d = self.drives
+        agent.hunger = min(100.0, agent.hunger + d.hunger_per_tick)
+        agent.fatigue = min(100.0, agent.fatigue + d.fatigue_per_tick)
+        if agent.hunger > d.hunger_threshold:
+            agent.energy -= d.hunger_energy_penalty
+        if agent.fatigue > d.fatigue_threshold:
+            agent.energy -= d.fatigue_energy_penalty
+        # Familiarity: spending time near someone slowly builds mild trust.
+        # Applied per-agent each tick, so it becomes mutual over the tick.
+        for o in self.agents:
+            if o.id != agent.id and o.alive and chebyshev(agent.pos, o.pos) <= 2:
+                # Don't whitewash real grievances: only nudge non-negative ties.
+                if agent.trust_of(o.id) >= -0.05:
+                    agent.adjust_trust(o.id, 0.03)
+
+    def _spawn_child(self, parent_a: Agent, parent_b: Agent) -> None:
+        d = self.drives
+        num = self._next_agent_num
+        self._next_agent_num += 1
+        # The child inherits one parent's persona (chosen by coin flip).
+        persona_key = self.rng.choice([parent_a.persona, parent_b.persona])
+        child = Agent(
+            id=f"a{num}",
+            name=f"{parent_a.name.split('-')[0]}{num}",
+            profession="child",
+            persona=persona_key,
+            x=parent_a.x,
+            y=parent_a.y,
+            energy=d.child_energy,
+            money=5,
+            age_days=0,
+            parent_ids=(parent_a.id, parent_b.id),
+        )
+        child.inventory = {"food": 2, "materials": 0}
+        # The newborn trusts and is trusted by its parents.
+        for p in (parent_a, parent_b):
+            child.adjust_trust(p.id, 0.5)
+            p.adjust_trust(child.id, 0.5)
+            p.energy -= d.repro_energy_cost
+            p.last_reproduced_day = self.world.day
+            p.children += 1
+
+        self.agents.append(child)
+        self._by_id[child.id] = child
+        self.brains[child.id] = self._make_newborn_brain(child, persona_key)
+        self.metrics.births += 1
+        self.world.log("birth", child=child.id, parents=f"{parent_a.id}+{parent_b.id}",
+                       persona=persona_key)
+
+    def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
+        if self.newborn_brain_factory is not None:
+            return self.newborn_brain_factory(child, persona_key, self.rng)
+        # Default: a persona-tuned heuristic with its own derived RNG.
+        from .brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona_key, random.Random(self.rng.randint(0, 2**31)))
 
     def _end_of_day(self, verbose: bool) -> None:
         self._apply_daily_policy()
         self._maybe_elect_mayor()
+        if self.drives.enabled:
+            for a in self.agents:
+                if a.alive:
+                    a.age_days += 1
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
@@ -433,6 +538,7 @@ class Simulation:
             "rejected": rejected,
             "frauds": self.metrics.frauds,
             "fines": self.metrics.fines_collected,
+            "births": self.metrics.births,
             "granary_food": self.world.granary_food,
             "active_laws": len(self.policy.laws),
             "mayor": self.mayor.agent_id if self.mayor else None,
@@ -443,12 +549,13 @@ class Simulation:
         if verbose:
             gov_tag = self.policy.config.form.value[:4]
             mayor_tag = f" mayor={self.mayor.agent_id}" if self.mayor else ""
+            births_tag = f" births={summary['births']}" if self.drives.reproduction else ""
             print(
                 f"Day {summary['day']:>2}: alive={summary['alive']:>2} "
                 f"crimes={summary['crimes_total']:>3} "
                 f"proposals={passed}/{total} passed "
                 f"frauds={summary['frauds']} fines={summary['fines']} "
-                f"laws={summary['active_laws']} gov={gov_tag}{mayor_tag}"
+                f"laws={summary['active_laws']} gov={gov_tag}{mayor_tag}{births_tag}"
             )
 
     def _apply_daily_policy(self) -> None:

@@ -7,6 +7,7 @@ import random
 from .agent import Agent
 from .brains.base import AgentBrain
 from .brains.heuristic import HeuristicBrain
+from .drives import DrivesConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
 from .personas import get_persona
 from .simulation import Simulation, SimulationConfig
@@ -58,6 +59,7 @@ def make_simulation(
     n_agents: int = 10,
     config: SimulationConfig | None = None,
     governance: str | GovernanceConfig = "direct",
+    drives: DrivesConfig | None = None,
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -101,4 +103,5 @@ def make_simulation(
     return Simulation(
         world=world, agents=agents, brains=brains, config=config,
         legislature=legislature, policy=policy,
+        drives=drives or DrivesConfig(),
     )

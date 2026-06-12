@@ -36,6 +36,12 @@ class HeuristicBrain(AgentBrain):
     def decide(self, agent: Agent, obs: Observation) -> Action:
         p = self.persona
 
+        # 0. Primal drives (only non-trivial when the drives layer is enabled,
+        #    otherwise hunger/fatigue stay 0 and these checks are no-ops).
+        drive = self._drive_action(agent, obs)
+        if drive is not None:
+            return drive
+
         # 1. Survival comes first — but a low-diligence agent often skips it,
         #    which is how idealists talk themselves into starvation.
         survival = self._survival_action(agent, obs)
@@ -90,6 +96,55 @@ class HeuristicBrain(AgentBrain):
 
         # 8. Otherwise do something productive: earn or stockpile.
         return self._default_productive(agent, obs)
+
+    # -- drives (hunger / sleep / reproduction) -------------------------
+    def _drive_action(self, agent: Agent, obs: Observation) -> Action | None:
+        # Hunger: if hungry, eat what we have or go find food (act before the
+        # penalty threshold so diligent agents stay ahead of starvation).
+        if agent.hunger >= 55:
+            if agent.food() > 0:
+                return Action(ActionType.EAT, rationale="hunger pangs")
+            if obs.here and obs.here["type"] in FOOD_SOURCES:
+                if obs.here["type"] == "granary" and obs.granary_food > 0:
+                    return Action(ActionType.DRAW_GRANARY, rationale="hungry")
+                return Action(ActionType.GATHER, rationale="harvest food")
+            return Action(ActionType.MOVE,
+                          {"facility_type": self._nearest_food_type(obs)},
+                          rationale="seek food (hungry)")
+
+        # Sleep: if tired, sleep — ideally under a roof.
+        if agent.fatigue >= 62:
+            here = obs.here["type"] if obs.here else None
+            if here in {"house", "hospital"}:
+                return Action(ActionType.SLEEP, rationale="exhausted")
+            # Diligent agents seek shelter; otherwise just sleep where they are.
+            if self.rng.random() < 0.6:
+                return Action(ActionType.MOVE, {"facility_type": "house"},
+                              rationale="find a bed")
+            return Action(ActionType.SLEEP, rationale="sleep rough")
+
+        # Reproduction: well-fed, rested, and eligible — seek a willing mate.
+        # The MATE handler walks the agent toward a distant partner, so we are
+        # willing to court someone across the map, not just an adjacent one.
+        if obs.can_reproduce and self.rng.random() < 0.7:
+            mate = self._find_mate(agent, obs)
+            if mate is not None:
+                return Action(ActionType.MATE, {"target": mate["id"]},
+                              rationale="court a partner")
+        return None
+
+    def _find_mate(self, agent: Agent, obs: Observation) -> dict | None:
+        candidates = [
+            o for o in obs.others
+            if o.get("trust", 0.0) >= 0.25
+            and o.get("hunger", 0) <= 55
+            and o.get("fatigue", 0) <= 62
+            and o.get("age_days", 0) >= 2
+        ]
+        if not candidates:
+            return None
+        # Prefer the closest, most-trusted partner.
+        return min(candidates, key=lambda o: (o["distance"], -o.get("trust", 0.0)))
 
     # -- survival -------------------------------------------------------
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:

@@ -16,8 +16,10 @@ class ActionType(str, Enum):
     IDLE = "idle"
     MOVE = "move"  # toward a facility type or coordinate
     GATHER = "gather"  # collect food/materials at current facility
-    EAT = "eat"  # consume food -> energy
+    EAT = "eat"  # consume food -> energy, relieve hunger
     REST = "rest"  # restore a little energy (more at house/hospital)
+    SLEEP = "sleep"  # relieve fatigue substantially (best at a house)
+    MATE = "mate"  # reproduce with an adjacent, trusted, well-rested partner
     WORK = "work"  # earn money at a workplace
     DEPOSIT_GRANARY = "deposit_granary"  # give food to the commons
     DRAW_GRANARY = "draw_granary"  # take food from the commons
@@ -51,6 +53,7 @@ class Action:
       VOTE        -> {"proposal_id": int, "support": bool}
       BUILD       -> {"facility_type": str, "name": str}
       STEAL/ATTACK-> {"target": agent_id}
+      MATE        -> {"target": agent_id}
       ARSON       -> {"facility_name": str}
       REPORT_CRIME-> {"target": agent_id}
       SPEAK/COLLAB-> {"text": str}
