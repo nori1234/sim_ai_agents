@@ -11,6 +11,7 @@ from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
 from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
+from .esteem import StatusConfig, esteem_urge
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -69,6 +70,7 @@ class Simulation:
     on_event: Optional[Callable[[dict], None]] = None
     mayor: Optional[Mayor] = None
     drives: DrivesConfig = field(default_factory=DrivesConfig)
+    status: StatusConfig = field(default_factory=StatusConfig)
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -117,6 +119,11 @@ class Simulation:
                 if law.effects:
                     fx = ", ".join(e.value for e in law.effects)
                     self.world.log("law_enacted", id=p.id, effects=fx)
+                # Authoring a law that passes is an honour for its sponsor.
+                author = self._by_id.get(p.author)
+                if author is not None and author.alive:
+                    self._recognise(author, self.status.rep_per_law_passed,
+                                    self.status.achievement_relief, "law")
 
     # ==================================================================
     # Observation
@@ -154,6 +161,7 @@ class Simulation:
             memory=list(agent.memory),
             can_reproduce=is_fertile(agent, self.drives, self.world.day),
             mating_urge=mating_urge(agent, self.drives),
+            esteem_urge=esteem_urge(agent, self.status),
         )
 
     # ==================================================================
@@ -370,6 +378,9 @@ class Simulation:
             if ftype == FacilityType.MONUMENT:
                 self.metrics.monuments_built += 1
                 self.world.log("monument", name=name, by=agent.id)
+                # A conspicuous achievement: honour and recognition.
+                self._recognise(agent, self.status.rep_per_monument,
+                                self.status.achievement_relief, "monument")
         if agent.id not in existing.builders:
             existing.builders.append(agent.id)
         agent.collaborations += 1
@@ -382,12 +393,43 @@ class Simulation:
             if o.id != agent.id and o.alive and chebyshev(agent.pos, o.pos) <= 4:
                 o.adjust_trust(agent.id, +0.1)
                 agent.adjust_trust(o.id, +0.05)
+        if self.status.enabled:
+            self._recognise(agent, self.status.rep_per_collab, 0.0, "collab")
         self.world.log("collaboration", agent=agent.id,
                        text=str(action.params.get("text", "shared project")))
 
     def _do_speak(self, agent: Agent, action: Action) -> None:
         self.world.log("speech", agent=agent.id,
                        text=str(action.params.get("text", "")))
+
+    def _do_praise(self, agent: Agent, action: Action) -> None:
+        """Publicly commend a peer — the praised agent gains esteem relief,
+        honour, and a hit of pleasure (褒められて気持ちいい)."""
+        if not self.status.enabled:
+            return
+        target = self._by_id.get(action.params.get("target"))
+        if target is None or target is agent or not target.alive:
+            return
+        agent.praise_given += 1
+        target.praise_received += 1
+        self.metrics.total_praise += 1
+        target.esteem = max(0.0, target.esteem - self.status.praise_relief)
+        target.reputation += self.status.rep_per_praise
+        self._reward(target, self.status.pleasure_per_praise)
+        # Praise warms the bond in both directions.
+        target.adjust_trust(agent.id, +0.1)
+        agent.adjust_trust(target.id, +0.05)
+        self.world.log("praise", by=agent.id, of=target.id)
+
+    def _recognise(self, agent: Agent, rep_gain: float, esteem_relief: float,
+                   kind: str) -> None:
+        """Grant honour and relieve the need for recognition for a deed."""
+        if not self.status.enabled:
+            return
+        agent.reputation += rep_gain
+        if esteem_relief:
+            agent.esteem = max(0.0, agent.esteem - esteem_relief)
+            self._reward(agent, self.status.pleasure_per_achievement)
 
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
@@ -478,6 +520,9 @@ class Simulation:
         agent.energy -= ENERGY_DECAY_PER_TICK
         if self.drives.enabled:
             self._drive_upkeep(agent)
+        if self.status.enabled:
+            # The need for recognition quietly builds, like the primal urges.
+            agent.esteem = min(100.0, agent.esteem + self.status.esteem_per_tick)
         if agent.energy <= 0 and agent.alive:
             cause = "starvation"
             if self.drives.enabled and agent.fatigue >= 100.0:
@@ -554,6 +599,11 @@ class Simulation:
             for a in self.agents:
                 if a.alive:
                     a.age_days += 1
+        if self.status.enabled:
+            # Honour is not permanent: prestige fades without fresh deeds.
+            for a in self.agents:
+                if a.alive:
+                    a.reputation = max(0.0, a.reputation - self.status.rep_decay_per_day)
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
@@ -612,7 +662,11 @@ class Simulation:
         living = [a for a in self.agents if a.alive]
         if not living:
             return
-        winner = max(living, key=lambda a: a.votes_cast)
+        # Power flows to the engaged — and, once honour matters, to the esteemed.
+        if self.status.enabled:
+            winner = max(living, key=lambda a: (a.votes_cast + a.reputation))
+        else:
+            winner = max(living, key=lambda a: a.votes_cast)
         self.mayor = Mayor(
             agent_id=winner.id,
             elected_day=self.world.day,
@@ -620,6 +674,11 @@ class Simulation:
         )
         self.world.log("election", mayor=winner.id, day=self.world.day)
         self.metrics.elections += 1
+        if self.status.enabled:
+            # Taking office is the height of recognition (権力).
+            winner.times_mayor += 1
+            self._recognise(winner, self.status.rep_per_mayor,
+                            self.status.mayor_relief, "mayor")
 
     def _finalize(self, last_day: int) -> None:
         self.metrics.days_run = last_day

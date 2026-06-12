@@ -40,6 +40,9 @@ class Metrics:
     matings: int = 0
     total_pleasure: float = 0.0
 
+    # Esteem / status dynamics.
+    total_praise: int = 0
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -79,4 +82,5 @@ class Metrics:
             "births": self.births,
             "matings": self.matings,
             "total_pleasure": round(self.total_pleasure, 1),
+            "total_praise": self.total_praise,
         }

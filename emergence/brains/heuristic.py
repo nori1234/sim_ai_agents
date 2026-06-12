@@ -69,6 +69,11 @@ class HeuristicBrain(AgentBrain):
                     rationale="destructive impulse",
                 )
 
+        # 3.5 Esteem: the urge to be recognised — seek honour, or grant it.
+        status = self._status_action(agent, obs, p)
+        if status is not None:
+            return status
+
         # 4. Building & collaboration (the monument / co-authored report).
         #    Checked before governance so civic-minded agents don't spend every
         #    free turn voting and never get around to building anything.
@@ -147,6 +152,52 @@ class HeuristicBrain(AgentBrain):
             return None
         # Prefer the closest, most-trusted (most affectionate) partner.
         return min(candidates, key=lambda o: (o["distance"], -o.get("trust", 0.0)))
+
+    # -- esteem / honour / power ----------------------------------------
+    def _status_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:
+        """Pursue recognition when the urge bites — or bestow it on others.
+
+        High-status-drive agents chase honour through conspicuous deeds
+        (monuments, laws, oratory). Cooperative agents readily praise admirable
+        peers, which is what keeps a recognition economy flowing; cold,
+        predatory agents hoard esteem and rarely commend anyone.
+        """
+        if obs.esteem_urge <= 0:
+            return None
+        # Praising an admired neighbour (褒める) — likelier the more cooperative.
+        if self.rng.random() < p.cooperation * 0.5:
+            admired = self._most_admired_nearby(agent, obs)
+            if admired is not None:
+                return Action(ActionType.PRAISE, {"target": admired["id"]},
+                              rationale="commend an admirable peer")
+
+        # Otherwise pursue honour for oneself, scaled by the urge's strength.
+        status_drive = 0.35 + 0.4 * p.talkativeness + 0.25 * p.cooperation
+        if self.rng.random() >= obs.esteem_urge * status_drive:
+            return None
+        here = obs.here["type"] if obs.here else None
+        # A monument is the most conspicuous achievement (すごいと思われたい).
+        if agent.materials() >= 2:
+            if here == "plaza":
+                return Action(ActionType.BUILD,
+                              {"facility_type": "monument", "name": "Hero's Column"},
+                              rationale="raise a monument to be admired")
+            return Action(ActionType.MOVE, {"facility_type": "plaza"},
+                          rationale="go seek glory")
+        # Else seek influence by proposing a law, or simply command attention.
+        if not obs.open_proposals or self.rng.random() < 0.5:
+            return Action(ActionType.PROPOSE, {"text": self._proposal_text(p)},
+                          rationale="seek influence and honour")
+        return Action(ActionType.SPEAK, {"text": self._speech(p)},
+                      rationale="command the room")
+
+    def _most_admired_nearby(self, agent: Agent, obs: Observation) -> dict | None:
+        seen = [o for o in obs.others
+                if o["distance"] <= 5 and o.get("reputation", 0) > 0]
+        if not seen:
+            return None
+        best = max(seen, key=lambda o: o.get("reputation", 0))
+        return best if best.get("reputation", 0) >= 3 else None
 
     # -- survival -------------------------------------------------------
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:

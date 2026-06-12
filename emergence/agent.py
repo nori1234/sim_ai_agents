@@ -45,6 +45,15 @@ class Agent:
     last_reproduced_day: Optional[int] = None
     parent_ids: tuple[str, ...] = ()
 
+    # Higher (social) needs — esteem/honour/power. Only active under StatusConfig.
+    #   esteem     : the urge to be recognised (rises over time, praise relieves)
+    #   reputation : standing/honour in others' eyes (earned by deeds, decays)
+    esteem: float = 0.0
+    reputation: float = 0.0
+    praise_received: int = 0
+    praise_given: int = 0
+    times_mayor: int = 0
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -119,6 +128,7 @@ class Agent:
             "hunger": round(self.hunger, 1),
             "fatigue": round(self.fatigue, 1),
             "libido": round(self.libido, 1),
+            "reputation": round(self.reputation, 1),
             "age_days": self.age_days,
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,

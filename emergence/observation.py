@@ -32,6 +32,9 @@ class Observation:
     can_reproduce: bool = False
     mating_urge: float = 0.0
 
+    # Esteem layer: 0..1 strength of the urge to seek recognition.
+    esteem_urge: float = 0.0
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

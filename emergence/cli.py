@@ -30,6 +30,7 @@ import json
 import sys
 
 from .drives import DrivesConfig
+from .esteem import StatusConfig
 from .governance import GOVERNANCE_PRESETS
 from .personas import ALIASES, PERSONAS
 from .report import format_report, one_line_verdict
@@ -45,10 +46,15 @@ def _drives_from_args(args) -> DrivesConfig:
     return DrivesConfig(enabled=True, reproduction=repro)
 
 
+def _status_from_args(args) -> StatusConfig:
+    return StatusConfig(enabled=bool(getattr(args, "status", False)))
+
+
 def _run_one(persona_mix, args, governance: str = "direct"):
     config = SimulationConfig(days=args.days, ticks_per_day=args.ticks, seed=args.seed)
     sim = make_simulation(persona_mix, n_agents=args.agents, config=config,
-                          governance=governance, drives=_drives_from_args(args))
+                          governance=governance, drives=_drives_from_args(args),
+                          status=_status_from_args(args))
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -128,6 +134,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="enable the three primal drives (hunger + sleep)")
     parser.add_argument("--reproduction", action="store_true",
                         help="also enable reproduction (implies --drives)")
+    parser.add_argument("--status", action="store_true",
+                        help="enable esteem/honour/power (承認欲求) drives")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")

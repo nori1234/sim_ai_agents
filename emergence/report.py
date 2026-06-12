@@ -20,6 +20,10 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
             f"Instinct:    {m.matings} matings -> {m.births} births  "
             f"(pleasure banked {m.total_pleasure:.0f}, ~{avg_joy:.0f}/survivor)"
         )
+    if m.total_praise:
+        top = max((a for a in sim.agents), key=lambda a: a.reputation, default=None)
+        honoured = f"; most honoured: {top.name} ({top.reputation:.0f})" if top else ""
+        lines.append(f"Esteem:      {m.total_praise} praises exchanged{honoured}")
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):
