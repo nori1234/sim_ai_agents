@@ -43,6 +43,11 @@ class Metrics:
     # Esteem / status dynamics.
     total_praise: int = 0
 
+    # Psyche: safety and self-actualization.
+    works_created: int = 0
+    total_fulfillment: float = 0.0
+    peak_fear: float = 0.0
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -83,4 +88,7 @@ class Metrics:
             "matings": self.matings,
             "total_pleasure": round(self.total_pleasure, 1),
             "total_praise": self.total_praise,
+            "works_created": self.works_created,
+            "total_fulfillment": round(self.total_fulfillment, 1),
+            "peak_fear": round(self.peak_fear, 1),
         }

@@ -12,6 +12,7 @@ from .brains.base import AgentBrain
 from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
+from .psyche import PsycheConfig, actualization_pull, fear_level
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -71,6 +72,7 @@ class Simulation:
     mayor: Optional[Mayor] = None
     drives: DrivesConfig = field(default_factory=DrivesConfig)
     status: StatusConfig = field(default_factory=StatusConfig)
+    psyche: PsycheConfig = field(default_factory=PsycheConfig)
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -162,6 +164,8 @@ class Simulation:
             can_reproduce=is_fertile(agent, self.drives, self.world.day),
             mating_urge=mating_urge(agent, self.drives),
             esteem_urge=esteem_urge(agent, self.status),
+            fear_level=fear_level(agent, self.psyche),
+            actualization_pull=actualization_pull(agent, self.psyche),
         )
 
     # ==================================================================
@@ -431,6 +435,28 @@ class Simulation:
             agent.esteem = max(0.0, agent.esteem - esteem_relief)
             self._reward(agent, self.status.pleasure_per_achievement)
 
+    def _do_create(self, agent: Agent, action: Action) -> None:
+        """Self-actualization: produce a work. Only possible when every lower
+        need is quiet — a hungry, scared or unrecognised mind cannot create."""
+        if not self.psyche.enabled:
+            return
+        if actualization_pull(agent, self.psyche) <= 0:
+            return
+        f = self.world.facility_at(agent.pos)
+        if f is None or f.ftype not in {FacilityType.LIBRARY, FacilityType.WORKSHOP,
+                                        FacilityType.PLAZA}:
+            return
+        title = str(action.params.get("title", "Untitled Work"))
+        agent.works_created += 1
+        agent.fulfillment += self.psyche.fulfillment_per_work
+        self.metrics.works_created += 1
+        self.metrics.total_fulfillment += self.psyche.fulfillment_per_work
+        # Creation is the deepest joy — and, if honour matters, it is admired.
+        self._reward(agent, self.psyche.pleasure_per_work)
+        self._recognise(agent, self.psyche.rep_per_work, 0.0, "work")
+        self.world.log("work_created", by=agent.id, title=title,
+                       at=f.name)
+
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
         if self._deterred(agent):
@@ -473,6 +499,8 @@ class Simulation:
         self.world.log("arson", offender=agent.id,
                        facility=f.name if f else "unknown",
                        pos=(f.pos if f else agent.pos))
+        self._strike_fear(None, epicentre=(f.pos if f else agent.pos),
+                          offender_id=agent.id)
         # Burning a granary spills the commons.
         if f and f.ftype == FacilityType.GRANARY:
             self.world.granary_food = max(0, self.world.granary_food - 5)
@@ -501,6 +529,7 @@ class Simulation:
         victim.adjust_trust(offender.id, -0.6)
         victim.remember(f"Day {self.world.day}: {offender.name} committed {kind} against me.")
         self.world.log(kind, offender=offender.id, victim=victim.id, pos=victim.pos)
+        self._strike_fear(victim, epicentre=victim.pos, offender_id=offender.id)
         # If a punishment law is active and the victim is near a police station,
         # the offender is fined immediately.
         if self.policy.has_punishment_law():
@@ -513,6 +542,23 @@ class Simulation:
                 self.world.log("fine", offender=offender.id, amount=fine)
                 self.metrics.fines_collected += 1
 
+    def _strike_fear(self, victim: Optional[Agent], epicentre: tuple[int, int],
+                     offender_id: str) -> None:
+        """A crime radiates dread: the victim is shaken hard, witnesses less so."""
+        if not self.psyche.enabled:
+            return
+        if victim is not None:
+            victim.fear = min(100.0, victim.fear + self.psyche.fear_per_victimization)
+        for o in self.agents:
+            if not o.alive or o.id == offender_id or (victim and o.id == victim.id):
+                continue
+            if chebyshev(o.pos, epicentre) <= self.psyche.witness_radius:
+                o.fear = min(100.0, o.fear + self.psyche.fear_per_witness)
+        self.metrics.peak_fear = max(
+            self.metrics.peak_fear,
+            max((a.fear for a in self.agents if a.alive), default=0.0),
+        )
+
     # ==================================================================
     # Upkeep, day boundaries, finalisation
     # ==================================================================
@@ -523,6 +569,15 @@ class Simulation:
         if self.status.enabled:
             # The need for recognition quietly builds, like the primal urges.
             agent.esteem = min(100.0, agent.esteem + self.status.esteem_per_tick)
+        if self.psyche.enabled and agent.fear > 0:
+            # Quiet time heals fear — faster in the shadow of safety.
+            decay = self.psyche.fear_decay_per_tick
+            if self._near_safety(agent):
+                decay += self.psyche.fear_decay_safe_bonus
+            agent.fear = max(0.0, agent.fear - decay)
+            # Chronic terror is stress; it eats at the body.
+            if agent.fear > self.psyche.fear_threshold:
+                agent.energy -= self.psyche.fear_energy_penalty
         if agent.energy <= 0 and agent.alive:
             cause = "starvation"
             if self.drives.enabled and agent.fatigue >= 100.0:
@@ -717,6 +772,14 @@ class Simulation:
         proximity_factor = 1.0 - (dist / (cfg.police_range + 1))
         deterrence_prob = (1.0 - mult) * proximity_factor
         return self.rng.random() < deterrence_prob
+
+    def _near_safety(self, agent: Agent) -> bool:
+        """Within comforting reach of a police station or a house."""
+        for ftype in (FacilityType.POLICE_STATION, FacilityType.HOUSE):
+            f = self.world.nearest(agent.pos, ftype)
+            if f and chebyshev(agent.pos, f.pos) <= self.psyche.safe_radius:
+                return True
+        return False
 
     # ==================================================================
     @staticmethod

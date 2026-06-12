@@ -31,6 +31,7 @@ class ActionType(str, Enum):
     COLLABORATE = "collaborate"  # co-author a report / shared project
     SPEAK = "speak"  # public statement (logged)
     PRAISE = "praise"  # publicly commend another agent (grants them esteem)
+    CREATE = "create"  # produce a work of art/craft/scholarship (fulfillment)
     STEAL = "steal"  # take resources from another agent (crime)
     ATTACK = "attack"  # violence against another agent (crime)
     ARSON = "arson"  # destroy/damage a facility (crime)
@@ -58,6 +59,7 @@ class Action:
       ARSON       -> {"facility_name": str}
       REPORT_CRIME-> {"target": agent_id}
       PRAISE      -> {"target": agent_id}
+      CREATE      -> {"title": str}
       SPEAK/COLLAB-> {"text": str}
     """
 

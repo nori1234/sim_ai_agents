@@ -54,6 +54,13 @@ class Agent:
     praise_given: int = 0
     times_mayor: int = 0
 
+    # Psyche layer — safety (fear) and self-actualization. Under PsycheConfig.
+    #   fear        : struck by suffering/witnessing crime; decays in safety
+    #   fulfillment : deep satisfaction earned by creating works
+    fear: float = 0.0
+    fulfillment: float = 0.0
+    works_created: int = 0
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -129,6 +136,7 @@ class Agent:
             "fatigue": round(self.fatigue, 1),
             "libido": round(self.libido, 1),
             "reputation": round(self.reputation, 1),
+            "fear": round(self.fear, 1),
             "age_days": self.age_days,
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,

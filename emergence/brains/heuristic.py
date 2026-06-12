@@ -51,6 +51,16 @@ class HeuristicBrain(AgentBrain):
             if attend:
                 return survival
 
+        # 1.5 Safety: when fear grips, everything else waits — run and hide.
+        #     (Vengeful personas may override terror with rage below.)
+        if obs.fear_level > 0 and self.rng.random() < obs.fear_level * (1.0 - p.vengefulness):
+            here = obs.here["type"] if obs.here else None
+            if here in {"police_station", "house"}:
+                return Action(ActionType.REST, rationale="hide until it feels safe")
+            refuge = "police_station" if self.rng.random() < 0.5 else "house"
+            return Action(ActionType.MOVE, {"facility_type": refuge},
+                          rationale="flee to safety")
+
         # 2. Retaliation against whoever wronged us (vengeful personas).
         foe = self._nearby_foe(obs)
         if foe is not None and self.rng.random() < p.vengefulness:
@@ -73,6 +83,17 @@ class HeuristicBrain(AgentBrain):
         status = self._status_action(agent, obs, p)
         if status is not None:
             return status
+
+        # 3.7 Self-actualization: with every lower need quiet, create.
+        if obs.actualization_pull > 0 and \
+                self.rng.random() < obs.actualization_pull * 0.6:
+            here = obs.here["type"] if obs.here else None
+            if here in {"library", "workshop", "plaza"}:
+                return Action(ActionType.CREATE,
+                              {"title": self._work_title(p)},
+                              rationale="create from a quiet mind")
+            return Action(ActionType.MOVE, {"facility_type": "library"},
+                          rationale="seek a place to create")
 
         # 4. Building & collaboration (the monument / co-authored report).
         #    Checked before governance so civic-minded agents don't spend every
@@ -356,6 +377,24 @@ class HeuristicBrain(AgentBrain):
         )
 
     # -- flavour text ---------------------------------------------------
+    def _work_title(self, p: Persona) -> str:
+        if p.key == "philosopher":
+            return self.rng.choice([
+                "Meditations on the Granary",
+                "A Treatise Against Walls",
+                "Dialogues at the Plaza",
+            ])
+        if p.key == "idealist":
+            return self.rng.choice([
+                "A Charter for Universal Harmony",
+                "On the Coming Age of Trust",
+            ])
+        return self.rng.choice([
+            "A History of Our Town",
+            "Songs of the Harvest",
+            "The Builder's Almanac",
+        ])
+
     def _speech(self, p: Persona) -> str:
         if p.key == "philosopher":
             return self.rng.choice([

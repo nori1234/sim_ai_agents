@@ -35,6 +35,11 @@ class Observation:
     # Esteem layer: 0..1 strength of the urge to seek recognition.
     esteem_urge: float = 0.0
 
+    # Psyche layer: 0..1 grip of fear, and 0..1 pull toward creation (present
+    # only when every lower need is satisfied).
+    fear_level: float = 0.0
+    actualization_pull: float = 0.0
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}
