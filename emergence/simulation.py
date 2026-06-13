@@ -13,6 +13,8 @@ from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
 from .psyche import PsycheConfig, actualization_pull, fear_level
+from .society import Gang, Religion, SocietyConfig, discontent
+from .society import GANG_NAMES, FAITH_NAMES
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -73,6 +75,9 @@ class Simulation:
     drives: DrivesConfig = field(default_factory=DrivesConfig)
     status: StatusConfig = field(default_factory=StatusConfig)
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
+    society: SocietyConfig = field(default_factory=SocietyConfig)
+    gangs: list = field(default_factory=list)        # list[Gang]
+    religions: list = field(default_factory=list)    # list[Religion]
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -84,6 +89,8 @@ class Simulation:
         self.policy = PolicyEngine(self.legislature.config)
         # Counter for minting unique newborn ids.
         self._next_agent_num = len(self.agents) + 1
+        self._next_gang_num = 1
+        self._next_faith_num = 1
 
     # ==================================================================
     # Top-level run loop
@@ -137,6 +144,15 @@ class Simulation:
         )[:12]
         here_f = self.world.facility_at(agent.pos)
         here = {"name": here_f.name, "type": here_f.ftype.value} if here_f else None
+        here_roles = sorted(here_f.roles) if here_f else []
+        nearest_roles: dict = {}
+        if self.society.enabled:
+            for f in self.world.facilities:
+                for role in f.roles:
+                    d = chebyshev(agent.pos, f.pos)
+                    if role not in nearest_roles or d < nearest_roles[role][1]:
+                        nearest_roles[role] = (f.pos, d)
+            nearest_roles = {r: pos for r, (pos, _d) in nearest_roles.items()}
         others = []
         for o in self.agents:
             if o.id == agent.id or not o.alive:
@@ -166,6 +182,17 @@ class Simulation:
             esteem_urge=esteem_urge(agent, self.status),
             fear_level=fear_level(agent, self.psyche),
             actualization_pull=actualization_pull(agent, self.psyche),
+            society={
+                "active": self.society.enabled,
+                "weapons": self.society.enabled and self.society.weapons,
+                "drugs": self.society.enabled and self.society.drugs,
+                "gangs": self.society.enabled and self.society.gangs,
+                "religion": self.society.enabled and self.society.religion,
+            },
+            discontent=(discontent(agent, oppressed=self._is_oppressed(agent))
+                        if self.society.enabled else 0.0),
+            here_roles=here_roles,
+            nearest_roles=nearest_roles,
         )
 
     # ==================================================================
@@ -457,6 +484,207 @@ class Simulation:
         self.world.log("work_created", by=agent.id, title=title,
                        at=f.name)
 
+    # -- society: weapons, drugs, gangs, religion -----------------------
+    def _do_craft_weapon(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.weapons):
+            return
+        f = self.world.facility_at(agent.pos)
+        if f is None or not f.is_workplace():
+            return
+        if agent.take("materials", self.society.weapon_material_cost) \
+                < self.society.weapon_material_cost:
+            return
+        agent.weapons += 1
+        self.metrics.weapons_crafted += 1
+        f.add_role("weapons_factory")
+        self.world.log("craft_weapon", by=agent.id, at=f.name)
+
+    def _do_deal_drug(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.drugs):
+            return
+        if agent.take("materials", self.society.drug_material_cost) \
+                < self.society.drug_material_cost:
+            return
+        buyer = self._by_id.get(action.params.get("target"))
+        if buyer is None or buyer is agent or not buyer.alive \
+                or chebyshev(agent.pos, buyer.pos) > 2:
+            return
+        price = min(buyer.money, self.society.drug_price)
+        buyer.money -= price
+        agent.money += price
+        # The buyer is hooked: the dose hits and addiction climbs.
+        self._dose(buyer)
+        self.metrics.drug_deals += 1
+        f = self.world.facility_at(agent.pos)
+        if f is not None:
+            f.add_role("drug_den")
+        self.world.log("deal_drug", dealer=agent.id, buyer=buyer.id, price=price)
+
+    def _do_take_drug(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.drugs):
+            return
+        # Self-supply if needed (an addict will cook their own).
+        if agent.take("materials", self.society.drug_material_cost) \
+                < self.society.drug_material_cost and agent.addiction < 10:
+            return
+        self._dose(agent)
+        f = self.world.facility_at(agent.pos)
+        if f is not None:
+            f.add_role("drug_den")
+
+    def _dose(self, agent: Agent) -> None:
+        """Apply one hit: an energy/pleasure spike, and deeper addiction."""
+        c = self.society
+        agent.energy = min(MAX_ENERGY, agent.energy + c.drug_energy_spike)
+        agent.addiction = min(100.0, agent.addiction + c.addiction_per_dose)
+        self._reward(agent, c.drug_pleasure)
+        self.metrics.doses_taken += 1
+
+    def _do_join_gang(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.gangs) or agent.gang_id:
+            return
+        # Join a gang with a member nearby, else found one.
+        for g in self.gangs:
+            for mid in g.members:
+                m = self._by_id.get(mid)
+                if m and m.alive and chebyshev(agent.pos, m.pos) <= self.society.gang_join_radius:
+                    self._enroll_gang(agent, g)
+                    return
+        # Found a new gang.
+        gid = f"g{self._next_gang_num}"
+        self._next_gang_num += 1
+        name = GANG_NAMES[(self._next_gang_num - 2) % len(GANG_NAMES)]
+        gang = Gang(id=gid, name=name, leader=agent.id, founded_day=self.world.day)
+        self.gangs.append(gang)
+        self.metrics.gangs_formed += 1
+        self._enroll_gang(agent, gang)
+        self.world.log("gang_formed", gang=name, leader=agent.id)
+
+    def _enroll_gang(self, agent: Agent, gang: Gang) -> None:
+        agent.gang_id = gang.id
+        if agent.id not in gang.members:
+            gang.members.append(agent.id)
+        # Gangs arm their own — joining a crew puts a weapon in your hand.
+        if self.society.weapons and agent.weapons == 0:
+            agent.weapons += 1
+            self.metrics.weapons_crafted += 1
+        # Loyalty within, suspicion of rivals.
+        for mid in gang.members:
+            m = self._by_id.get(mid)
+            if m and m.id != agent.id:
+                m.adjust_trust(agent.id, self.society.gang_loyalty)
+                agent.adjust_trust(m.id, self.society.gang_loyalty)
+        # Claim the nearest facility as turf.
+        f = self.world.nearest(agent.pos, FacilityType.PLAZA) or \
+            self.world.facility_at(agent.pos)
+        if f is not None and f.name not in gang.turf:
+            f.add_role("gang_turf")
+            f.controller = gang.id
+            gang.turf.append(f.name)
+
+    def _do_rebel(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.weapons):
+            return
+        if agent.weapons <= 0:
+            return
+        c = self.society
+        if agent.last_rebelled_day is not None and \
+                self.world.day - agent.last_rebelled_day < c.rebellion_cooldown_days:
+            return
+        if discontent(agent, oppressed=self._is_oppressed(agent)) < c.rebellion_discontent:
+            return
+        # Muster fellow armed malcontents.
+        rebels = [a for a in self.agents if a.alive and a.weapons > 0
+                  and discontent(a, oppressed=self._is_oppressed(a)) >= c.rebellion_discontent]
+        agent.last_rebelled_day = self.world.day
+        agent.rebellions_joined += 1
+        if len(rebels) < c.rebellion_min_rebels:
+            self.world.log("unrest", instigator=agent.id, rebels=len(rebels))
+            return
+        # An uprising: the mayor is deposed and the town hall stormed.
+        self.metrics.rebellions += 1
+        deposed = self.mayor.agent_id if self.mayor else None
+        self.mayor = None
+        if deposed and deposed in self._by_id:
+            target = self._by_id[deposed]
+            if target.alive:
+                target.energy -= ATTACK_DAMAGE
+                self._strike_fear(target, epicentre=target.pos, offender_id=agent.id)
+        for r in rebels:
+            r.last_rebelled_day = self.world.day
+            r.rebellions_joined += 1
+        self.world.log("rebellion", instigator=agent.id, rebels=len(rebels),
+                       deposed=deposed)
+
+    def _do_preach(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.religion):
+            return
+        c = self.society
+        if agent.faith is None:
+            # Found a faith if you have the standing; else you cannot preach yet.
+            if agent.reputation < c.faith_min_reputation:
+                return
+            rid = f"r{self._next_faith_num}"
+            self._next_faith_num += 1
+            name = FAITH_NAMES[(self._next_faith_num - 2) % len(FAITH_NAMES)]
+            religion = Religion(id=rid, name=name, prophet=agent.id,
+                                founded_day=self.world.day)
+            religion.members.append(agent.id)
+            self.religions.append(religion)
+            agent.faith = rid
+            self.metrics.religions_founded += 1
+            # Consecrate the nearest civic site as a temple.
+            site = self.world.nearest(agent.pos, FacilityType.PLAZA) or \
+                self.world.nearest(agent.pos, FacilityType.LIBRARY)
+            if site is not None:
+                site.add_role("temple")
+            self.world.log("religion_founded", faith=name, prophet=agent.id)
+            return
+        # Spread the word: convert the unaffiliated nearby.
+        religion = self._religion_of(agent.faith)
+        if religion is None:
+            return
+        for o in self.agents:
+            if o.alive and o.faith is None and o.id != agent.id \
+                    and chebyshev(agent.pos, o.pos) <= c.conversion_radius \
+                    and o.trust_of(agent.id) >= 0.2:
+                o.faith = religion.id
+                religion.members.append(o.id)
+                self.metrics.conversions += 1
+                o.adjust_trust(agent.id, 0.15)
+                self.world.log("conversion", faith=religion.name, convert=o.id)
+                break
+
+    def _do_worship(self, agent: Agent, action: Action) -> None:
+        if not (self.society.enabled and self.society.religion) or agent.faith is None:
+            return
+        f = self.world.facility_at(agent.pos)
+        if f is None or "temple" not in f.roles:
+            return
+        c = self.society
+        agent.fear = max(0.0, agent.fear - c.worship_fear_relief)
+        agent.esteem = max(0.0, agent.esteem - c.worship_esteem_relief)
+        self._reward(agent, c.worship_pleasure)
+        self.metrics.acts_of_worship += 1
+        # Communion binds the faithful who pray together.
+        for o in self.agents:
+            if o.alive and o.faith == agent.faith and o.id != agent.id \
+                    and chebyshev(agent.pos, o.pos) <= 3:
+                o.adjust_trust(agent.id, 0.08)
+                agent.adjust_trust(o.id, 0.08)
+
+    def _religion_of(self, rid: str):
+        for r in self.religions:
+            if r.id == rid:
+                return r
+        return None
+
+    def _is_oppressed(self, agent: Agent) -> bool:
+        """Shut out of power: ruled by an oligarchy you're not part of."""
+        if self.policy.config.form is GovernanceForm.OLIGARCHY:
+            return agent.id not in self._eligible_voters()
+        return False
+
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
         if self._deterred(agent):
@@ -478,7 +706,10 @@ class Simulation:
         if victim is None:
             return
         self._spend(agent, ActionType.ATTACK)
-        victim.energy -= ATTACK_DAMAGE
+        damage = ATTACK_DAMAGE
+        if self.society.enabled and self.society.weapons and agent.weapons > 0:
+            damage += self.society.weapon_attack_bonus  # armed: far deadlier
+        victim.energy -= damage
         agent.money += victim.take("money", 3)
         self._register_crime(agent, "violence", victim)
         if victim.energy <= 0 and victim.alive:
@@ -578,10 +809,17 @@ class Simulation:
             # Chronic terror is stress; it eats at the body.
             if agent.fear > self.psyche.fear_threshold:
                 agent.energy -= self.psyche.fear_energy_penalty
+        if self.society.enabled and self.society.drugs and agent.addiction > 0:
+            agent.addiction = max(0.0, agent.addiction - self.society.addiction_decay_per_tick)
+            # Withdrawal: the craving sickness drains the body.
+            if agent.addiction > self.society.withdrawal_threshold:
+                agent.energy -= self.society.withdrawal_energy_penalty
         if agent.energy <= 0 and agent.alive:
             cause = "starvation"
             if self.drives.enabled and agent.fatigue >= 100.0:
                 cause = "exhaustion"
+            if self.society.enabled and agent.addiction > self.society.withdrawal_threshold:
+                cause = "overdose/withdrawal"
             agent.die(self.world.day, cause)
             self.metrics.deaths += 1
             self.world.log("death", agent=agent.id, cause=cause)
@@ -744,6 +982,10 @@ class Simulation:
         self.metrics.proposals_rejected = rejected
         self.metrics.laws_enacted = len(self.policy.laws)
         self.metrics.gov_form = self.policy.config.form.value
+        if self.society.enabled:
+            thr = self.society.withdrawal_threshold
+            self.metrics.addicts = sum(1 for a in self.agents
+                                       if a.alive and a.addiction > thr)
 
     def _living(self) -> int:
         return sum(1 for a in self.agents if a.alive)

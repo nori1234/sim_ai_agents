@@ -61,6 +61,13 @@ class HeuristicBrain(AgentBrain):
             return Action(ActionType.MOVE, {"facility_type": refuge},
                           rationale="flee to safety")
 
+        # 1.7 Society: the underworld and culture (arming up, gangs, drugs,
+        #     faith) take priority over mundane violence — they are how
+        #     aggression and alienation organise themselves.
+        soc = self._society_action(agent, obs, p)
+        if soc is not None:
+            return soc
+
         # 2. Retaliation against whoever wronged us (vengeful personas).
         foe = self._nearby_foe(obs)
         if foe is not None and self.rng.random() < p.vengefulness:
@@ -173,6 +180,75 @@ class HeuristicBrain(AgentBrain):
             return None
         # Prefer the closest, most-trusted (most affectionate) partner.
         return min(candidates, key=lambda o: (o["distance"], -o.get("trust", 0.0)))
+
+    # -- society: weapons / drugs / gangs / religion --------------------
+    def _society_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:
+        s = obs.society
+        if not s.get("active"):
+            return None
+        sv = obs.self_view
+        addiction = sv.get("addiction", 0.0)
+        faith = sv.get("faith")
+        gang = sv.get("gang")
+        weapons = sv.get("weapons", 0)
+        here = obs.here["type"] if obs.here else None
+
+        # 1. Addiction hijacks the will: an addict chases the next hit.
+        if s.get("drugs") and addiction >= 45 and self.rng.random() < 0.75:
+            return Action(ActionType.TAKE_DRUG, rationale="craving for a hit")
+
+        # 2. The faithful worship — for solace when afraid, or as devotion.
+        if s.get("religion") and faith is not None:
+            devout = obs.fear_level > 0 or obs.esteem_urge > 0.2 or self.rng.random() < 0.2
+            if devout:
+                if "temple" in obs.here_roles:
+                    return Action(ActionType.WORSHIP, rationale="worship at the temple")
+                tpos = obs.nearest_roles.get("temple")
+                if tpos and self.rng.random() < 0.6:
+                    return Action(ActionType.MOVE, {"pos": tpos}, rationale="to the temple")
+
+        # 3. Preachers found and spread faith (charismatic, cooperative souls).
+        if s.get("religion") and self.rng.random() < p.cooperation * 0.12:
+            if faith is None and sv.get("reputation", 0) >= 5:
+                return Action(ActionType.PREACH, rationale="found a faith")
+            if faith is not None:
+                return Action(ActionType.PREACH, rationale="spread the word")
+
+        # 4. Arm up — aggressive personas forge weapons (gather metal first).
+        if s.get("weapons") and weapons == 0 and self.rng.random() < p.aggression * 0.5:
+            if agent.materials() >= 1:
+                if here in WORKPLACES:
+                    return Action(ActionType.CRAFT_WEAPON, rationale="forge a weapon")
+                return Action(ActionType.MOVE, {"facility_type": "workshop"},
+                              rationale="to the armoury")
+            if here in MATERIAL_SOURCES:
+                return Action(ActionType.GATHER, rationale="metal for a weapon")
+            return Action(ActionType.MOVE, {"facility_type": "mine"},
+                          rationale="seek metal to arm")
+
+        # 5. Rebel — armed and aggrieved, rise against those in power.
+        if s.get("weapons") and weapons > 0 and obs.discontent >= 50 and \
+                self.rng.random() < 0.5:
+            return Action(ActionType.REBEL, rationale="rise up against power")
+
+        # 6. Join a gang — alienated, aggressive, distrustful agents.
+        if s.get("gangs") and gang is None and self.rng.random() < p.aggression * 0.35:
+            return Action(ActionType.JOIN_GANG, rationale="find my crew")
+
+        # 7. Drug dealing — predatory, profit-seeking pushers.
+        if s.get("drugs") and agent.materials() >= 1 and \
+                self.rng.random() < (1 - p.cooperation) * (0.3 + p.aggression) * 0.4:
+            mark = self._nearby_target(obs)
+            if mark is not None:
+                return Action(ActionType.DEAL_DRUG, {"target": mark["id"]},
+                              rationale="push product")
+
+        # 8. Escape into drugs when miserable (fear, or already hooked).
+        if s.get("drugs") and (obs.fear_level > 0.25 or addiction > 10) and \
+                self.rng.random() < 0.25:
+            return Action(ActionType.TAKE_DRUG, rationale="numb the pain")
+
+        return None
 
     # -- esteem / honour / power ----------------------------------------
     def _status_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:

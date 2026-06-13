@@ -10,6 +10,7 @@ from .brains.heuristic import HeuristicBrain
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .psyche import PsycheConfig
+from .society import SocietyConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
 from .personas import get_persona
 from .simulation import Simulation, SimulationConfig
@@ -64,6 +65,7 @@ def make_simulation(
     drives: DrivesConfig | None = None,
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
+    society: SocietyConfig | None = None,
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -110,4 +112,5 @@ def make_simulation(
         drives=drives or DrivesConfig(),
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
+        society=society or SocietyConfig(),
     )

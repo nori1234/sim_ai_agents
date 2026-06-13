@@ -25,6 +25,7 @@ class FacilityType(str, Enum):
     PLAZA = "plaza"  # gather, speak publicly
     MONUMENT = "monument"  # agent-built landmark (collaboration trophy)
     GRANARY = "granary"  # shared food store
+    TEMPLE = "temple"  # place of worship (society layer)
 
 
 # Where each facility lets an agent gather, and what it yields.
@@ -50,6 +51,13 @@ class Facility:
     # Built facilities (e.g. monuments) record who collaborated on them.
     builders: list[str] = field(default_factory=list)
     built_on_day: Optional[int] = None
+    # Emergent roles a facility takes on (society layer): "weapons_factory",
+    # "drug_den", "gang_turf", "temple". ``controller`` names the holding gang.
+    roles: set[str] = field(default_factory=set)
+    controller: Optional[str] = None  # gang id holding this as turf
+
+    def add_role(self, role: str) -> None:
+        self.roles.add(role)
 
     @property
     def pos(self) -> tuple[int, int]:

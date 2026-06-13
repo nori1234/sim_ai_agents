@@ -61,6 +61,14 @@ class Agent:
     fulfillment: float = 0.0
     works_created: int = 0
 
+    # Society layer — weapons, addiction, gang and faith affiliation.
+    weapons: int = 0
+    addiction: float = 0.0
+    gang_id: Optional[str] = None
+    faith: Optional[str] = None
+    rebellions_joined: int = 0
+    last_rebelled_day: Optional[int] = None
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -137,6 +145,10 @@ class Agent:
             "libido": round(self.libido, 1),
             "reputation": round(self.reputation, 1),
             "fear": round(self.fear, 1),
+            "weapons": self.weapons,
+            "addiction": round(self.addiction, 1),
+            "gang": self.gang_id,
+            "faith": self.faith,
             "age_days": self.age_days,
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,

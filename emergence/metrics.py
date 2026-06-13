@@ -48,6 +48,17 @@ class Metrics:
     total_fulfillment: float = 0.0
     peak_fear: float = 0.0
 
+    # Society: weapons, drugs, gangs, religion.
+    weapons_crafted: int = 0
+    drug_deals: int = 0
+    doses_taken: int = 0
+    addicts: int = 0           # living agents with high addiction at end
+    gangs_formed: int = 0
+    rebellions: int = 0
+    religions_founded: int = 0
+    conversions: int = 0
+    acts_of_worship: int = 0
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -91,4 +102,13 @@ class Metrics:
             "works_created": self.works_created,
             "total_fulfillment": round(self.total_fulfillment, 1),
             "peak_fear": round(self.peak_fear, 1),
+            "weapons_crafted": self.weapons_crafted,
+            "drug_deals": self.drug_deals,
+            "doses_taken": self.doses_taken,
+            "addicts": self.addicts,
+            "gangs_formed": self.gangs_formed,
+            "rebellions": self.rebellions,
+            "religions_founded": self.religions_founded,
+            "conversions": self.conversions,
+            "acts_of_worship": self.acts_of_worship,
         }

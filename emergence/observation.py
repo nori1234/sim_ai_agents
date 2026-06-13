@@ -40,6 +40,13 @@ class Observation:
     fear_level: float = 0.0
     actualization_pull: float = 0.0
 
+    # Society layer: which sub-systems are active, this agent's grievance, and
+    # the emergent roles of the tile it stands on.
+    society: dict = field(default_factory=dict)
+    discontent: float = 0.0
+    here_roles: list = field(default_factory=list)
+    nearest_roles: dict = field(default_factory=dict)  # role -> (x, y) of nearest
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

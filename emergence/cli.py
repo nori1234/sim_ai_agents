@@ -33,6 +33,7 @@ from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .governance import GOVERNANCE_PRESETS
 from .psyche import PsycheConfig
+from .society import SocietyConfig
 from .personas import ALIASES, PERSONAS
 from .report import format_report, one_line_verdict
 from .scenario import make_simulation
@@ -55,12 +56,17 @@ def _psyche_from_args(args) -> PsycheConfig:
     return PsycheConfig(enabled=bool(getattr(args, "psyche", False)))
 
 
+def _society_from_args(args) -> SocietyConfig:
+    return SocietyConfig(enabled=bool(getattr(args, "society", False)))
+
+
 def _run_one(persona_mix, args, governance: str = "direct"):
     config = SimulationConfig(days=args.days, ticks_per_day=args.ticks, seed=args.seed)
     sim = make_simulation(persona_mix, n_agents=args.agents, config=config,
                           governance=governance, drives=_drives_from_args(args),
                           status=_status_from_args(args),
-                          psyche=_psyche_from_args(args))
+                          psyche=_psyche_from_args(args),
+                          society=_society_from_args(args))
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -144,9 +150,13 @@ def main(argv: list[str] | None = None) -> int:
                         help="enable esteem/honour/power (承認欲求) drives")
     parser.add_argument("--psyche", action="store_true",
                         help="enable fear/safety and self-actualization (恐怖・自己実現)")
+    parser.add_argument("--society", action="store_true",
+                        help="enable weapons, drugs, gangs, religion (裏社会・文化)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")
+    parser.add_argument("--all", dest="all_layers", action="store_true",
+                        help="enable every layer (Maslow + society)")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")
@@ -156,8 +166,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="run the same persona under all four governance forms")
     args = parser.parse_args(argv)
 
-    if args.maslow:
+    if args.maslow or args.all_layers:
         args.reproduction = args.status = args.psyche = True
+    if args.all_layers:
+        args.society = True
 
     if args.compare:
         return _compare(args)

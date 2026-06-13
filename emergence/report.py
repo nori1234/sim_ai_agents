@@ -29,6 +29,16 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
             f"Psyche:      {m.works_created} works created "
             f"(fulfillment {m.total_fulfillment:.0f}); peak fear {m.peak_fear:.0f}/100"
         )
+    if (m.weapons_crafted or m.gangs_formed or m.doses_taken or m.religions_founded):
+        lines.append(
+            f"Underworld:  {m.weapons_crafted} armed, {m.gangs_formed} gangs, "
+            f"{m.rebellions} rebellions; {m.drug_deals} deals / "
+            f"{m.doses_taken} doses ({m.addicts} addicts)"
+        )
+        lines.append(
+            f"Culture:     {m.religions_founded} faiths, {m.conversions} converts, "
+            f"{m.acts_of_worship} acts of worship"
+        )
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):

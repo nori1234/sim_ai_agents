@@ -37,6 +37,15 @@ class ActionType(str, Enum):
     ARSON = "arson"  # destroy/damage a facility (crime)
     REPORT_CRIME = "report_crime"  # flag an offender at a police station
 
+    # -- society layer (weapons, drugs, gangs, religion) ----------------
+    CRAFT_WEAPON = "craft_weapon"  # forge a weapon at a workshop
+    DEAL_DRUG = "deal_drug"  # produce and sell a narcotic to another agent
+    TAKE_DRUG = "take_drug"  # consume a dose (escape; builds addiction)
+    JOIN_GANG = "join_gang"  # form or join a gang
+    REBEL = "rebel"  # armed uprising against those in power
+    PREACH = "preach"  # found or spread a religion (convert nearby agents)
+    WORSHIP = "worship"  # pray at a temple (eases fear, grants belonging)
+
 
 # Actions the world treats as crimes for metric purposes.
 CRIME_ACTIONS = {ActionType.STEAL, ActionType.ATTACK, ActionType.ARSON}
@@ -60,6 +69,8 @@ class Action:
       REPORT_CRIME-> {"target": agent_id}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
+      DEAL_DRUG   -> {"target": agent_id}
+      PREACH      -> {} (founds or spreads the agent's faith to those nearby)
       SPEAK/COLLAB-> {"text": str}
     """
 
