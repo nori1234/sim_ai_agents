@@ -257,6 +257,39 @@ python3 -m emergence.cli --persona gemini --all --governance oligarchy  # 抑圧
 可視化（`--html`）には町マップの**役割マーカー**（✚寺院・▲縄張り・✜麻薬窟・⚔兵器）と
 **「派閥と信仰」パネル**（ギャング・宗教の規模・指導者）が加わります。
 
+## 長期記憶（`--memory`）
+
+長期運用で文脈が無制限に膨らむと、費用が二乗で爆発し品質も劣化する——記事の
+「コンテキスト蓄積による破綻」そのものです。これを防ぐため、住民に**本物の長期記憶**を
+持たせられます（**依存ゼロの外部ライブラリ
+[`memory-agent`](https://github.com/nori1234/memory-agent) を利用**・opt-in）。
+
+```bash
+# 1) 任意ライブラリを入れる（追加の実行時依存なし）
+git clone https://github.com/nori1234/memory-agent
+pip install -e ./memory-agent
+
+# 2) 記憶ありで実走
+python3 -m emergence.cli --persona gemini --memory
+# 永続化（次回も思い出す）
+python3 -m emergence.cli --persona gemini --memory --memory-db town.db
+```
+
+仕組み（記憶の4操作）：
+
+| 操作 | 内容 |
+|------|------|
+| **覚える** | 重要な事件だけ記録（雑談は捨てる＝salienceゲート）。住民ごとに分離 |
+| **思い出す** | 全履歴ではなく「関連度×新しさ×重要度」で**数件だけ**返す |
+| **忘れる** | 古い・使わない記憶を**本当に消す**（ゲーム内クロックで減衰） |
+| **更新** | 矛盾する事実は上書き（履歴は残す） |
+
+- 全ログはディスク、**判断に渡す文脈は常に固定長** → 長期でも費用・品質が安定
+- `--memory-db` でSQLite永続化 → **別runの住民が前回の出来事を思い出す**（セッション跨ぎ）
+- ヒューリスティック脳は記憶を**無視**するので**オフラインの結果は完全に不変**。記憶は
+  `Observation.memory` に載るので、**実LLM脳に差し替えた瞬間に効く**
+- TTT-Mamba等のSSMに移行しても、この「アプリ側の記憶」は土台としてそのまま活きる
+
 ## 仕組み
 
 ```
@@ -271,6 +304,7 @@ emergence/
   esteem.py       社会的欲求（承認欲求・名誉・権力）と称賛の経済
   psyche.py       安全欲求（恐怖）と自己実現（創造への引力）
   society.py      裏社会と文化（武器・薬物・ギャング・宗教）と施設の役割
+  memory_backend.py  長期記憶アダプタ（任意ライブラリ memory-agent を利用）
   personas.py     性格アーキタイプ（4モデルを再現するノブ）
   metrics.py      犯罪件数・生存率・可決率・詐欺・協調などの集計
   simulation.py   メインループ：観測→意思決定→行動適用→エネルギー減衰→死→日次集計

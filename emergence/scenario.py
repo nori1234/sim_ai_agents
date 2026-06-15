@@ -66,6 +66,8 @@ def make_simulation(
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
+    memory: bool = False,
+    memory_path: str = ":memory:",
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -104,6 +106,11 @@ def make_simulation(
                 persona, random.Random(rng.randint(0, 2**31))
             )
 
+    town_memory = None
+    if memory:
+        from .memory_backend import TownMemory
+        town_memory = TownMemory(agents, path=memory_path)
+
     legislature = Legislature(gov_cfg)
     policy = PolicyEngine(gov_cfg)
     return Simulation(
@@ -113,4 +120,5 @@ def make_simulation(
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
+        memory=town_memory,
     )

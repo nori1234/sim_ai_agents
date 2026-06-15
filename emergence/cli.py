@@ -66,7 +66,9 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           governance=governance, drives=_drives_from_args(args),
                           status=_status_from_args(args),
                           psyche=_psyche_from_args(args),
-                          society=_society_from_args(args))
+                          society=_society_from_args(args),
+                          memory=bool(getattr(args, "memory", False)),
+                          memory_path=getattr(args, "memory_db", None) or ":memory:")
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -157,6 +159,11 @@ def main(argv: list[str] | None = None) -> int:
                              "(= --reproduction --status --psyche)")
     parser.add_argument("--all", dest="all_layers", action="store_true",
                         help="enable every layer (Maslow + society)")
+    parser.add_argument("--memory", action="store_true",
+                        help="give agents long-term memory (needs the memory-agent lib)")
+    parser.add_argument("--memory-db", metavar="PATH", default=None,
+                        help="SQLite file for persistent cross-run memory "
+                             "(default: in-memory, not persisted)")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")

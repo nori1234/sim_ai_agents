@@ -78,6 +78,8 @@ class Simulation:
     society: SocietyConfig = field(default_factory=SocietyConfig)
     gangs: list = field(default_factory=list)        # list[Gang]
     religions: list = field(default_factory=list)    # list[Religion]
+    # Optional long-term memory backend (memory_backend.TownMemory); opt-in.
+    memory: object = None
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -165,6 +167,14 @@ class Simulation:
         proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
                      if agent.id in eligible or not eligible]
         recent = [self._event_str(e) for e in self.world.events[-self.config.event_log_tail:]]
+        # With a long-term memory backend, hand the brain only the few memories
+        # relevant to the moment (relevance x recency x importance), instead of
+        # the raw recent-memory list. The heuristic brain ignores this field, so
+        # offline outcomes are unchanged; an LLM brain grounds its reply on it.
+        if self.memory is not None:
+            memory_view = self.memory.recall(agent.id, self._memory_query(agent, here, others))
+        else:
+            memory_view = list(agent.memory)
         return Observation(
             day=self.world.day,
             tick=self.world.tick,
@@ -176,7 +186,7 @@ class Simulation:
             open_proposals=proposals,
             granary_food=self.world.granary_food,
             recent_events=recent,
-            memory=list(agent.memory),
+            memory=memory_view,
             can_reproduce=is_fertile(agent, self.drives, self.world.day),
             mating_urge=mating_urge(agent, self.drives),
             esteem_urge=esteem_urge(agent, self.status),
@@ -203,6 +213,40 @@ class Simulation:
         if handler is None:
             return
         handler(agent, action)
+        self._remember_action(agent, action)
+
+    # The actions worth committing to long-term memory (the "story" beats);
+    # routine moves/gathers are skipped so memory stays meaningful.
+    _NOTABLE = {
+        ActionType.PROPOSE, ActionType.COLLABORATE, ActionType.BUILD,
+        ActionType.PRAISE, ActionType.TRANSFER, ActionType.STEAL,
+        ActionType.ATTACK, ActionType.ARSON, ActionType.MATE,
+        ActionType.DEAL_DRUG, ActionType.REBEL, ActionType.PREACH,
+        ActionType.WORSHIP, ActionType.CRAFT_WEAPON, ActionType.JOIN_GANG,
+    }
+
+    def _remember_action(self, agent: Agent, action: Action) -> None:
+        """Record notable actions to the actor's (and any target's) memory."""
+        if self.memory is None or action.type not in self._NOTABLE:
+            return
+        d = self.world.day
+        verb = action.type.value.replace("_", " ")
+        target_id = action.params.get("target")
+        target = self._by_id.get(target_id) if target_id else None
+        if target is not None:
+            self.memory.perceive(agent.id, f"Day {d}: I chose to {verb} {target.name}.")
+            self.memory.perceive(target.id, f"Day {d}: {agent.name} did '{verb}' to me.")
+        else:
+            self.memory.perceive(agent.id, f"Day {d}: I chose to {verb}.")
+
+    @staticmethod
+    def _memory_query(agent: Agent, here, others) -> str:
+        """A short situation description used to retrieve relevant memories."""
+        parts = [agent.profession]
+        if here:
+            parts.append(here["type"])
+        parts += [o["name"] for o in others[:3]]
+        return " ".join(parts)
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
@@ -874,6 +918,8 @@ class Simulation:
         self.agents.append(child)
         self._by_id[child.id] = child
         self.brains[child.id] = self._make_newborn_brain(child, persona_key)
+        if self.memory is not None:
+            self.memory.register(child)
         self.metrics.births += 1
         self.world.log("birth", child=child.id, parents=f"{parent_a.id}+{parent_b.id}",
                        persona=persona_key)
@@ -888,6 +934,9 @@ class Simulation:
     def _end_of_day(self, verbose: bool) -> None:
         self._apply_daily_policy()
         self._maybe_elect_mayor()
+        if self.memory is not None:
+            # Advance the in-game clock one day and run each agent's forgetting pass.
+            self.memory.tick()
         if self.drives.enabled:
             for a in self.agents:
                 if a.alive:
