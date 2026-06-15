@@ -15,6 +15,10 @@ Or point it at any hosted Llama (Groq, Together, vLLM, ...) via env vars:
 
 The persona still tunes each agent's *fallback* behaviour, so if the endpoint
 is unreachable the run degrades gracefully to the heuristic instead of crashing.
+
+This example turns on **long-term memory** and the **environment** so the model
+actually has something to reason about: it sees its recalled memories and the
+season/economy each turn and can adapt ("winter is coming — stockpile food").
 """
 
 import os
@@ -50,9 +54,11 @@ def main() -> None:
         persona_mix=["guardian", "philosopher", "idealist", "predator"],
         n_agents=6,
         config=config,
+        environment=True,   # a changing world to adapt to
+        memory=True,        # remembered across the run (and recalled each turn)
         brain_factory=make_llm_brain,
     )
-    print(f"Running with model={MODEL} at {BASE_URL}\n")
+    print(f"Running with model={MODEL} at {BASE_URL} (memory + environment on)\n")
     sim.run(verbose=True)
     print()
     print(format_report(sim, title=f"Emergence World [llama:{MODEL}]"))

@@ -1,4 +1,4 @@
-"""Drive agents with a real language model.
+"""Drive agents with a real language model, grounded in memory + environment.
 
 Two wire protocols are supported, both over the standard library only:
 
@@ -7,25 +7,23 @@ Two wire protocols are supported, both over the standard library only:
   ``base_url`` at the endpoint and set ``model`` to e.g. ``"llama3.1"``.
 * ``anthropic`` — the Anthropic Messages API for Claude models.
 
-The model is asked to reply with a single JSON object describing its action.
+Each turn the model is shown the agent's persona, its **recalled long-term
+memories**, the **state of the world** (season, weather, market prices,
+disasters) and its surroundings, and is asked to reply with a single JSON
+action. So an LLM agent can do what the heuristic cannot: *adapt over time* —
+"last winter the harvest failed, so I'll stockpile food now."
+
 If the call or parse fails for any reason, the brain falls back to a wrapped
-:class:`HeuristicBrain` so a flaky endpoint never crashes a run.
+:class:`HeuristicBrain` so a flaky endpoint never crashes a run. A ``client``
+callable can be injected (``client(system, user) -> str``) to run fully offline
+against a mock — handy for tests and for plugging in a custom transport.
 
 Examples
 --------
 Local Llama via Ollama::
 
-    LLMBrain(provider="openai",
-             base_url="http://localhost:11434/v1",
-             model="llama3.1",
-             api_key="ollama")
-
-Groq-hosted Llama::
-
-    LLMBrain(provider="openai",
-             base_url="https://api.groq.com/openai/v1",
-             model="llama-3.3-70b-versatile",
-             api_key=os.environ["GROQ_API_KEY"])
+    LLMBrain(provider="openai", base_url="http://localhost:11434/v1",
+             model="llama3.1", api_key="ollama", persona="guardian")
 
 Claude::
 
@@ -38,7 +36,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import Optional
+from typing import Callable, Optional
 
 from ..actions import Action, ActionType
 from ..agent import Agent
@@ -47,15 +45,40 @@ from ..personas import Persona, get_persona
 from .base import AgentBrain
 from .heuristic import HeuristicBrain
 
+# A focused action menu (with param shapes) — small local models follow this far
+# better than a bare list of 30 enum names.
+_ACTION_MENU = """\
+Choose ONE action. Common actions and their params:
+  move      {"facility_type": "farm|forest|mine|workshop|market|granary|library|plaza|house|town_hall"}
+  gather    {}                      (harvest food/materials where you stand)
+  eat       {}                      (eat your food to restore energy)
+  rest      {} / sleep {}           (recover energy / relieve fatigue)
+  work      {}                      (earn money at a workshop/market)
+  deposit_granary {"amount": N} / draw_granary {"amount": N}
+  transfer  {"target": id, "resource": "food|materials|money", "amount": N}
+  propose   {"text": "a rule"}      vote {"proposal_id": N, "support": true|false}
+  build     {"facility_type": "monument", "name": "..."}   collaborate {"text": "..."}
+  speak     {"text": "..."}         praise {"target": id}    create {"title": "..."}
+  steal/attack {"target": id}       mate {"target": id}      worship {}
+  craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
+Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
-SYSTEM_PROMPT = (
-    "You are an autonomous agent living in a small simulated town with other "
-    "agents. Each turn you receive your status and surroundings and must choose "
-    "exactly ONE action. Survive (keep energy above zero by eating food), pursue "
-    "your goals, and interact with others as your character would. Reply with ONLY "
-    "a JSON object: {\"action\": <type>, \"params\": {...}, \"rationale\": <short>}. "
-    "Valid action types: " + ", ".join(a.value for a in ActionType) + "."
-)
+
+def _build_system_prompt(persona: Optional[Persona]) -> str:
+    rules = (
+        "You are an autonomous agent living in a small simulated town with other "
+        "agents, run day by day over many days. Each turn you pick exactly ONE "
+        "action. Your priorities, in order: (1) survive — keep energy above zero by "
+        "eating food, and don't freeze or starve in winter; (2) use your MEMORIES "
+        "to learn from the past and avoid repeating mistakes; (3) ADAPT to the world "
+        "— stockpile before winter, sell when prices are high, take shelter in "
+        "disasters; (4) pursue your character's goals and relationships. Stay in "
+        "character.\n\n" + _ACTION_MENU
+    )
+    if persona is not None:
+        rules += (f"\n\nYour temperament is '{persona.key}' "
+                  f"({persona.label}): act accordingly.")
+    return rules
 
 
 class LLMBrain(AgentBrain):
@@ -71,12 +94,14 @@ class LLMBrain(AgentBrain):
         temperature: float = 0.8,
         timeout: float = 30.0,
         fallback: AgentBrain | None = None,
+        client: Optional[Callable[[str, str], str]] = None,
     ):
         self.provider = provider
         self.model = model
         self.api_key = api_key
         self.temperature = temperature
         self.timeout = timeout
+        self.client = client  # client(system, user) -> str; bypasses HTTP if set
         self.name = f"llm:{provider}:{model}"
 
         if base_url is None:
@@ -87,10 +112,12 @@ class LLMBrain(AgentBrain):
             )
         self.base_url = base_url.rstrip("/")
 
+        self.persona = get_persona(persona) if isinstance(persona, str) else persona
+        self.system_prompt = _build_system_prompt(self.persona)
+
         # A heuristic understudy keeps runs alive when the model is unreachable.
         if fallback is None:
-            persona_obj = get_persona(persona) if isinstance(persona, str) else persona
-            fallback = HeuristicBrain(persona_obj or "guardian")
+            fallback = HeuristicBrain(self.persona or "guardian")
         self.fallback = fallback
 
     # ------------------------------------------------------------------
@@ -100,33 +127,51 @@ class LLMBrain(AgentBrain):
             action = self._parse(content)
             if action is not None:
                 return action
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError):
+        except Exception:  # any transport/parse failure -> stay alive on heuristic
             pass
         return self.fallback.decide(agent, obs)
 
     # -- prompt ---------------------------------------------------------
     def _render_prompt(self, agent: Agent, obs: Observation) -> str:
+        # Surface internal drives only when they are actually in play, so small
+        # models aren't drowned in zeros.
+        drives = {}
+        for label, val in (("mating_urge", obs.mating_urge),
+                           ("esteem_urge", obs.esteem_urge),
+                           ("fear", obs.fear_level),
+                           ("creative_pull", obs.actualization_pull),
+                           ("discontent", round(obs.discontent, 1))):
+            if val:
+                drives[label] = round(val, 2) if isinstance(val, float) else val
+        if obs.can_reproduce:
+            drives["can_reproduce"] = True
+
         view = {
             "day": obs.day,
             "tick": obs.tick,
+            "world": obs.environment or "stable",
             "you": obs.self_view,
-            "position": obs.position,
+            "drives": drives or "calm",
             "standing_on": obs.here,
-            "nearby_facilities": obs.nearby_facilities[:8],
-            "other_agents": obs.others[:9],
+            "site_roles": obs.here_roles or None,
+            "nearby_facilities": obs.nearby_facilities[:6],
+            "other_agents": obs.others[:8],
             "open_proposals": obs.open_proposals,
             "shared_granary_food": obs.granary_food,
-            "recent_events": obs.recent_events[-8:],
-            "your_memory": obs.memory[-8:],
+            "your_memories": obs.memory[-8:] or ["(no relevant memories)"],
+            "recent_events": obs.recent_events[-6:],
         }
         return (
-            f"Your character: {agent.name}, a {agent.profession}.\n"
-            f"World state:\n{json.dumps(view, ensure_ascii=False, indent=2)}\n\n"
-            "Choose one action now. Respond with only the JSON object."
+            f"You are {agent.name}, a {agent.profession}.\n"
+            f"Current situation:\n{json.dumps(view, ensure_ascii=False, indent=2)}\n\n"
+            "Think about your memories and the season, then choose one action. "
+            "Respond with only the JSON object."
         )
 
     # -- transport ------------------------------------------------------
     def _complete(self, user_prompt: str) -> str:
+        if self.client is not None:
+            return self.client(self.system_prompt, user_prompt)
         if self.provider == "anthropic":
             return self._complete_anthropic(user_prompt)
         return self._complete_openai(user_prompt)
@@ -136,7 +181,7 @@ class LLMBrain(AgentBrain):
             "model": self.model,
             "temperature": self.temperature,
             "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
         }
@@ -151,7 +196,7 @@ class LLMBrain(AgentBrain):
             "model": self.model,
             "max_tokens": 512,
             "temperature": self.temperature,
-            "system": SYSTEM_PROMPT,
+            "system": self.system_prompt,
             "messages": [{"role": "user", "content": user_prompt}],
         }
         headers = {

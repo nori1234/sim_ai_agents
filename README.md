@@ -71,13 +71,23 @@ write_html(sim, "out/gemini.html", title="Emergence World [gemini]")
 
 ## 実LLM / Llama で動かす
 
-エージェントの「脳」を実モデルに差し替えられます。最も手軽なのは Ollama です。
+エージェントの「脳」を実モデルに差し替えられます。LLM脳は毎ターン、**思い出した記憶**と
+**世界の状態（季節・物価・災害）**を見て行動を選ぶので、ヒューリスティックには無理な
+「**過去に学び、環境に適応する**」動きができます（例：「去年の冬は飢えた→今年は備蓄しよう」）。
+
+最も手軽なのは Ollama：
 
 ```bash
-ollama serve
-ollama pull llama3.1
+ollama serve && ollama pull llama3.1
+# CLIから（記憶＋環境を一緒に有効化すると接地が活きる）
+python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
+# または例スクリプト（記憶＋環境ON済み）
 python3 examples/run_with_llama.py
 ```
+
+`--llm-base` / `--llm-model` / `--llm-provider`（`openai`=Ollama互換 / `anthropic`）で
+任意のエンドポイントに向けられます。エンドポイントが落ちていても各エージェントは
+persona由来の `HeuristicBrain` に**自動フォールバック**するので run は止まりません。
 
 ホスティング Llama（例：Groq）に向ける場合：
 

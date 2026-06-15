@@ -60,8 +60,24 @@ def _society_from_args(args) -> SocietyConfig:
     return SocietyConfig(enabled=bool(getattr(args, "society", False)))
 
 
+def _llm_factory(args):
+    """A brain_factory that puts every agent on a real language model."""
+    import os
+    from .brains.llm import LLMBrain
+    base = args.llm_base or os.environ.get("LLM_BASE_URL")
+    model = args.llm_model or os.environ.get("LLM_MODEL") or "llama3.1"
+    key = args.llm_key or os.environ.get("LLM_API_KEY")
+    provider = args.llm_provider
+
+    def factory(agent, persona, rng):
+        return LLMBrain(provider=provider, model=model, base_url=base,
+                        api_key=key, persona=persona)
+    return factory
+
+
 def _run_one(persona_mix, args, governance: str = "direct"):
     config = SimulationConfig(days=args.days, ticks_per_day=args.ticks, seed=args.seed)
+    brain_factory = _llm_factory(args) if getattr(args, "llm", False) else None
     sim = make_simulation(persona_mix, n_agents=args.agents, config=config,
                           governance=governance, drives=_drives_from_args(args),
                           status=_status_from_args(args),
@@ -69,7 +85,8 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           society=_society_from_args(args),
                           environment=bool(getattr(args, "environment", False)),
                           memory=bool(getattr(args, "memory", False)),
-                          memory_path=getattr(args, "memory_db", None) or ":memory:")
+                          memory_path=getattr(args, "memory_db", None) or ":memory:",
+                          brain_factory=brain_factory)
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -168,6 +185,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--memory-db", metavar="PATH", default=None,
                         help="SQLite file for persistent cross-run memory "
                              "(default: in-memory, not persisted)")
+    parser.add_argument("--llm", action="store_true",
+                        help="drive agents with a real LLM (grounded on memory + "
+                             "environment); pair with --memory --environment")
+    parser.add_argument("--llm-provider", default="openai",
+                        choices=["openai", "anthropic"],
+                        help="LLM wire protocol (openai = Ollama/vLLM/Llama)")
+    parser.add_argument("--llm-model", default=None,
+                        help="model name (env: LLM_MODEL; default llama3.1)")
+    parser.add_argument("--llm-base", default=None,
+                        help="OpenAI-compatible base URL (env: LLM_BASE_URL)")
+    parser.add_argument("--llm-key", default=None,
+                        help="API key if the endpoint needs one (env: LLM_API_KEY)")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")
