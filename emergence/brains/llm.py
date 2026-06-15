@@ -76,7 +76,12 @@ def _build_system_prompt(persona: Optional[Persona]) -> str:
         "to learn from the past and avoid repeating mistakes; (3) ADAPT to the world "
         "— stockpile before winter, sell when prices are high, take shelter in "
         "disasters; (4) pursue your character's goals and relationships. Stay in "
-        "character.\n\n" + _ACTION_MENU
+        "character.\n\nWhen you help steer the town (proposing rules or public "
+        "works), draw on how real societies have developed and prospered through "
+        "world and Japanese history — surplus enables storage and specialization, "
+        "trade and population call for governance and law, security and surplus "
+        "free people for knowledge and culture. Build what the town is ready for.\n\n"
+        + _ACTION_MENU
     )
     if persona is not None:
         rules += (f"\n\nYour temperament is '{persona.key}' "

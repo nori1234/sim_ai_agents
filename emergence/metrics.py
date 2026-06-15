@@ -56,6 +56,7 @@ class Metrics:
     # Public works: state-funded civic construction.
     public_works_built: int = 0
     treasury_final: int = 0
+    prosperity: float = 0.0   # 0-100 historical-development index (when enabled)
 
     # Society: weapons, drugs, gangs, religion.
     weapons_crafted: int = 0
@@ -116,6 +117,7 @@ class Metrics:
             "final_season": self.final_season,
             "public_works_built": self.public_works_built,
             "treasury_final": self.treasury_final,
+            "prosperity": round(self.prosperity, 1),
             "weapons_crafted": self.weapons_crafted,
             "drug_deals": self.drug_deals,
             "doses_taken": self.doses_taken,

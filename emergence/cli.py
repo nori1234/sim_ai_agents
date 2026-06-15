@@ -85,6 +85,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           society=_society_from_args(args),
                           environment=bool(getattr(args, "environment", False)),
                           public_works=bool(getattr(args, "public_works", False)),
+                          founding=bool(getattr(args, "founding", False)),
                           memory=bool(getattr(args, "memory", False)),
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
                           brain_factory=brain_factory)
@@ -179,6 +180,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--publicworks", dest="public_works", action="store_true",
                         help="enable the civic loop: a treasury funds council-approved "
                              "construction (build prisons when crime is high, etc.)")
+    parser.add_argument("--founding", action="store_true",
+                        help="start a sparse frontier town that must develop itself "
+                             "in historical order (implies --publicworks)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")

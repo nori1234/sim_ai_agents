@@ -265,7 +265,23 @@ def _playback(sim: Simulation) -> str:
     bg = (f'<rect x="0" y="0" width="{W}" height="{H}" fill="{seasons[0]}" '
           f'stroke="#e0e0e0">{anim("fill", seasons, discrete=True)}</rect>')
 
-    glyphs = _facility_glyphs(world, cell, opacity=0.55)
+    # Facilities fade in on the day they were built, so a founding town visibly
+    # constructs itself; pre-existing ones are simply always there.
+    day_index = {fr["day"]: i for i, fr in enumerate(frames)}
+    glyphs = []
+    for f in world.facilities:
+        glyph = _FACILITY_ICON.get(f.ftype, "•")
+        gx, gy = f.x * cell + cell / 2, f.y * cell + cell / 2
+        base = (f'<text x="{gx:.0f}" y="{gy:.0f}" text-anchor="middle" '
+                f'dominant-baseline="central" font-size="{cell * 0.7:.0f}" ')
+        title = f'<title>{_esc(f.name)} ({f.ftype.value})</title>{glyph}</text>'
+        bd = getattr(f, "built_on_day", None)
+        if bd and bd in day_index and day_index[bd] > 0:
+            ops = ["0" if i < day_index[bd] else "0.55" for i in range(n)]
+            glyphs.append(base + 'opacity="0">'
+                          + anim("opacity", ops, discrete=True) + title)
+        else:
+            glyphs.append(base + 'opacity="0.55">' + title)
 
     # Per-agent tracks (carry last position when the agent is absent that day).
     all_ids = sorted({a["id"] for fr in frames for a in fr["agents"]})

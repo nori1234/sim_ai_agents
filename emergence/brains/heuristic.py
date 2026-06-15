@@ -373,7 +373,9 @@ class HeuristicBrain(AgentBrain):
             if obs.public_works.get("enabled") and \
                     obs.public_works.get("treasury", 0) >= obs.public_works.get("cost", 99) \
                     and self.rng.random() < 0.6:
-                build = self._public_work_for(obs)
+                # Under historical development, follow the suggested next step;
+                # otherwise react to the immediate condition.
+                build = obs.public_works.get("suggest") or self._public_work_for(obs)
                 if build is not None:
                     return Action(
                         ActionType.PROPOSE,

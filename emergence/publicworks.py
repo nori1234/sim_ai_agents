@@ -31,8 +31,20 @@ BUILDABLE: dict[str, FacilityType] = {
     "farm": FacilityType.FARM,
     "workshop": FacilityType.WORKSHOP,
     "library": FacilityType.LIBRARY,
+    "school": FacilityType.LIBRARY,
     "market": FacilityType.MARKET,
+    "town_hall": FacilityType.TOWN_HALL,
+    "townhall": FacilityType.TOWN_HALL,
+    "hall": FacilityType.TOWN_HALL,
+    "bank": FacilityType.BANK,
+    "temple": FacilityType.TEMPLE,
+    "church": FacilityType.TEMPLE,
+    "monument": FacilityType.MONUMENT,
 }
+
+# Facilities a town only needs one of — don't fund a second.
+UNIQUE_FACILITIES = {FacilityType.TOWN_HALL, FacilityType.MARKET,
+                     FacilityType.BANK}
 
 PUBLIC_WORKS_COST = 20        # what the treasury pays to erect one facility
 CIVIC_LEVY_PER_AGENT = 2      # each citizen's daily contribution to the treasury

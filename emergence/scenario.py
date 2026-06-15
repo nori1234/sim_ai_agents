@@ -68,6 +68,7 @@ def make_simulation(
     society: SocietyConfig | None = None,
     environment: "EnvironmentConfig | bool | None" = None,
     public_works: bool = False,
+    founding: bool = False,
     memory: bool = False,
     memory_path: str = ":memory:",
     brain_factory=None,
@@ -88,7 +89,13 @@ def make_simulation(
     else:
         gov_cfg = governance
     rng = random.Random(config.seed)
-    world = build_default_world()
+    # A founding town starts sparse and develops itself through public works.
+    if founding:
+        from .development import founding_world
+        world = founding_world()
+        public_works = True
+    else:
+        world = build_default_world()
     agents = build_population(n_agents, world, rng)
 
     if isinstance(persona_mix, str):
@@ -132,5 +139,6 @@ def make_simulation(
         society=society or SocietyConfig(),
         environment=env,
         public_works=bool(public_works),
+        development=bool(founding),
         memory=town_memory,
     )

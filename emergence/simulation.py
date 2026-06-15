@@ -17,6 +17,7 @@ from .psyche import PsycheConfig, actualization_pull, fear_level
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
 from . import publicworks as PW
+from . import development as DEV
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -89,6 +90,8 @@ class Simulation:
     # Public-works civic loop (council-funded construction); opt-in.
     public_works: bool = False
     treasury: int = 0
+    # Historical development: gate construction on plausible prerequisites; opt-in.
+    development: bool = False
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -220,7 +223,9 @@ class Simulation:
             affordances=affordances_at(here_f),
             public_works=({"enabled": True, "treasury": self.treasury,
                            "cost": PW.PUBLIC_WORKS_COST,
-                           "buildable": sorted(set(PW.BUILDABLE))}
+                           "buildable": sorted(set(PW.BUILDABLE)),
+                           "suggest": (DEV.next_public_work(self)
+                                       if self.development else None)}
                           if self.public_works else {}),
         )
 
@@ -497,6 +502,14 @@ class Simulation:
         try:
             ftype = FacilityType(facility_value)
         except ValueError:
+            return
+        # Historical gate: you can't leapfrog the developmental sequence.
+        if self.development and not DEV.can_build(ftype, self.world):
+            self.world.log("public_works_premature", facility=ftype.value)
+            return
+        # Don't fund a second of a one-per-town institution.
+        if ftype in PW.UNIQUE_FACILITIES and self.world.facilities_of(ftype):
+            self.world.log("public_works_redundant", facility=ftype.value)
             return
         cost = PW.PUBLIC_WORKS_COST
         if self.treasury < cost:
@@ -1159,6 +1172,8 @@ class Simulation:
             self.metrics.peak_food_price = s["peak_food_price"]
             self.metrics.final_season = s["final_season"]
         self.metrics.treasury_final = self.treasury
+        if self.development:
+            self.metrics.prosperity = DEV.prosperity(self)
 
     def _living(self) -> int:
         return sum(1 for a in self.agents if a.alive)
