@@ -5,6 +5,8 @@ HTML file with inline CSS and hand-built SVG, so it opens in any browser
 straight off disk. The views adapt to whichever needs layers a run enabled:
 
 * metric cards (layer-aware) + one-line verdict
+* a **town playback** — an animated day-by-day replay where agents move on the
+  map, the season tints the world, and the day's violence flashes (inline JS)
 * a daily timeline (population, cumulative crime, fraud, and births)
 * Maslow's needs pyramid — each tier brightened by its average satisfaction
 * the town map with a spatial crime heatmap overlaid on the facilities
@@ -17,6 +19,7 @@ straight off disk. The views adapt to whichever needs layers a run enabled:
 from __future__ import annotations
 
 import html
+import json
 import math
 from collections import Counter
 
@@ -40,6 +43,13 @@ _FACILITY_GROUP = {
     FacilityType.HOUSE: ("civic", "#90a4ae"),
     FacilityType.PLAZA: ("civic", "#9e9d24"),
     FacilityType.MONUMENT: ("civic", "#fbc02d"),
+}
+
+
+# Persona colours for the live agents in the playback view.
+_PERSONA_COLOR = {
+    "guardian": "#2e7d32", "philosopher": "#8e24aa",
+    "idealist": "#1565c0", "predator": "#c62828",
 }
 
 
@@ -166,6 +176,107 @@ def _timeline(sim: Simulation) -> str:
         <span><i style="background:#ef6c00"></i>cumulative fraud</span>
         {'<span><i style="background:#8e24aa"></i>cumulative births</span>' if show_births else ''}
       </div>
+    </div>"""
+
+
+_PLAYBACK_JS = """
+const FR = __FRAMES__, COL = __COLORS__, IDS = __IDS__;
+const CELL = __CELL__;
+const bg = document.getElementById('pb-bg');
+const layer = document.getElementById('pb-agents');
+const fx = document.getElementById('pb-fx');
+const lbl = document.getElementById('pb-label');
+const slider = document.getElementById('pb-slider');
+const SB = {spring:'#eef6e3', summer:'#fffceb', autumn:'#fbeae2', winter:'#e6f0fb', '':'#fafafa'};
+const SVGNS = 'http://www.w3.org/2000/svg';
+const circ = {};
+IDS.forEach(function(id){
+  const c = document.createElementNS(SVGNS, 'circle');
+  c.setAttribute('r', 5); c.setAttribute('class', 'pb-ag');
+  c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '1');
+  layer.appendChild(c); circ[id] = c;
+});
+function render(i){
+  const f = FR[i]; if(!f) return;
+  bg.setAttribute('fill', SB[f.season] || '#fafafa');
+  lbl.textContent = 'Day ' + f.day + '  ' + (f.season||'') + ' ' + (f.weather||'')
+                    + '  |  alive ' + f.alive;
+  const here = {};
+  f.agents.forEach(function(a){
+    here[a.id] = 1; const c = circ[a.id]; if(!c) return;
+    c.setAttribute('cx', a.x*CELL + CELL/2);
+    c.setAttribute('cy', a.y*CELL + CELL/2);
+    c.setAttribute('fill', COL[a.persona] || '#26a69a');
+    c.setAttribute('opacity', a.alive ? 1 : 0.18);
+    c.style.display = '';
+  });
+  IDS.forEach(function(id){ if(!here[id]) circ[id].style.display = 'none'; });
+  let s = '';
+  (f.crimes||[]).forEach(function(p){
+    s += '<circle cx="' + (p[0]*CELL+CELL/2) + '" cy="' + (p[1]*CELL+CELL/2)
+       + '" r="' + CELL + '" fill="#e53935" opacity="0.4"></circle>';
+  });
+  fx.innerHTML = s;
+}
+let i = 0, timer = null;
+slider.max = FR.length - 1;
+slider.oninput = function(){ i = +slider.value; render(i); };
+function step(){ i = (i+1) % FR.length; slider.value = i; render(i); }
+document.getElementById('pb-play').onclick = function(){
+  if(timer){ clearInterval(timer); timer = null; this.textContent = '\\u25B6 play'; }
+  else { timer = setInterval(step, 650); this.textContent = '\\u275A\\u275A pause'; }
+};
+render(0);
+"""
+
+
+def _playback(sim: Simulation) -> str:
+    """An animated day-by-day replay: agents move on the map, the season tints
+    the world, and the day's violence flashes red. Inline vanilla JS, no deps."""
+    frames = getattr(sim, "frames", [])
+    if not frames:
+        return ""
+    world = sim.world
+    cell = 22
+    W, H = world.width * cell, world.height * cell
+
+    # Faint facility landmarks for context.
+    dots = []
+    for f in world.facilities:
+        _, color = _FACILITY_GROUP.get(f.ftype, ("civic", "#90a4ae"))
+        cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
+        dots.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="3" fill="{color}" '
+                    f'opacity="0.45"><title>{_esc(f.name)}</title></circle>')
+
+    all_ids = sorted({a["id"] for fr in frames for a in fr["agents"]})
+    js = (_PLAYBACK_JS
+          .replace("__FRAMES__", json.dumps(frames, separators=(",", ":")))
+          .replace("__COLORS__", json.dumps(_PERSONA_COLOR))
+          .replace("__IDS__", json.dumps(all_ids))
+          .replace("__CELL__", str(cell)))
+    legend = "".join(
+        f'<span><i style="background:{c}"></i>{p}</span>'
+        for p, c in _PERSONA_COLOR.items()
+    )
+    return f"""
+    <div class="panel">
+      <h2>Town playback — watch the {len(frames)} days unfold</h2>
+      <div class="pb-controls">
+        <button id="pb-play" class="pb-btn">&#9654; play</button>
+        <input id="pb-slider" type="range" min="0" value="0" class="pb-slider">
+        <span id="pb-label" class="pb-lbl"></span>
+      </div>
+      <svg viewBox="0 0 {W} {H}" class="map" role="img">
+        <rect id="pb-bg" x="0" y="0" width="{W}" height="{H}" fill="#fafafa"
+              stroke="#e0e0e0"></rect>
+        {''.join(dots)}
+        <g id="pb-fx"></g>
+        <g id="pb-agents"></g>
+      </svg>
+      <div class="legend">{legend}
+        <span class="muted">faint dots = facilities · red flash = that day's violence</span>
+      </div>
+      <script>{js}</script>
     </div>"""
 
 
@@ -606,6 +717,12 @@ h1 { font-size: 24px; margin: 0 0 4px; }
 .faction h3 { font-size: 13px; margin: 0 0 6px; color: #455a64; }
 .faction ul { margin: 0; padding-left: 18px; font-size: 12px; color: #37474f; }
 .faction li { margin: 3px 0; }
+.pb-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pb-btn { font-size: 13px; padding: 4px 10px; border: 1px solid #cfd8dc; border-radius: 6px;
+          background: #fff; cursor: pointer; flex: none; }
+.pb-slider { flex: 1; }
+.pb-lbl { font-size: 12px; color: #455a64; flex: none; min-width: 200px; text-align: right; }
+.pb-ag { transition: cx .45s ease, cy .45s ease, opacity .3s, fill .3s; }
 .footer { font-size: 12px; color: #b0bec5; text-align: center; margin-top: 24px; }
 """
 
@@ -621,6 +738,7 @@ def render_html(sim: Simulation, title: str = "Emergence World") -> str:
   <h1>{_esc(title)}</h1>
   <p class="verdict">{_esc(one_line_verdict(sim))}</p>
   {_cards(sim)}
+  {_playback(sim)}
   {_timeline(sim)}
   {_needs_pyramid(sim)}
   <div class="panel" style="padding:0;background:none;box-shadow:none">

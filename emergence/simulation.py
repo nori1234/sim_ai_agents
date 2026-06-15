@@ -70,6 +70,8 @@ class Simulation:
     ledger: Ledger = field(default_factory=Ledger)
     metrics: Metrics = field(default_factory=Metrics)
     daily_log: list[dict] = field(default_factory=list)
+    # Per-day snapshots for the playback visualization (positions, season, crimes).
+    frames: list[dict] = field(default_factory=list)
     on_event: Optional[Callable[[dict], None]] = None
     mayor: Optional[Mayor] = None
     drives: DrivesConfig = field(default_factory=DrivesConfig)
@@ -942,7 +944,26 @@ class Simulation:
         from .brains.heuristic import HeuristicBrain
         return HeuristicBrain(persona_key, random.Random(self.rng.randint(0, 2**31)))
 
+    def _record_frame(self) -> None:
+        """Capture a lightweight snapshot of the day for the playback view."""
+        day = self.world.day
+        env = self.environment.snapshot() if self.environment is not None else {}
+        crimes = [list(e["pos"]) for e in self.world.events
+                  if e.get("day") == day and e.get("kind") in ("theft", "violence", "arson")
+                  and isinstance(e.get("pos"), (tuple, list))]
+        self.frames.append({
+            "day": day,
+            "season": env.get("season", ""),
+            "weather": env.get("weather", ""),
+            "alive": self._living(),
+            "agents": [{"id": a.id, "name": a.name, "x": a.x, "y": a.y,
+                        "persona": a.persona, "alive": a.alive}
+                       for a in self.agents],
+            "crimes": crimes,
+        })
+
     def _end_of_day(self, verbose: bool) -> None:
+        self._record_frame()
         self._apply_daily_policy()
         self._maybe_elect_mayor()
         if self.environment is not None:

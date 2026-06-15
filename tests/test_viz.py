@@ -28,14 +28,22 @@ class TestViz(unittest.TestCase):
         html = render_html(self._run("guardian"), "T")
         self.assertTrue(html.lstrip().startswith("<!doctype html>"))
         self.assertTrue(html.rstrip().endswith("</html>"))
-        # SVG tags balanced (timeline + map + network).
+        # SVG tags balanced (playback + timeline + map + network).
         self.assertEqual(html.count("<svg"), html.count("</svg>"))
-        self.assertEqual(html.count("<svg"), 3)
+        self.assertEqual(html.count("<svg"), 4)
 
     def test_html_contains_sections(self):
         html = render_html(self._run("guardian"), "T")
-        for needle in ("Daily timeline", "crime heatmap", "Trust network", "Citizens"):
+        for needle in ("Town playback", "Daily timeline", "crime heatmap",
+                       "Trust network", "Citizens"):
             self.assertIn(needle, html)
+
+    def test_playback_embeds_per_day_frames(self):
+        sim = self._run("guardian")
+        html = render_html(sim, "T")
+        self.assertIn("pb-play", html)            # the play button
+        self.assertIn("FR =", html)               # frames embedded in the JS
+        self.assertEqual(len(sim.frames), sim.metrics.days_run)
 
     def test_heatmap_reflects_crime(self):
         peaceful = render_html(self._run("guardian"), "T")
@@ -62,8 +70,8 @@ class TestViz(unittest.TestCase):
     def test_maslow_svg_balanced(self):
         html = render_html(self._run_maslow("guardian"), "T")
         self.assertEqual(html.count("<svg"), html.count("</svg>"))
-        # timeline + pyramid + map + network + lineage = 5
-        self.assertEqual(html.count("<svg"), 5)
+        # playback + timeline + pyramid + map + network + lineage = 6
+        self.assertEqual(html.count("<svg"), 6)
 
 
 if __name__ == "__main__":
