@@ -96,6 +96,7 @@ class Simulation:
     # Economic physics (offer/accept/craft primitives); opt-in.
     economy: bool = False
     offers: list = field(default_factory=list)        # open Offer order book
+    loans: list = field(default_factory=list)         # outstanding credit (Loan)
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -110,6 +111,7 @@ class Simulation:
         self._next_gang_num = 1
         self._next_faith_num = 1
         self._next_offer_id = 1
+        self._next_loan_id = 1
         # Emergent prices: recent settled swap ratios per ordered (give, want) pair.
         self._trade_ratios: dict[tuple, list] = {}
 
@@ -240,6 +242,9 @@ class Simulation:
                       "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
                       "price_food_in_money": self.emergent_price("food", "money")}
                      if self.economy else {}),
+            debts=([l.as_dict() for l in self.loans
+                    if l.debtor == agent.id and not l.settled and not l.defaulted]
+                   if self.economy else []),
         )
 
     # ==================================================================
@@ -911,6 +916,56 @@ class Simulation:
             return None
         return round(sum(ratios) / len(ratios), 2)
 
+    def _do_lend(self, agent: Agent, action: Action) -> None:
+        if not self.economy:
+            return
+        p = action.params
+        debtor = self._by_id.get(p.get("to"))
+        item = str(p.get("item", "money"))
+        principal = int(p.get("qty", 0) or 0)
+        repay = int(p.get("repay", principal) or principal)
+        due_in_raw = p.get("due_in_days", MK.DEFAULT_LOAN_DUE_DAYS)
+        due_in = int(due_in_raw) if due_in_raw is not None else MK.DEFAULT_LOAN_DUE_DAYS
+        due_in = max(0, due_in)
+        if debtor is None or debtor is agent or not debtor.alive:
+            return
+        if item not in MK.TRADABLE or principal <= 0 or repay <= 0:
+            return
+        if MK.holdings(agent, item) < principal:
+            return  # can't lend what you don't have
+        # Hand over the principal now; record the promise to repay later.
+        apply_transfer(agent, debtor, item, principal)
+        loan = MK.Loan(id=self._next_loan_id, creditor=agent.id, debtor=debtor.id,
+                       item=item, principal=principal, repay=repay,
+                       due_day=self.world.day + due_in)
+        self._next_loan_id += 1
+        self.loans.append(loan)
+        self.metrics.loans_made += 1
+        self.world.log("loan", id=loan.id, creditor=agent.id, debtor=debtor.id,
+                       principal=f"{principal} {item}", repay=f"{repay} {item}")
+
+    def _do_repay(self, agent: Agent, action: Action) -> None:
+        if not self.economy:
+            return
+        lid = action.params.get("loan_id")
+        loan = next((l for l in self.loans
+                     if l.id == lid and not l.settled and not l.defaulted), None)
+        if loan is None or loan.debtor != agent.id:
+            return
+        creditor = self._by_id.get(loan.creditor)
+        if creditor is None or not creditor.alive:
+            loan.settled = True  # creditor gone; debt lapses
+            return
+        if MK.holdings(agent, loan.item) < loan.repay:
+            return  # can't settle yet
+        apply_transfer(agent, creditor, loan.item, loan.repay)
+        loan.settled = True
+        self.metrics.loans_repaid += 1
+        # Honouring credit builds trust — the collateral of a credit economy.
+        creditor.adjust_trust(agent.id, 0.2)
+        agent.adjust_trust(creditor.id, 0.1)
+        self.world.log("loan_repaid", id=loan.id, debtor=agent.id, creditor=creditor.id)
+
     def _religion_of(self, rid: str):
         for r in self.religions:
             if r.id == rid:
@@ -1152,6 +1207,22 @@ class Simulation:
         if self.economy:
             self.offers = [o for o in self.offers
                            if self.world.day - o.day < MK.OFFER_TTL_DAYS]
+            # Overdue, unsettled loans default — the creditor eats the loss and
+            # learns to distrust the debtor (credit dries up for defaulters).
+            for loan in self.loans:
+                if loan.settled or loan.defaulted or self.world.day <= loan.due_day:
+                    continue
+                loan.defaulted = True
+                self.metrics.loan_defaults += 1
+                creditor = self._by_id.get(loan.creditor)
+                debtor = self._by_id.get(loan.debtor)
+                if creditor is not None and debtor is not None:
+                    creditor.adjust_trust(debtor.id, -0.4)
+                    debtor.remember(
+                        f"Day {self.world.day}: I defaulted on a loan from {debtor.name}.")
+                self.world.log("loan_default", id=loan.id,
+                               debtor=loan.debtor, creditor=loan.creditor)
+            self.loans = [l for l in self.loans if not (l.settled or l.defaulted)]
         if self.public_works:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:

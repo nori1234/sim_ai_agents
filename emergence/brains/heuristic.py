@@ -415,9 +415,26 @@ class HeuristicBrain(AgentBrain):
         """Use the market primitives: craft a good, take a useful offer, or sell
         a surplus. The engine just clears swaps; prices form from these choices."""
         here = obs.here["type"] if obs.here else None
+        # Repay a debt when able — honouring credit is what keeps it flowing.
+        for d in obs.debts:
+            owe_q, owe_i = d["owe"].split(" ", 1)
+            have = agent.money if owe_i == "money" else agent.inventory.get(owe_i, 0)
+            if have >= int(owe_q):
+                return Action(ActionType.REPAY, {"loan_id": d["id"]},
+                              rationale="repay my debt")
         # Make tools from surplus materials (value-add at the workshop).
         if here == "workshop" and agent.materials() >= 2 and self.rng.random() < 0.5:
             return Action(ActionType.CRAFT, {"item": "tools"}, rationale="craft tools")
+        # Extend credit to a less-wealthy neighbour (with interest). Cooperative
+        # personas lend more freely; the loan is repaid (trust) or defaulted.
+        if agent.money >= 10 and self.rng.random() < self.persona.cooperation * 0.4:
+            for o in obs.others:
+                if o["distance"] <= 8 and o.get("money", 99) < agent.money - 6 \
+                        and o.get("trust", 0.0) >= -0.1:
+                    return Action(ActionType.LEND,
+                                  {"to": o["id"], "item": "money", "qty": 4,
+                                   "repay": 6, "due_in_days": 3},
+                                  rationale="lend to a neighbour")
         # Accept an open offer that gives me something I lack and can pay for.
         for off in obs.open_offers:
             give_i = off["give"].split(" ", 1)[1]

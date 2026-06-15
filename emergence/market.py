@@ -52,6 +52,30 @@ class Offer:
                 "want": f"{self.want_qty} {self.want_item}"}
 
 
+DEFAULT_LOAN_DUE_DAYS = 3
+
+
+@dataclass
+class Loan:
+    """Credit as physics: a creditor hands over a principal now against a promise
+    to return `repay` later. Trust is the only collateral — repaying builds it,
+    defaulting destroys it. From this, lending, interest, and trust-based money
+    can emerge; nothing here is a 'bank'."""
+    id: int
+    creditor: str
+    debtor: str
+    item: str
+    principal: int
+    repay: int
+    due_day: int
+    settled: bool = False
+    defaulted: bool = False
+
+    def as_dict(self) -> dict:
+        return {"id": self.id, "creditor": self.creditor, "debtor": self.debtor,
+                "owe": f"{self.repay} {self.item}", "due_day": self.due_day}
+
+
 def holdings(agent, item: str) -> int:
     """How much of a tradable good an agent holds (money or an inventory item)."""
     if item == "money":

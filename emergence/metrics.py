@@ -58,9 +58,12 @@ class Metrics:
     treasury_final: int = 0
     prosperity: float = 0.0   # 0-100 historical-development index (when enabled)
 
-    # Economy: emergent exchange & production.
+    # Economy: emergent exchange, production & credit.
     trades: int = 0
     crafted: int = 0
+    loans_made: int = 0
+    loans_repaid: int = 0
+    loan_defaults: int = 0
 
     # Society: weapons, drugs, gangs, religion.
     weapons_crafted: int = 0
@@ -124,6 +127,9 @@ class Metrics:
             "prosperity": round(self.prosperity, 1),
             "trades": self.trades,
             "crafted": self.crafted,
+            "loans_made": self.loans_made,
+            "loans_repaid": self.loans_repaid,
+            "loan_defaults": self.loan_defaults,
             "weapons_crafted": self.weapons_crafted,
             "drug_deals": self.drug_deals,
             "doses_taken": self.doses_taken,

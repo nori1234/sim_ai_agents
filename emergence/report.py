@@ -55,6 +55,11 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
         price = sim.emergent_price("food", "money")
         price_txt = f"; food≈{price} money" if price else ""
         lines.append(f"Economy:     {m.trades} trades, {m.crafted} crafted{price_txt}")
+    if m.loans_made:
+        lines.append(
+            f"Credit:      {m.loans_made} loans, {m.loans_repaid} repaid, "
+            f"{m.loan_defaults} defaulted"
+        )
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):

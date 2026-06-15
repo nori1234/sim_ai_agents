@@ -98,11 +98,65 @@ class TestCraft(unittest.TestCase):
         self.assertEqual(a.inventory.get("tools", 0), 0)
 
 
+class TestCredit(unittest.TestCase):
+    def test_lend_moves_principal_and_records_loan(self):
+        a, b = _agent(id="a", money=20), _agent(id="b", money=1)
+        sim = _sim([a, b])
+        sim._do_lend(a, Action(ActionType.LEND, {"to": "b", "item": "money",
+                                                 "qty": 4, "repay": 6, "due_in_days": 3}))
+        self.assertEqual(a.money, 16)
+        self.assertEqual(b.money, 5)          # got the principal now
+        self.assertEqual(len(sim.loans), 1)
+        self.assertEqual(sim.metrics.loans_made, 1)
+
+    def test_repay_returns_with_interest_and_builds_trust(self):
+        a, b = _agent(id="a", money=20), _agent(id="b", money=1)
+        sim = _sim([a, b])
+        sim._do_lend(a, Action(ActionType.LEND, {"to": "b", "item": "money",
+                                                 "qty": 4, "repay": 6}))
+        b.money += 10  # b earns enough to repay
+        sim._do_repay(b, Action(ActionType.REPAY, {"loan_id": sim.loans[0].id}))
+        self.assertEqual(sim.metrics.loans_repaid, 1)
+        self.assertEqual(a.money, 16 + 6)     # principal out, repay (with interest) in
+        self.assertGreater(a.trust_of("b"), 0)
+
+    def test_cannot_repay_a_loan_you_dont_owe(self):
+        a, b, c = _agent(id="a", money=20), _agent(id="b", money=1), _agent(id="c", money=20)
+        sim = _sim([a, b, c])
+        sim._do_lend(a, Action(ActionType.LEND, {"to": "b", "item": "money", "qty": 4,
+                                                 "repay": 6}))
+        sim._do_repay(c, Action(ActionType.REPAY, {"loan_id": sim.loans[0].id}))
+        self.assertEqual(sim.metrics.loans_repaid, 0)
+
+    def test_overdue_loan_defaults_and_damages_trust(self):
+        a, b = _agent(id="a", money=20), _agent(id="b", money=1)
+        sim = _sim([a, b])
+        sim._do_lend(a, Action(ActionType.LEND, {"to": "b", "item": "money", "qty": 4,
+                                                 "repay": 6, "due_in_days": 0}))
+        sim.world.day = 2                     # past the due date (was day 1)
+        sim._end_of_day(verbose=False)
+        self.assertEqual(sim.metrics.loan_defaults, 1)
+        self.assertLess(a.trust_of("b"), 0)   # creditor now distrusts the defaulter
+
+    def test_cannot_lend_without_funds(self):
+        a, b = _agent(id="a", money=2), _agent(id="b", money=1)
+        sim = _sim([a, b])
+        sim._do_lend(a, Action(ActionType.LEND, {"to": "b", "item": "money", "qty": 4,
+                                                 "repay": 6}))
+        self.assertEqual(len(sim.loans), 0)
+
+
 class TestEndToEnd(unittest.TestCase):
     def test_market_comes_alive_when_enabled(self):
         sim = make_simulation("gemini", config=SimulationConfig(seed=42), economy=True)
         sim.run()
         self.assertGreater(sim.metrics.trades, 0)
+
+    def test_cooperative_society_develops_credit(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=42), economy=True)
+        sim.run()
+        self.assertGreater(sim.metrics.loans_made, 0)
+        self.assertGreater(sim.metrics.loans_repaid, 0)
 
     def test_off_is_byte_identical_baseline(self):
         sim = make_simulation("gemini", config=SimulationConfig(seed=42)); sim.run()

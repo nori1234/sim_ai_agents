@@ -66,6 +66,8 @@ Choose ONE action. Common actions and their params:
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
+  lend   {"to": id, "item": "money", "qty": N, "repay": M, "due_in_days": D}  (credit; M>N = interest)
+  repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 

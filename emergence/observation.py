@@ -59,9 +59,11 @@ class Observation:
     # council-funded construction).
     public_works: dict = field(default_factory=dict)
 
-    # Economy: open swap offers the agent could accept, and emergent prices.
+    # Economy: open swap offers the agent could accept, emergent prices, and the
+    # loans this agent currently owes (its debts).
     open_offers: list = field(default_factory=list)
     economy: dict = field(default_factory=dict)
+    debts: list = field(default_factory=list)
 
 
 def _facility_view(f: Facility, dist: int) -> dict:

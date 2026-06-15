@@ -50,6 +50,8 @@ class ActionType(str, Enum):
     OFFER = "offer"  # post a swap: give N of A for M of B (any tradable goods)
     ACCEPT = "accept"  # agree to an open offer; the swap executes atomically
     CRAFT = "craft"  # transform inputs into an output per a recipe
+    LEND = "lend"  # extend credit: give a principal now against a promised repay
+    REPAY = "repay"  # settle a loan you owe (builds trust; defaulting destroys it)
 
 
 # Actions the world treats as crimes for metric purposes.
