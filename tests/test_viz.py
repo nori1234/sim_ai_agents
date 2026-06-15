@@ -38,12 +38,18 @@ class TestViz(unittest.TestCase):
                        "Trust network", "Citizens"):
             self.assertIn(needle, html)
 
-    def test_playback_embeds_per_day_frames(self):
+    def test_playback_is_autoplaying_and_per_day(self):
         sim = self._run("guardian")
         html = render_html(sim, "T")
-        self.assertIn("pb-play", html)            # the play button
-        self.assertIn("FR =", html)               # frames embedded in the JS
+        self.assertIn("Town playback", html)
+        self.assertIn("<animate", html)           # SMIL autoplay, no JS needed
+        self.assertIn('repeatCount="indefinite"', html)
         self.assertEqual(len(sim.frames), sim.metrics.days_run)
+
+    def test_no_script_tags(self):
+        # Pure SVG/CSS/SMIL — must run in any viewer without JavaScript.
+        html = render_html(self._run_maslow("guardian"), "T")
+        self.assertNotIn("<script", html)
 
     def test_heatmap_reflects_crime(self):
         peaceful = render_html(self._run("guardian"), "T")

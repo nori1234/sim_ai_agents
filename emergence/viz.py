@@ -46,6 +46,41 @@ _FACILITY_GROUP = {
 }
 
 
+# Emoji glyphs so facilities read as icons rather than coloured dots.
+_FACILITY_ICON = {
+    FacilityType.FARM: "\U0001F33E",        # 🌾
+    FacilityType.GRANARY: "\U0001F9FA",     # 🧺
+    FacilityType.FOREST: "\U0001F332",      # 🌲
+    FacilityType.MINE: "⛏️",      # ⛏️
+    FacilityType.WORKSHOP: "\U0001F528",    # 🔨
+    FacilityType.MARKET: "\U0001F3EA",      # 🏪
+    FacilityType.BANK: "\U0001F3E6",        # 🏦
+    FacilityType.TOWN_HALL: "\U0001F3DB️",  # 🏛️
+    FacilityType.LIBRARY: "\U0001F4DA",     # 📚
+    FacilityType.POLICE_STATION: "\U0001F693",   # 🚓
+    FacilityType.HOSPITAL: "\U0001F3E5",    # 🏥
+    FacilityType.HOUSE: "\U0001F3E0",       # 🏠
+    FacilityType.PLAZA: "⛲",           # ⛲
+    FacilityType.MONUMENT: "\U0001F5FF",    # 🗿
+    FacilityType.TEMPLE: "⛪",          # ⛪
+}
+
+
+def _facility_glyphs(world, cell: int, opacity: float = 1.0) -> list[str]:
+    """SVG <text> emoji icons for every facility, centred on its tile."""
+    out = []
+    for f in world.facilities:
+        glyph = _FACILITY_ICON.get(f.ftype, "•")
+        cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
+        out.append(
+            f'<text x="{cx:.0f}" y="{cy:.0f}" text-anchor="middle" '
+            f'dominant-baseline="central" font-size="{cell * 0.7:.0f}" '
+            f'opacity="{opacity}"><title>{_esc(f.name)} ({f.ftype.value})</title>'
+            f'{glyph}</text>'
+        )
+    return out
+
+
 # Persona colours for the live agents in the playback view.
 _PERSONA_COLOR = {
     "guardian": "#2e7d32", "philosopher": "#8e24aa",
@@ -179,104 +214,83 @@ def _timeline(sim: Simulation) -> str:
     </div>"""
 
 
-_PLAYBACK_JS = """
-const FR = __FRAMES__, COL = __COLORS__, IDS = __IDS__;
-const CELL = __CELL__;
-const bg = document.getElementById('pb-bg');
-const layer = document.getElementById('pb-agents');
-const fx = document.getElementById('pb-fx');
-const lbl = document.getElementById('pb-label');
-const slider = document.getElementById('pb-slider');
-const SB = {spring:'#eef6e3', summer:'#fffceb', autumn:'#fbeae2', winter:'#e6f0fb', '':'#fafafa'};
-const SVGNS = 'http://www.w3.org/2000/svg';
-const circ = {};
-IDS.forEach(function(id){
-  const c = document.createElementNS(SVGNS, 'circle');
-  c.setAttribute('r', 5); c.setAttribute('class', 'pb-ag');
-  c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '1');
-  layer.appendChild(c); circ[id] = c;
-});
-function render(i){
-  const f = FR[i]; if(!f) return;
-  bg.setAttribute('fill', SB[f.season] || '#fafafa');
-  lbl.textContent = 'Day ' + f.day + '  ' + (f.season||'') + ' ' + (f.weather||'')
-                    + '  |  alive ' + f.alive;
-  const here = {};
-  f.agents.forEach(function(a){
-    here[a.id] = 1; const c = circ[a.id]; if(!c) return;
-    c.setAttribute('cx', a.x*CELL + CELL/2);
-    c.setAttribute('cy', a.y*CELL + CELL/2);
-    c.setAttribute('fill', COL[a.persona] || '#26a69a');
-    c.setAttribute('opacity', a.alive ? 1 : 0.18);
-    c.style.display = '';
-  });
-  IDS.forEach(function(id){ if(!here[id]) circ[id].style.display = 'none'; });
-  let s = '';
-  (f.crimes||[]).forEach(function(p){
-    s += '<circle cx="' + (p[0]*CELL+CELL/2) + '" cy="' + (p[1]*CELL+CELL/2)
-       + '" r="' + CELL + '" fill="#e53935" opacity="0.4"></circle>';
-  });
-  fx.innerHTML = s;
-}
-let i = 0, timer = null;
-slider.max = FR.length - 1;
-slider.oninput = function(){ i = +slider.value; render(i); };
-function step(){ i = (i+1) % FR.length; slider.value = i; render(i); }
-document.getElementById('pb-play').onclick = function(){
-  if(timer){ clearInterval(timer); timer = null; this.textContent = '\\u25B6 play'; }
-  else { timer = setInterval(step, 650); this.textContent = '\\u275A\\u275A pause'; }
-};
-render(0);
-"""
+_SEASON_BG = {"spring": "#eef6e3", "summer": "#fffceb", "autumn": "#fbeae2",
+              "winter": "#e6f0fb", "": "#fafafa"}
 
 
 def _playback(sim: Simulation) -> str:
-    """An animated day-by-day replay: agents move on the map, the season tints
-    the world, and the day's violence flashes red. Inline vanilla JS, no deps."""
+    """An auto-playing day-by-day replay built with SVG SMIL animation — no
+    JavaScript, so it plays in any browser (and most file previews): agents
+    glide across the map day by day, the season tints the world, and gang/faith
+    ties colour who's bonded to whom."""
     frames = getattr(sim, "frames", [])
     if not frames:
         return ""
     world = sim.world
     cell = 22
     W, H = world.width * cell, world.height * cell
+    n = len(frames)
+    dur = max(6.0, n * 0.9)  # ~0.9s per day, looped
 
-    # Faint facility landmarks for context.
-    dots = []
-    for f in world.facilities:
-        _, color = _FACILITY_GROUP.get(f.ftype, ("civic", "#90a4ae"))
-        cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
-        dots.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="3" fill="{color}" '
-                    f'opacity="0.45"><title>{_esc(f.name)}</title></circle>')
+    def cx(x):
+        return f"{x * cell + cell / 2:.0f}"
 
+    # Season-tinted background that steps through the days.
+    seasons = ";".join(_SEASON_BG.get(fr.get("season", ""), "#fafafa") for fr in frames)
+    bg = (f'<rect x="0" y="0" width="{W}" height="{H}" fill="{_SEASON_BG.get(frames[0].get("season",""), "#fafafa")}" '
+          f'stroke="#e0e0e0"><animate attributeName="fill" dur="{dur}s" '
+          f'repeatCount="indefinite" calcMode="discrete" values="{seasons}"/></rect>')
+
+    glyphs = _facility_glyphs(world, cell, opacity=0.55)
+
+    # One animated dot per agent that ever existed; positions glide between days,
+    # opacity snaps in at birth and fades on death.
     all_ids = sorted({a["id"] for fr in frames for a in fr["agents"]})
-    js = (_PLAYBACK_JS
-          .replace("__FRAMES__", json.dumps(frames, separators=(",", ":")))
-          .replace("__COLORS__", json.dumps(_PERSONA_COLOR))
-          .replace("__IDS__", json.dumps(all_ids))
-          .replace("__CELL__", str(cell)))
+    by_frame = [{a["id"]: a for a in fr["agents"]} for fr in frames]
+    circles = []
+    for aid in all_ids:
+        xs, ys, ops = [], [], []
+        last = (W / 2, H / 2)
+        color = "#26a69a"
+        for fa in by_frame:
+            a = fa.get(aid)
+            if a:
+                last = (a["x"] * cell + cell / 2, a["y"] * cell + cell / 2)
+                color = _PERSONA_COLOR.get(a["persona"], "#26a69a")
+                ops.append("1" if a["alive"] else "0.18")
+            else:
+                ops.append("0")  # not born yet / removed
+            xs.append(f"{last[0]:.0f}")
+            ys.append(f"{last[1]:.0f}")
+        circles.append(
+            f'<circle r="5" fill="{color}" stroke="#fff" stroke-width="1" '
+            f'cx="{xs[0]}" cy="{ys[0]}" opacity="{ops[0]}">'
+            f'<animate attributeName="cx" dur="{dur}s" repeatCount="indefinite" values="{";".join(xs)}"/>'
+            f'<animate attributeName="cy" dur="{dur}s" repeatCount="indefinite" values="{";".join(ys)}"/>'
+            f'<animate attributeName="opacity" dur="{dur}s" repeatCount="indefinite" '
+            f'calcMode="discrete" values="{";".join(ops)}"/></circle>'
+        )
+
     legend = "".join(
         f'<span><i style="background:{c}"></i>{p}</span>'
         for p, c in _PERSONA_COLOR.items()
     )
+    season_swatches = "".join(
+        f'<span><i style="background:{_SEASON_BG[s]}"></i>{s}</span>'
+        for s in ("spring", "summer", "autumn", "winter")
+    )
     return f"""
     <div class="panel">
-      <h2>Town playback — watch the {len(frames)} days unfold</h2>
-      <div class="pb-controls">
-        <button id="pb-play" class="pb-btn">&#9654; play</button>
-        <input id="pb-slider" type="range" min="0" value="0" class="pb-slider">
-        <span id="pb-label" class="pb-lbl"></span>
-      </div>
+      <h2>Town playback — {n} days, auto-looping</h2>
       <svg viewBox="0 0 {W} {H}" class="map" role="img">
-        <rect id="pb-bg" x="0" y="0" width="{W}" height="{H}" fill="#fafafa"
-              stroke="#e0e0e0"></rect>
-        {''.join(dots)}
-        <g id="pb-fx"></g>
-        <g id="pb-agents"></g>
+        {bg}
+        {''.join(glyphs)}
+        {''.join(circles)}
       </svg>
-      <div class="legend">{legend}
-        <span class="muted">faint dots = facilities · red flash = that day's violence</span>
+      <div class="legend">{legend}</div>
+      <div class="legend">{season_swatches}
+        <span class="muted">dots = agents (fade on death, appear at birth); background = season</span>
       </div>
-      <script>{js}</script>
     </div>"""
 
 
@@ -307,13 +321,8 @@ def _town_map(sim: Simulation) -> str:
         blobs.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="{r:.0f}" '
                      f'fill="#e53935" opacity="{op:.2f}" />')
 
-    # Facilities.
-    dots = []
-    for f in world.facilities:
-        _, color = _FACILITY_GROUP.get(f.ftype, ("civic", "#90a4ae"))
-        cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
-        dots.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="4.5" fill="{color}">'
-                    f'<title>{_esc(f.name)} ({_esc(f.ftype.value)})</title></circle>')
+    # Facilities, drawn as emoji icons.
+    dots = _facility_glyphs(world, cell, opacity=0.9)
 
     # Mark facilities that took on an emergent role (society layer).
     role_marks = {"temple": ("#fdd835", "✚"), "gang_turf": ("#d32f2f", "▲"),
@@ -329,12 +338,10 @@ def _town_map(sim: Simulation) -> str:
                     f'</title>{sym}</text>')
                 break
 
-    legend = "".join(
-        f'<span><i style="background:{c}"></i>{g}</span>'
-        for g, c in [("food", "#2e7d32"), ("material", "#6d4c41"),
-                     ("work", "#1565c0"), ("civic", "#5e35b1"),
-                     ("crime", "#e53935")]
-    )
+    legend = ('<span>\U0001F33E farm · \U0001F332 forest · ⛏️ mine · \U0001F528 workshop · '
+              '\U0001F3EA market · \U0001F3DB️ hall · \U0001F4DA library · \U0001F693 police · '
+              '\U0001F3E0 house · ⛲ plaza</span>'
+              '<span><i style="background:#e53935"></i>crime</span>')
     if role_overlay:
         legend += ('<span class="muted">✚ temple · ▲ gang turf · '
                    '✜ drug den · ⚔ weapons</span>')
