@@ -53,6 +53,10 @@ class Metrics:
     peak_food_price: float = 1.0
     final_season: str = ""
 
+    # Public works: state-funded civic construction.
+    public_works_built: int = 0
+    treasury_final: int = 0
+
     # Society: weapons, drugs, gangs, religion.
     weapons_crafted: int = 0
     drug_deals: int = 0
@@ -110,6 +114,8 @@ class Metrics:
             "disasters_total": self.disasters_total,
             "peak_food_price": round(self.peak_food_price, 2),
             "final_season": self.final_season,
+            "public_works_built": self.public_works_built,
+            "treasury_final": self.treasury_final,
             "weapons_crafted": self.weapons_crafted,
             "drug_deals": self.drug_deals,
             "doses_taken": self.doses_taken,

@@ -16,6 +16,7 @@ from .esteem import StatusConfig, esteem_urge
 from .psyche import PsycheConfig, actualization_pull, fear_level
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
+from . import publicworks as PW
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -85,6 +86,9 @@ class Simulation:
     environment: object = None
     # Optional long-term memory backend (memory_backend.TownMemory); opt-in.
     memory: object = None
+    # Public-works civic loop (council-funded construction); opt-in.
+    public_works: bool = False
+    treasury: int = 0
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -140,6 +144,9 @@ class Simulation:
                 if author is not None and author.alive:
                     self._recognise(author, self.status.rep_per_law_passed,
                                     self.status.achievement_relief, "law")
+                # A passed public-works proposal commissions construction.
+                if self.public_works and p.build:
+                    self._build_public_work(p.build)
 
     # ==================================================================
     # Observation
@@ -211,6 +218,10 @@ class Simulation:
             environment=self.environment.snapshot() if self.environment is not None else {},
             role=role_of(agent.profession),
             affordances=affordances_at(here_f),
+            public_works=({"enabled": True, "treasury": self.treasury,
+                           "cost": PW.PUBLIC_WORKS_COST,
+                           "buildable": sorted(set(PW.BUILDABLE))}
+                          if self.public_works else {}),
         )
 
     # ==================================================================
@@ -426,8 +437,15 @@ class Simulation:
     def _do_propose(self, agent: Agent, action: Action) -> None:
         eligible = self._eligible_voters()
         text = str(action.params.get("text", "Untitled proposal")).strip()
+        # A public-works proposal names a facility to build (explicit param, or
+        # inferred from the text). Only meaningful when the loop is enabled.
+        build = None
+        if self.public_works:
+            raw = action.params.get("build")
+            ft = PW.parse_build(str(raw)) if raw else PW.parse_build(text)
+            build = ft.value if ft is not None else None
         p = self.legislature.propose(agent.id, text, self.world.day,
-                                     eligible_ids=eligible or None)
+                                     eligible_ids=eligible or None, build=build)
         if p is None:
             return
         agent.proposals_made += 1
@@ -472,6 +490,60 @@ class Simulation:
         if agent.id not in existing.builders:
             existing.builders.append(agent.id)
         agent.collaborations += 1
+
+    def _build_public_work(self, facility_value: str) -> None:
+        """A passed public-works proposal: the state funds it and a builder
+        erects it. Deterrent facilities (police/prison) go where crime clusters."""
+        try:
+            ftype = FacilityType(facility_value)
+        except ValueError:
+            return
+        cost = PW.PUBLIC_WORKS_COST
+        if self.treasury < cost:
+            self.world.log("public_works_unfunded", facility=ftype.value,
+                           treasury=self.treasury)
+            return
+        self.treasury -= cost
+        # Place deterrents at the trouble spot; everything else near the centre.
+        if ftype in PW.DETERRENT_FACILITIES:
+            pos = self._crime_centroid() or (self.world.width // 2, self.world.height // 2)
+        else:
+            pos = (self.world.width // 2, self.world.height // 2)
+        x, y = self._free_cell(pos)
+        # A builder does the work if the town has one alive, else any citizen.
+        builders = [a for a in self.agents if a.alive and a.profession == "builder"]
+        crew = (builders or [a for a in self.agents if a.alive])
+        builder = crew[0] if crew else None
+        n = sum(1 for f in self.world.facilities if f.ftype == ftype) + 1
+        fac = self.world.add_facility(Facility(
+            name=f"{ftype.value.replace('_', ' ').title()} {n}", ftype=ftype,
+            x=x, y=y, built_on_day=self.world.day,
+            builders=[builder.id] if builder else []))
+        self.metrics.public_works_built += 1
+        if builder is not None:
+            builder.collaborations += 1
+        self.world.log("public_works", facility=fac.name, type=ftype.value,
+                       by=(builder.id if builder else None), cost=cost)
+
+    def _crime_centroid(self):
+        pts = [e["pos"] for e in self.world.events
+               if e.get("kind") in ("theft", "violence", "arson")
+               and isinstance(e.get("pos"), (tuple, list))]
+        if not pts:
+            return None
+        return (round(sum(p[0] for p in pts) / len(pts)),
+                round(sum(p[1] for p in pts) / len(pts)))
+
+    def _free_cell(self, pos):
+        """A grid cell at/near pos not already occupied by a facility."""
+        for radius in range(0, 6):
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    c = (max(0, min(self.world.width - 1, pos[0] + dx)),
+                         max(0, min(self.world.height - 1, pos[1] + dy)))
+                    if self.world.facility_at(c) is None:
+                        return c
+        return pos
 
     def _do_collaborate(self, agent: Agent, action: Action) -> None:
         agent.collaborations += 1
@@ -968,6 +1040,13 @@ class Simulation:
 
     def _end_of_day(self, verbose: bool) -> None:
         self._record_frame()
+        if self.public_works:
+            # A daily civic levy fills the state treasury that funds construction.
+            for a in self.agents:
+                if a.alive:
+                    paid = min(a.money, PW.CIVIC_LEVY_PER_AGENT)
+                    a.money -= paid
+                    self.treasury += paid
         self._apply_daily_policy()
         self._maybe_elect_mayor()
         if self.environment is not None:
@@ -1079,6 +1158,7 @@ class Simulation:
             self.metrics.disasters_total = s["disasters_total"]
             self.metrics.peak_food_price = s["peak_food_price"]
             self.metrics.final_season = s["final_season"]
+        self.metrics.treasury_final = self.treasury
 
     def _living(self) -> int:
         return sum(1 for a in self.agents if a.alive)
@@ -1093,24 +1173,36 @@ class Simulation:
             return {a.id for a in top[: cfg.oligarch_count]}
         return set()
 
+    def _nearest_deterrent(self, pos):
+        """Closest law-enforcement facility (police station or prison) + a
+        strength factor (prisons deter harder)."""
+        best, best_d, strength = None, None, 1.0
+        for ftype, s in ((FacilityType.POLICE_STATION, 1.0), (FacilityType.PRISON, 1.5)):
+            f = self.world.nearest(pos, ftype)
+            if f is None:
+                continue
+            d = chebyshev(pos, f.pos)
+            if best_d is None or d < best_d:
+                best, best_d, strength = f, d, s
+        return best, best_d, strength
+
     def _deterred(self, agent: Agent) -> bool:
-        """Return True if the agent should abort a crime due to police presence."""
-        nearest_police = self.world.nearest(agent.pos, FacilityType.POLICE_STATION)
-        if nearest_police is None:
+        """Return True if the agent should abort a crime due to law enforcement."""
+        f, dist, strength = self._nearest_deterrent(agent.pos)
+        if f is None:
             return False
-        dist = chebyshev(agent.pos, nearest_police.pos)
         cfg = self.policy.config
         if dist > cfg.police_range:
             return False
         mult = self.policy.crime_deterrence_multiplier()
-        # Closer to the station → stronger deterrence.
         proximity_factor = 1.0 - (dist / (cfg.police_range + 1))
-        deterrence_prob = (1.0 - mult) * proximity_factor
+        deterrence_prob = min(0.95, (1.0 - mult) * proximity_factor * strength)
         return self.rng.random() < deterrence_prob
 
     def _near_safety(self, agent: Agent) -> bool:
-        """Within comforting reach of a police station or a house."""
-        for ftype in (FacilityType.POLICE_STATION, FacilityType.HOUSE):
+        """Within comforting reach of a police station, prison, or a house."""
+        for ftype in (FacilityType.POLICE_STATION, FacilityType.PRISON,
+                      FacilityType.HOUSE):
             f = self.world.nearest(agent.pos, ftype)
             if f and chebyshev(agent.pos, f.pos) <= self.psyche.safe_radius:
                 return True

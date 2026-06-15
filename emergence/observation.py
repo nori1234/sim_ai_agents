@@ -55,6 +55,10 @@ class Observation:
     role: str = ""
     affordances: list = field(default_factory=list)
 
+    # Public-works loop: whether it's active and the state treasury (for proposing
+    # council-funded construction).
+    public_works: dict = field(default_factory=dict)
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

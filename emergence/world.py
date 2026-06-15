@@ -26,6 +26,7 @@ class FacilityType(str, Enum):
     MONUMENT = "monument"  # agent-built landmark (collaboration trophy)
     GRANARY = "granary"  # shared food store
     TEMPLE = "temple"  # place of worship (society layer)
+    PRISON = "prison"  # detains offenders; strong crime deterrent (public works)
 
 
 # Where each facility lets an agent gather, and what it yields.

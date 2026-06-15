@@ -368,11 +368,37 @@ class HeuristicBrain(AgentBrain):
         # Occasionally author a new rule (more likely if cooperative/talkative).
         propose_chance = 0.06 + 0.12 * p.cooperation + 0.1 * p.talkativeness
         if self.rng.random() < propose_chance:
+            # When public works are funded, the council responds to conditions:
+            # crime -> police/prison, hunger -> granary, etc.
+            if obs.public_works.get("enabled") and \
+                    obs.public_works.get("treasury", 0) >= obs.public_works.get("cost", 99) \
+                    and self.rng.random() < 0.6:
+                build = self._public_work_for(obs)
+                if build is not None:
+                    return Action(
+                        ActionType.PROPOSE,
+                        {"text": f"Let us build a {build} for the town.", "build": build},
+                        rationale="commission a public work for the town's needs",
+                    )
             return Action(
                 ActionType.PROPOSE,
                 {"text": self._proposal_text(p)},
                 rationale="propose rule",
             )
+        return None
+
+    @staticmethod
+    def _public_work_for(obs: Observation) -> str | None:
+        """Read the town's condition and pick a public work to propose."""
+        crimes = sum(1 for e in obs.recent_events
+                     if any(k in e for k in ("theft", "violence", "arson")))
+        env = obs.environment or {}
+        food_scarce = obs.granary_food <= 2 or env.get("disaster") == "famine" \
+            or env.get("season") == "winter"
+        if crimes >= 3:
+            return "prison" if crimes >= 5 else "police_station"
+        if food_scarce:
+            return "granary"
         return None
 
     # -- economy --------------------------------------------------------

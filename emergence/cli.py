@@ -84,6 +84,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           psyche=_psyche_from_args(args),
                           society=_society_from_args(args),
                           environment=bool(getattr(args, "environment", False)),
+                          public_works=bool(getattr(args, "public_works", False)),
                           memory=bool(getattr(args, "memory", False)),
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
                           brain_factory=brain_factory)
@@ -175,6 +176,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--environment", action="store_true",
                         help="enable the external world: weather/seasons, macro-economy, "
                              "disasters, resource depletion (環境要因)")
+    parser.add_argument("--publicworks", dest="public_works", action="store_true",
+                        help="enable the civic loop: a treasury funds council-approved "
+                             "construction (build prisons when crime is high, etc.)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")
@@ -211,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.all_layers:
         args.society = True
         args.environment = True
+        args.public_works = True
 
     if args.compare:
         return _compare(args)

@@ -144,6 +144,8 @@ class Proposal:
     votes: dict[str, bool] = field(default_factory=dict)
     # Proposals tagged "constitutional" need supermajority to pass.
     constitutional: bool = False
+    # A public-works proposal names the facility type to build when it passes.
+    build: str | None = None
 
     def yes(self) -> int:
         return sum(1 for s in self.votes.values() if s)
@@ -162,14 +164,15 @@ class Legislature:
         self._next_id = 1
 
     def propose(self, author: str, text: str, day: int,
-                eligible_ids: set[str] | None = None) -> Optional[Proposal]:
+                eligible_ids: set[str] | None = None,
+                build: str | None = None) -> Optional[Proposal]:
         if self.config.form is GovernanceForm.ANARCHY:
             return None
         if eligible_ids is not None and author not in eligible_ids:
             return None
         constitutional = bool(_CONSTITUTIONAL_RE.search(text))
         p = Proposal(id=self._next_id, author=author, text=text, day=day,
-                     constitutional=constitutional)
+                     constitutional=constitutional, build=build)
         self._next_id += 1
         self.proposals.append(p)
         return p

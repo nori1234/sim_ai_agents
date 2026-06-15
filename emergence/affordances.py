@@ -37,6 +37,7 @@ FACILITY_AFFORDANCES: dict[FacilityType, list[ActionType]] = {
     FacilityType.HOUSE: [ActionType.REST, ActionType.SLEEP],
     FacilityType.PLAZA: [ActionType.SPEAK, ActionType.BUILD, ActionType.CREATE],
     FacilityType.TEMPLE: [ActionType.WORSHIP, ActionType.PREACH],
+    FacilityType.PRISON: [ActionType.REPORT_CRIME],
 }
 
 # A one-line role per profession — soft guidance handed to the agent, not a rule.

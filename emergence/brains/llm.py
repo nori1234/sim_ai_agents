@@ -56,7 +56,10 @@ Choose ONE action. Common actions and their params:
   work      {}                      (earn money at a workshop/market)
   deposit_granary {"amount": N} / draw_granary {"amount": N}
   transfer  {"target": id, "resource": "food|materials|money", "amount": N}
-  propose   {"text": "a rule"}      vote {"proposal_id": N, "support": true|false}
+  propose   {"text": "a rule", "build": "police_station|prison|granary|hospital|..."}
+            (a "build" proposal, if it passes and the treasury can afford it,
+             commissions that facility — use it to address the town's problems)
+  vote      {"proposal_id": N, "support": true|false}
   build     {"facility_type": "monument", "name": "..."}   collaborate {"text": "..."}
   speak     {"text": "..."}         praise {"target": id}    create {"title": "..."}
   steal/attack {"target": id}       mate {"target": id}      worship {}

@@ -67,6 +67,7 @@ def make_simulation(
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
     environment: "EnvironmentConfig | bool | None" = None,
+    public_works: bool = False,
     memory: bool = False,
     memory_path: str = ":memory:",
     brain_factory=None,
@@ -130,5 +131,6 @@ def make_simulation(
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
         environment=env,
+        public_works=bool(public_works),
         memory=town_memory,
     )
