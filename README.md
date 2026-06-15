@@ -89,6 +89,9 @@ python3 examples/run_with_llama.py
 任意のエンドポイントに向けられます。エンドポイントが落ちていても各エージェントは
 persona由来の `HeuristicBrain` に**自動フォールバック**するので run は止まりません。
 
+> **手元のPCだけで動かす最小構成** → `./run_local.sh`（手順は [`docs/LOCAL.md`](docs/LOCAL.md)）。
+> Ollama起動を確認し、小型モデルを取得し、記憶＋環境ONの小規模シムを実行します（CPU可・数分）。
+
 ホスティング Llama（例：Groq）に向ける場合：
 
 ```bash
