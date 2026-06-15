@@ -64,6 +64,8 @@ Choose ONE action. Common actions and their params:
   speak     {"text": "..."}         praise {"target": id}    create {"title": "..."}
   steal/attack {"target": id}       mate {"target": id}      worship {}
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
+  offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
+  accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 

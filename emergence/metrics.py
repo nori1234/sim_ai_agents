@@ -58,6 +58,10 @@ class Metrics:
     treasury_final: int = 0
     prosperity: float = 0.0   # 0-100 historical-development index (when enabled)
 
+    # Economy: emergent exchange & production.
+    trades: int = 0
+    crafted: int = 0
+
     # Society: weapons, drugs, gangs, religion.
     weapons_crafted: int = 0
     drug_deals: int = 0
@@ -118,6 +122,8 @@ class Metrics:
             "public_works_built": self.public_works_built,
             "treasury_final": self.treasury_final,
             "prosperity": round(self.prosperity, 1),
+            "trades": self.trades,
+            "crafted": self.crafted,
             "weapons_crafted": self.weapons_crafted,
             "drug_deals": self.drug_deals,
             "doses_taken": self.doses_taken,

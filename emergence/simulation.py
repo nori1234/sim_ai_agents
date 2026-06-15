@@ -18,6 +18,7 @@ from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
 from . import publicworks as PW
 from . import development as DEV
+from . import market as MK
 from .governance import (
     GovernanceConfig,
     GovernanceForm,
@@ -92,6 +93,9 @@ class Simulation:
     treasury: int = 0
     # Historical development: gate construction on plausible prerequisites; opt-in.
     development: bool = False
+    # Economic physics (offer/accept/craft primitives); opt-in.
+    economy: bool = False
+    offers: list = field(default_factory=list)        # open Offer order book
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -105,6 +109,9 @@ class Simulation:
         self._next_agent_num = len(self.agents) + 1
         self._next_gang_num = 1
         self._next_faith_num = 1
+        self._next_offer_id = 1
+        # Emergent prices: recent settled swap ratios per ordered (give, want) pair.
+        self._trade_ratios: dict[tuple, list] = {}
 
     # ==================================================================
     # Top-level run loop
@@ -227,6 +234,12 @@ class Simulation:
                            "suggest": (DEV.next_public_work(self)
                                        if self.development else None)}
                           if self.public_works else {}),
+            open_offers=([o.as_dict() for o in self.offers[:8]]
+                         if self.economy else []),
+            economy=({"enabled": True, "tradable": list(MK.TRADABLE),
+                      "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
+                      "price_food_in_money": self.emergent_price("food", "money")}
+                     if self.economy else {}),
         )
 
     # ==================================================================
@@ -815,6 +828,89 @@ class Simulation:
                 o.adjust_trust(agent.id, 0.08)
                 agent.adjust_trust(o.id, 0.08)
 
+    # -- economic physics: offer / accept / craft ----------------------
+    def _do_offer(self, agent: Agent, action: Action) -> None:
+        if not self.economy:
+            return
+        p = action.params
+        gi, wi = str(p.get("give_item", "")), str(p.get("want_item", ""))
+        gq, wq = int(p.get("give_qty", 0) or 0), int(p.get("want_qty", 0) or 0)
+        if gi not in MK.TRADABLE or wi not in MK.TRADABLE or gi == wi:
+            return
+        if gq <= 0 or wq <= 0 or MK.holdings(agent, gi) < gq:
+            return  # can't offer what you don't have
+        # One open offer per maker keeps the book honest and bounded.
+        if any(o.maker == agent.id for o in self.offers):
+            return
+        if len(self.offers) >= MK.MAX_OPEN_OFFERS:
+            return
+        offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item=gi,
+                         give_qty=gq, want_item=wi, want_qty=wq, day=self.world.day)
+        self._next_offer_id += 1
+        self.offers.append(offer)
+        self.world.log("offer", id=offer.id, by=agent.id,
+                       give=f"{gq} {gi}", want=f"{wq} {wi}")
+
+    def _do_accept(self, agent: Agent, action: Action) -> None:
+        if not self.economy:
+            return
+        oid = action.params.get("offer_id")
+        offer = next((o for o in self.offers if o.id == oid), None) if oid is not None \
+            else None
+        if offer is None or offer.maker == agent.id:
+            return
+        maker = self._by_id.get(offer.maker)
+        if maker is None or not maker.alive:
+            self.offers.remove(offer)
+            return
+        # Both sides must still hold the goods — conservation, no credit here.
+        if MK.holdings(agent, offer.want_item) < offer.want_qty:
+            return
+        if MK.holdings(maker, offer.give_item) < offer.give_qty:
+            self.offers.remove(offer)
+            return
+        apply_transfer(maker, agent, offer.give_item, offer.give_qty)
+        apply_transfer(agent, maker, offer.want_item, offer.want_qty)
+        self.offers.remove(offer)
+        self.metrics.trades += 1
+        # The settled ratio IS the price — emergent, recorded for observation.
+        key = (offer.give_item, offer.want_item)
+        ratio = offer.want_qty / offer.give_qty
+        self._trade_ratios.setdefault(key, []).append(ratio)
+        self._trade_ratios[key] = self._trade_ratios[key][-10:]
+        maker.adjust_trust(agent.id, 0.05)
+        agent.adjust_trust(maker.id, 0.05)
+        self.world.log("trade", offer=offer.id, maker=maker.id, taker=agent.id,
+                       gave=f"{offer.give_qty} {offer.give_item}",
+                       got=f"{offer.want_qty} {offer.want_item}")
+
+    def _do_craft(self, agent: Agent, action: Action) -> None:
+        if not self.economy:
+            return
+        item = str(action.params.get("item", ""))
+        recipe = MK.RECIPES.get(item)
+        if recipe is None:
+            return
+        inputs, need_facility = recipe
+        if need_facility is not None:
+            f = self.world.facility_at(agent.pos)
+            if f is None or f.ftype.value != need_facility:
+                return
+        if any(agent.inventory.get(k, 0) < q for k, q in inputs.items()):
+            return
+        for k, q in inputs.items():
+            agent.take(k, q)
+        agent.add(item, 1)
+        self.metrics.crafted += 1
+        self.world.log("craft", by=agent.id, item=item)
+
+    def emergent_price(self, give_item: str, want_item: str):
+        """The average recent settled ratio (price of give_item in want_item)."""
+        ratios = self._trade_ratios.get((give_item, want_item))
+        if not ratios:
+            return None
+        return round(sum(ratios) / len(ratios), 2)
+
     def _religion_of(self, rid: str):
         for r in self.religions:
             if r.id == rid:
@@ -1053,6 +1149,9 @@ class Simulation:
 
     def _end_of_day(self, verbose: bool) -> None:
         self._record_frame()
+        if self.economy:
+            self.offers = [o for o in self.offers
+                           if self.world.day - o.day < MK.OFFER_TTL_DAYS]
         if self.public_works:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:

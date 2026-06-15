@@ -46,6 +46,11 @@ class ActionType(str, Enum):
     PREACH = "preach"  # found or spread a religion (convert nearby agents)
     WORSHIP = "worship"  # pray at a temple (eases fear, grants belonging)
 
+    # -- economic physics (primitives, not institutions) ----------------
+    OFFER = "offer"  # post a swap: give N of A for M of B (any tradable goods)
+    ACCEPT = "accept"  # agree to an open offer; the swap executes atomically
+    CRAFT = "craft"  # transform inputs into an output per a recipe
+
 
 # Actions the world treats as crimes for metric purposes.
 CRIME_ACTIONS = {ActionType.STEAL, ActionType.ATTACK, ActionType.ARSON}

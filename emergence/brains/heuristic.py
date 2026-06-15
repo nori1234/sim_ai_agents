@@ -91,6 +91,13 @@ class HeuristicBrain(AgentBrain):
         if status is not None:
             return status
 
+        # 3.6 Market: trade and craft on the economic-physics primitives. Early
+        #     enough that agents with a surplus actually go to market.
+        if obs.economy.get("enabled"):
+            trade = self._trade_action(agent, obs)
+            if trade is not None:
+                return trade
+
         # 3.7 Self-actualization: with every lower need quiet, create.
         if obs.actualization_pull > 0 and \
                 self.rng.random() < obs.actualization_pull * 0.6:
@@ -404,6 +411,45 @@ class HeuristicBrain(AgentBrain):
         return None
 
     # -- economy --------------------------------------------------------
+    def _trade_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Use the market primitives: craft a good, take a useful offer, or sell
+        a surplus. The engine just clears swaps; prices form from these choices."""
+        here = obs.here["type"] if obs.here else None
+        # Make tools from surplus materials (value-add at the workshop).
+        if here == "workshop" and agent.materials() >= 2 and self.rng.random() < 0.5:
+            return Action(ActionType.CRAFT, {"item": "tools"}, rationale="craft tools")
+        # Accept an open offer that gives me something I lack and can pay for.
+        for off in obs.open_offers:
+            give_i = off["give"].split(" ", 1)[1]
+            want_q, want_i = off["want"].split(" ", 1)
+            want_q = int(want_q)
+            have_want = agent.money if want_i == "money" else agent.inventory.get(want_i, 0)
+            needs = ((give_i == "food" and agent.food() < 4)
+                     or (give_i == "materials" and agent.materials() < 2)
+                     or give_i == "tools")
+            if needs and have_want >= want_q:
+                return Action(ActionType.ACCEPT, {"offer_id": off["id"]},
+                              rationale=f"buy {give_i}")
+        # Sell a surplus for money (the asking price is the agent's own — the
+        # market price emerges from what offers actually get accepted).
+        if not any(o["maker"] == agent.id for o in obs.open_offers):
+            if agent.inventory.get("tools", 0) >= 1:
+                return Action(ActionType.OFFER,
+                              {"give_item": "tools", "give_qty": 1,
+                               "want_item": "money", "want_qty": 6},
+                              rationale="sell a tool")
+            if agent.materials() >= 3:
+                return Action(ActionType.OFFER,
+                              {"give_item": "materials", "give_qty": 2,
+                               "want_item": "money", "want_qty": 4},
+                              rationale="sell surplus materials")
+            if agent.food() >= 4:
+                return Action(ActionType.OFFER,
+                              {"give_item": "food", "give_qty": 2,
+                               "want_item": "money", "want_qty": 3},
+                              rationale="sell surplus food")
+        return None
+
     def _economy_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:
         # Run the "I'm broke" scam while actually holding plenty.
         if self.rng.random() < p.deception and agent.money >= 10:

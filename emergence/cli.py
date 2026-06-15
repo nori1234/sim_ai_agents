@@ -86,6 +86,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           environment=bool(getattr(args, "environment", False)),
                           public_works=bool(getattr(args, "public_works", False)),
                           founding=bool(getattr(args, "founding", False)),
+                          economy=bool(getattr(args, "economy", False)),
                           memory=bool(getattr(args, "memory", False)),
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
                           brain_factory=brain_factory)
@@ -183,6 +184,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--founding", action="store_true",
                         help="start a sparse frontier town that must develop itself "
                              "in historical order (implies --publicworks)")
+    parser.add_argument("--economy", action="store_true",
+                        help="enable economic-physics primitives: offer/accept swaps "
+                             "(prices emerge) and craft recipes (経済の物理)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")
@@ -220,6 +224,7 @@ def main(argv: list[str] | None = None) -> int:
         args.society = True
         args.environment = True
         args.public_works = True
+        args.economy = True
 
     if args.compare:
         return _compare(args)

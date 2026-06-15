@@ -69,6 +69,7 @@ def make_simulation(
     environment: "EnvironmentConfig | bool | None" = None,
     public_works: bool = False,
     founding: bool = False,
+    economy: bool = False,
     memory: bool = False,
     memory_path: str = ":memory:",
     brain_factory=None,
@@ -140,5 +141,6 @@ def make_simulation(
         environment=env,
         public_works=bool(public_works),
         development=bool(founding),
+        economy=bool(economy),
         memory=town_memory,
     )
