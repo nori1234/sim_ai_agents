@@ -50,6 +50,11 @@ class Observation:
     # Environment layer: season, weather, market prices, active disaster.
     environment: dict = field(default_factory=dict)
 
+    # Affordances/roles: what this agent's job is, and what the tile it stands on
+    # specifically lets it do. The possibility space; the brain chooses freely.
+    role: str = ""
+    affordances: list = field(default_factory=list)
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

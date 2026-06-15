@@ -10,6 +10,7 @@ from .actions import Action, ActionType
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
 from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
+from .affordances import affordances_at, role_of
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
 from .psyche import PsycheConfig, actualization_pull, fear_level
@@ -208,6 +209,8 @@ class Simulation:
             here_roles=here_roles,
             nearest_roles=nearest_roles,
             environment=self.environment.snapshot() if self.environment is not None else {},
+            role=role_of(agent.profession),
+            affordances=affordances_at(here_f),
         )
 
     # ==================================================================
