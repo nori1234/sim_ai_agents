@@ -957,7 +957,8 @@ class Simulation:
             "weather": env.get("weather", ""),
             "alive": self._living(),
             "agents": [{"id": a.id, "name": a.name, "x": a.x, "y": a.y,
-                        "persona": a.persona, "alive": a.alive}
+                        "persona": a.persona, "alive": a.alive,
+                        "gang": a.gang_id, "faith": a.faith}
                        for a in self.agents],
             "crimes": crimes,
         })

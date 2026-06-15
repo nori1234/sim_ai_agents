@@ -218,11 +218,21 @@ _SEASON_BG = {"spring": "#eef6e3", "summer": "#fffceb", "autumn": "#fbeae2",
               "winter": "#e6f0fb", "": "#fafafa"}
 
 
+# Distinct colours so you can watch gangs / faiths coalesce over the days.
+_GANG_PALETTE = ["#d32f2f", "#f57c00", "#455a64", "#5d4037", "#c2185b",
+                 "#00695c", "#283593", "#827717"]
+_FAITH_PALETTE = ["#fbc02d", "#9575cd", "#4db6ac", "#ba68c8", "#7986cb", "#aed581"]
+
+
 def _playback(sim: Simulation) -> str:
     """An auto-playing day-by-day replay built with SVG SMIL animation — no
-    JavaScript, so it plays in any browser (and most file previews): agents
-    glide across the map day by day, the season tints the world, and gang/faith
-    ties colour who's bonded to whom."""
+    JavaScript, so it plays in any browser (and most file previews).
+
+    Watch the town live: a day counter ticks, the season tints the world, agents
+    glide across the map (fading on death, appearing at birth), each dot is
+    coloured by its **current affiliation** (gang > faith > base temperament) so
+    factions visibly coalesce, and **family lines** grow as children are born.
+    """
     frames = getattr(sim, "frames", [])
     if not frames:
         return ""
@@ -232,49 +242,99 @@ def _playback(sim: Simulation) -> str:
     n = len(frames)
     dur = max(6.0, n * 0.9)  # ~0.9s per day, looped
 
-    def cx(x):
-        return f"{x * cell + cell / 2:.0f}"
+    def anim(attr, values, discrete=False):
+        mode = ' calcMode="discrete"' if discrete else ""
+        return (f'<animate attributeName="{attr}" dur="{dur}s" '
+                f'repeatCount="indefinite"{mode} values="{";".join(values)}"/>')
+
+    # Affiliation -> colour (assigned in order of first appearance).
+    gangs = sorted({a.get("gang") for fr in frames for a in fr["agents"] if a.get("gang")})
+    faiths = sorted({a.get("faith") for fr in frames for a in fr["agents"] if a.get("faith")})
+    gcol = {g: _GANG_PALETTE[i % len(_GANG_PALETTE)] for i, g in enumerate(gangs)}
+    fcol = {f: _FAITH_PALETTE[i % len(_FAITH_PALETTE)] for i, f in enumerate(faiths)}
+
+    def affil(a):
+        if a.get("gang"):
+            return gcol[a["gang"]]
+        if a.get("faith"):
+            return fcol[a["faith"]]
+        return _PERSONA_COLOR.get(a["persona"], "#26a69a")
 
     # Season-tinted background that steps through the days.
-    seasons = ";".join(_SEASON_BG.get(fr.get("season", ""), "#fafafa") for fr in frames)
-    bg = (f'<rect x="0" y="0" width="{W}" height="{H}" fill="{_SEASON_BG.get(frames[0].get("season",""), "#fafafa")}" '
-          f'stroke="#e0e0e0"><animate attributeName="fill" dur="{dur}s" '
-          f'repeatCount="indefinite" calcMode="discrete" values="{seasons}"/></rect>')
+    seasons = [_SEASON_BG.get(fr.get("season", ""), "#fafafa") for fr in frames]
+    bg = (f'<rect x="0" y="0" width="{W}" height="{H}" fill="{seasons[0]}" '
+          f'stroke="#e0e0e0">{anim("fill", seasons, discrete=True)}</rect>')
 
     glyphs = _facility_glyphs(world, cell, opacity=0.55)
 
-    # One animated dot per agent that ever existed; positions glide between days,
-    # opacity snaps in at birth and fades on death.
+    # Per-agent tracks (carry last position when the agent is absent that day).
     all_ids = sorted({a["id"] for fr in frames for a in fr["agents"]})
     by_frame = [{a["id"]: a for a in fr["agents"]} for fr in frames]
-    circles = []
+    xs_of, ys_of, op_of, fill_of = {}, {}, {}, {}
     for aid in all_ids:
-        xs, ys, ops = [], [], []
-        last = (W / 2, H / 2)
-        color = "#26a69a"
+        xs, ys, ops, fills = [], [], [], []
+        lx, ly, lc = W / 2, H / 2, "#26a69a"
         for fa in by_frame:
             a = fa.get(aid)
             if a:
-                last = (a["x"] * cell + cell / 2, a["y"] * cell + cell / 2)
-                color = _PERSONA_COLOR.get(a["persona"], "#26a69a")
+                lx = a["x"] * cell + cell / 2
+                ly = a["y"] * cell + cell / 2
+                lc = affil(a)
                 ops.append("1" if a["alive"] else "0.18")
             else:
-                ops.append("0")  # not born yet / removed
-            xs.append(f"{last[0]:.0f}")
-            ys.append(f"{last[1]:.0f}")
+                ops.append("0")
+            xs.append(f"{lx:.0f}"); ys.append(f"{ly:.0f}"); fills.append(lc)
+        xs_of[aid], ys_of[aid], op_of[aid], fill_of[aid] = xs, ys, ops, fills
+
+    # Family lines grow as children are born (visible only while the child lives).
+    id_to_parents = {a.id: a.parent_ids for a in sim.agents}
+    lines = []
+    for cid in all_ids:
+        for pid in id_to_parents.get(cid, ()):  # 0 or 2 parents
+            if pid not in xs_of:
+                continue
+            vis = ["0.4" if o != "0" else "0" for o in op_of[cid]]
+            lines.append(
+                f'<line x1="{xs_of[pid][0]}" y1="{ys_of[pid][0]}" '
+                f'x2="{xs_of[cid][0]}" y2="{ys_of[cid][0]}" stroke="#ad7bdb" '
+                f'stroke-width="1.4" opacity="{vis[0]}">'
+                f'{anim("x1", xs_of[pid])}{anim("y1", ys_of[pid])}'
+                f'{anim("x2", xs_of[cid])}{anim("y2", ys_of[cid])}'
+                f'{anim("opacity", vis, discrete=True)}</line>'
+            )
+        if len(lines) >= 60:
+            break
+
+    circles = []
+    for aid in all_ids:
         circles.append(
-            f'<circle r="5" fill="{color}" stroke="#fff" stroke-width="1" '
-            f'cx="{xs[0]}" cy="{ys[0]}" opacity="{ops[0]}">'
-            f'<animate attributeName="cx" dur="{dur}s" repeatCount="indefinite" values="{";".join(xs)}"/>'
-            f'<animate attributeName="cy" dur="{dur}s" repeatCount="indefinite" values="{";".join(ys)}"/>'
-            f'<animate attributeName="opacity" dur="{dur}s" repeatCount="indefinite" '
-            f'calcMode="discrete" values="{";".join(ops)}"/></circle>'
+            f'<circle r="5" fill="{fill_of[aid][0]}" stroke="#fff" stroke-width="1" '
+            f'cx="{xs_of[aid][0]}" cy="{ys_of[aid][0]}" opacity="{op_of[aid][0]}">'
+            f'{anim("cx", xs_of[aid])}{anim("cy", ys_of[aid])}'
+            f'{anim("opacity", op_of[aid], discrete=True)}'
+            f'{anim("fill", fill_of[aid], discrete=True)}</circle>'
+        )
+
+    # A day/season/population caption that ticks over (stacked texts, one shown
+    # per day via opacity — SMIL can't animate text content directly).
+    captions = []
+    for i, fr in enumerate(frames):
+        ops = ["0"] * n
+        ops[i] = "1"
+        txt = (f"Day {fr['day']}"
+               + (f" · {fr['season']} {fr.get('weather','')}".rstrip() if fr.get("season") else "")
+               + f" · alive {fr['alive']}")
+        captions.append(
+            f'<text x="8" y="20" font-size="14" font-weight="600" fill="#37474f" '
+            f'opacity="{ops[0]}">{anim("opacity", ops, discrete=True)}{_esc(txt)}</text>'
         )
 
     legend = "".join(
         f'<span><i style="background:{c}"></i>{p}</span>'
         for p, c in _PERSONA_COLOR.items()
     )
+    if gangs:
+        legend += '<span class="muted">gang colours appear as crews form</span>'
     season_swatches = "".join(
         f'<span><i style="background:{_SEASON_BG[s]}"></i>{s}</span>'
         for s in ("spring", "summer", "autumn", "winter")
@@ -285,11 +345,14 @@ def _playback(sim: Simulation) -> str:
       <svg viewBox="0 0 {W} {H}" class="map" role="img">
         {bg}
         {''.join(glyphs)}
+        {''.join(lines)}
         {''.join(circles)}
+        {''.join(captions)}
       </svg>
       <div class="legend">{legend}</div>
       <div class="legend">{season_swatches}
-        <span class="muted">dots = agents (fade on death, appear at birth); background = season</span>
+        <span class="muted">dot colour = current gang &rsaquo; faith &rsaquo; temperament ·
+        purple lines = family · the day counter (top-left) ticks as it plays</span>
       </div>
     </div>"""
 
