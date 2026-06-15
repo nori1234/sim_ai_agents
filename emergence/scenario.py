@@ -66,6 +66,7 @@ def make_simulation(
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
+    environment: "EnvironmentConfig | bool | None" = None,
     memory: bool = False,
     memory_path: str = ":memory:",
     brain_factory=None,
@@ -106,6 +107,14 @@ def make_simulation(
                 persona, random.Random(rng.randint(0, 2**31))
             )
 
+    env = None
+    if environment:
+        from .environment import Environment, EnvironmentConfig
+        env_cfg = environment if isinstance(environment, EnvironmentConfig) \
+            else EnvironmentConfig(enabled=True)
+        if env_cfg.enabled:
+            env = Environment(env_cfg, world, random.Random(config.seed ^ 0x5EED))
+
     town_memory = None
     if memory:
         from .memory_backend import TownMemory
@@ -120,5 +129,6 @@ def make_simulation(
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
+        environment=env,
         memory=town_memory,
     )

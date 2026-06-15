@@ -48,6 +48,11 @@ class Metrics:
     total_fulfillment: float = 0.0
     peak_fear: float = 0.0
 
+    # Environment: the external world.
+    disasters_total: int = 0
+    peak_food_price: float = 1.0
+    final_season: str = ""
+
     # Society: weapons, drugs, gangs, religion.
     weapons_crafted: int = 0
     drug_deals: int = 0
@@ -102,6 +107,9 @@ class Metrics:
             "works_created": self.works_created,
             "total_fulfillment": round(self.total_fulfillment, 1),
             "peak_fear": round(self.peak_fear, 1),
+            "disasters_total": self.disasters_total,
+            "peak_food_price": round(self.peak_food_price, 2),
+            "final_season": self.final_season,
             "weapons_crafted": self.weapons_crafted,
             "drug_deals": self.drug_deals,
             "doses_taken": self.doses_taken,

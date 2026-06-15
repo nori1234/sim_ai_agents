@@ -47,6 +47,9 @@ class Observation:
     here_roles: list = field(default_factory=list)
     nearest_roles: dict = field(default_factory=dict)  # role -> (x, y) of nearest
 
+    # Environment layer: season, weather, market prices, active disaster.
+    environment: dict = field(default_factory=dict)
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     return {"name": f.name, "type": f.ftype.value, "distance": dist}

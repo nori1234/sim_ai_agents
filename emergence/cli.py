@@ -67,6 +67,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           status=_status_from_args(args),
                           psyche=_psyche_from_args(args),
                           society=_society_from_args(args),
+                          environment=bool(getattr(args, "environment", False)),
                           memory=bool(getattr(args, "memory", False)),
                           memory_path=getattr(args, "memory_db", None) or ":memory:")
     sim.run(verbose=args.verbose and not args.json)
@@ -154,6 +155,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="enable fear/safety and self-actualization (恐怖・自己実現)")
     parser.add_argument("--society", action="store_true",
                         help="enable weapons, drugs, gangs, religion (裏社会・文化)")
+    parser.add_argument("--environment", action="store_true",
+                        help="enable the external world: weather/seasons, macro-economy, "
+                             "disasters, resource depletion (環境要因)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")
@@ -177,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
         args.reproduction = args.status = args.psyche = True
     if args.all_layers:
         args.society = True
+        args.environment = True
 
     if args.compare:
         return _compare(args)

@@ -78,6 +78,8 @@ class Simulation:
     society: SocietyConfig = field(default_factory=SocietyConfig)
     gangs: list = field(default_factory=list)        # list[Gang]
     religions: list = field(default_factory=list)    # list[Religion]
+    # Optional external-world layer (environment.Environment); opt-in.
+    environment: object = None
     # Optional long-term memory backend (memory_backend.TownMemory); opt-in.
     memory: object = None
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
@@ -203,6 +205,7 @@ class Simulation:
                         if self.society.enabled else 0.0),
             here_roles=here_roles,
             nearest_roles=nearest_roles,
+            environment=self.environment.snapshot() if self.environment is not None else {},
         )
 
     # ==================================================================
@@ -278,6 +281,8 @@ class Simulation:
         if f is None or not f.can_gather():
             return
         resource, amount = f.gather_yield()  # type: ignore[misc]
+        if self.environment is not None:
+            amount = self.environment.gather(f, resource, amount)
         agent.add(resource, amount)
         self._spend(agent, ActionType.GATHER)
 
@@ -349,7 +354,10 @@ class Simulation:
         if f is None or not f.is_workplace():
             return
         used = agent.take("materials", 1)
-        agent.money += 3 + 2 * used  # bare work pays a little; with materials, more
+        pay = 3 + 2 * used  # bare work pays a little; with materials, more
+        if self.environment is not None and f.ftype == FacilityType.MARKET:
+            pay = round(pay * self.environment.work_pay_multiplier())  # sell dear when scarce
+        agent.money += pay
         self._spend(agent, ActionType.WORK)
 
     # -- commons --------------------------------------------------------
@@ -838,7 +846,10 @@ class Simulation:
     # Upkeep, day boundaries, finalisation
     # ==================================================================
     def _tick_upkeep(self, agent: Agent) -> None:
-        agent.energy -= ENERGY_DECAY_PER_TICK
+        decay = ENERGY_DECAY_PER_TICK
+        if self.environment is not None:
+            decay *= self.environment.energy_multiplier()  # cold seasons drain more
+        agent.energy -= decay
         if self.drives.enabled:
             self._drive_upkeep(agent)
         if self.status.enabled:
@@ -934,6 +945,9 @@ class Simulation:
     def _end_of_day(self, verbose: bool) -> None:
         self._apply_daily_policy()
         self._maybe_elect_mayor()
+        if self.environment is not None:
+            # New weather/season, regen resources, reprice, maybe a disaster.
+            self.environment.advance_day(self)
         if self.memory is not None:
             # Advance the in-game clock one day and run each agent's forgetting pass.
             self.memory.tick()
@@ -1035,6 +1049,11 @@ class Simulation:
             thr = self.society.withdrawal_threshold
             self.metrics.addicts = sum(1 for a in self.agents
                                        if a.alive and a.addiction > thr)
+        if self.environment is not None:
+            s = self.environment.summary()
+            self.metrics.disasters_total = s["disasters_total"]
+            self.metrics.peak_food_price = s["peak_food_price"]
+            self.metrics.final_season = s["final_season"]
 
     def _living(self) -> int:
         return sum(1 for a in self.agents if a.alive)

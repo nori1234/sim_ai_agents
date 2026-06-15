@@ -39,6 +39,11 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
             f"Culture:     {m.religions_founded} faiths, {m.conversions} converts, "
             f"{m.acts_of_worship} acts of worship"
         )
+    if m.disasters_total or m.final_season:
+        lines.append(
+            f"Environment: {m.disasters_total} disasters; peak food price "
+            f"{m.peak_food_price:.2f}x; ended in {m.final_season}"
+        )
     lines.append(f"Crimes:      {m.crimes_total}")
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):
