@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emergence-world"
+version = "0.1.0"
+description = "An autonomous multi-agent town simulation that measures the society different AI brains produce over many days."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# No third-party runtime dependencies: the engine and the offline heuristic
+# brain use only the Python standard library. A real-LLM brain (Llama via any
+# OpenAI-compatible endpoint, or Anthropic) is included and also dependency-free
+# (it speaks HTTP via urllib).
+dependencies = []
+
+[project.scripts]
+emergence = "emergence.cli:main"
+
+[tool.setuptools]
+packages = ["emergence", "emergence.brains"]

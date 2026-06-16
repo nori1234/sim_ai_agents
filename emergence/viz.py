@@ -1,0 +1,846 @@
+"""Render a finished simulation as a self-contained HTML page.
+
+No third-party dependencies and no external assets: the output is a single
+HTML file with inline CSS and hand-built SVG, so it opens in any browser
+straight off disk. The views adapt to whichever needs layers a run enabled:
+
+* metric cards (layer-aware) + one-line verdict
+* a **town playback** — an animated day-by-day replay where agents move on the
+  map, the season tints the world, and the day's violence flashes (inline JS)
+* a daily timeline (population, cumulative crime, fraud, and births)
+* Maslow's needs pyramid — each tier brightened by its average satisfaction
+* the town map with a spatial crime heatmap overlaid on the facilities
+* the trust network between agents at the end of the run
+* an honour/reputation ranking (with --status)
+* a lineage / family tree (when children were born)
+* a layer-aware citizens table
+"""
+
+from __future__ import annotations
+
+import html
+import json
+import math
+from collections import Counter
+
+from .report import one_line_verdict
+from .simulation import Simulation
+from .world import FacilityType
+
+# Colour grouping for facilities on the map.
+_FACILITY_GROUP = {
+    FacilityType.FARM: ("food", "#2e7d32"),
+    FacilityType.GRANARY: ("food", "#558b2f"),
+    FacilityType.FOREST: ("material", "#6d4c41"),
+    FacilityType.MINE: ("material", "#8d6e63"),
+    FacilityType.WORKSHOP: ("work", "#1565c0"),
+    FacilityType.MARKET: ("work", "#1976d2"),
+    FacilityType.BANK: ("civic", "#7b1fa2"),
+    FacilityType.TOWN_HALL: ("civic", "#5e35b1"),
+    FacilityType.LIBRARY: ("civic", "#3949ab"),
+    FacilityType.POLICE_STATION: ("civic", "#283593"),
+    FacilityType.HOSPITAL: ("civic", "#00838f"),
+    FacilityType.HOUSE: ("civic", "#90a4ae"),
+    FacilityType.PLAZA: ("civic", "#9e9d24"),
+    FacilityType.MONUMENT: ("civic", "#fbc02d"),
+}
+
+
+# Emoji glyphs so facilities read as icons rather than coloured dots.
+_FACILITY_ICON = {
+    FacilityType.FARM: "\U0001F33E",        # 🌾
+    FacilityType.GRANARY: "\U0001F9FA",     # 🧺
+    FacilityType.FOREST: "\U0001F332",      # 🌲
+    FacilityType.MINE: "⛏️",      # ⛏️
+    FacilityType.WORKSHOP: "\U0001F528",    # 🔨
+    FacilityType.MARKET: "\U0001F3EA",      # 🏪
+    FacilityType.BANK: "\U0001F3E6",        # 🏦
+    FacilityType.TOWN_HALL: "\U0001F3DB️",  # 🏛️
+    FacilityType.LIBRARY: "\U0001F4DA",     # 📚
+    FacilityType.POLICE_STATION: "\U0001F693",   # 🚓
+    FacilityType.HOSPITAL: "\U0001F3E5",    # 🏥
+    FacilityType.HOUSE: "\U0001F3E0",       # 🏠
+    FacilityType.PLAZA: "⛲",           # ⛲
+    FacilityType.MONUMENT: "\U0001F5FF",    # 🗿
+    FacilityType.TEMPLE: "⛪",          # ⛪
+}
+
+
+def _facility_glyphs(world, cell: int, opacity: float = 1.0) -> list[str]:
+    """SVG <text> emoji icons for every facility, centred on its tile."""
+    out = []
+    for f in world.facilities:
+        glyph = _FACILITY_ICON.get(f.ftype, "•")
+        cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
+        out.append(
+            f'<text x="{cx:.0f}" y="{cy:.0f}" text-anchor="middle" '
+            f'dominant-baseline="central" font-size="{cell * 0.7:.0f}" '
+            f'opacity="{opacity}"><title>{_esc(f.name)} ({f.ftype.value})</title>'
+            f'{glyph}</text>'
+        )
+    return out
+
+
+# Persona colours for the live agents in the playback view.
+_PERSONA_COLOR = {
+    "guardian": "#2e7d32", "philosopher": "#8e24aa",
+    "idealist": "#1565c0", "predator": "#c62828",
+}
+
+
+def _esc(s) -> str:
+    return html.escape(str(s))
+
+
+def _layers(sim: Simulation) -> dict:
+    """Which optional needs layers were active in this run."""
+    return {
+        "drives": getattr(sim.drives, "enabled", False),
+        "reproduction": getattr(sim.drives, "reproduction", False),
+        "status": getattr(sim.status, "enabled", False),
+        "psyche": getattr(sim.psyche, "enabled", False),
+    }
+
+
+# ----------------------------------------------------------------------
+# Components
+# ----------------------------------------------------------------------
+def _cards(sim: Simulation) -> str:
+    m = sim.metrics
+    L = _layers(sim)
+    growth = f"+{m.births} born" if m.births else f"{m.survival_rate:.0%} survived"
+    cards = [
+        ("Survivors", f"{m.survivors}", f"from {m.population} — {growth}"),
+        ("Crimes", f"{m.crimes_total}", "theft / violence / arson"),
+        ("Pass rate", f"{m.pass_rate:.0%}", f"{m.proposals_passed}/{m.proposals_total} bills"),
+    ]
+    # Surface whichever advanced layers were switched on.
+    if L["reproduction"]:
+        cards.append(("Births", f"{m.births}", f"{m.matings} matings"))
+    if L["drives"]:
+        cards.append(("Pleasure", f"{m.total_pleasure:.0f}", "wellbeing banked"))
+    if L["status"]:
+        cards.append(("Praise", f"{m.total_praise}", "recognition exchanged"))
+    if L["psyche"]:
+        cards.append(("Works", f"{m.works_created}", "self-actualization"))
+        cards.append(("Peak fear", f"{m.peak_fear:.0f}", "out of 100"))
+    # Pad with the classic stats so the run always reads richly.
+    for extra in (("Fraud", f"{m.frauds}", '"I\'m broke" scams'),
+                  ("Collaboration", f"{m.collaborations}", f"{m.monuments_built} monuments"),
+                  ("Days run", f"{m.days_run}", "of scheduled run")):
+        if len(cards) % 3 == 0:
+            break
+        cards.append(extra)
+
+    html_cards = "".join(
+        f'<div class="card"><div class="card-val">{_esc(v)}</div>'
+        f'<div class="card-key">{_esc(k)}</div>'
+        f'<div class="card-sub">{_esc(s)}</div></div>'
+        for k, v, s in cards
+    )
+    return f'<div class="cards">{html_cards}</div>'
+
+
+def _timeline(sim: Simulation) -> str:
+    log = sim.daily_log
+    if not log:
+        return ""
+    W, H = 760, 280
+    pad_l, pad_r, pad_t, pad_b = 44, 44, 20, 30
+    plot_w, plot_h = W - pad_l - pad_r, H - pad_t - pad_b
+
+    days = [d["day"] for d in log]
+    alive = [d["alive"] for d in log]
+    crimes = [d["crimes_total"] for d in log]
+    frauds = [d["frauds"] for d in log]
+    births = [d.get("births", 0) for d in log]
+    show_births = _layers(sim)["reproduction"] and max(births) > 0
+    n = len(days)
+    # When the population can grow past its start, scale the left axis to it.
+    pop = max(sim.metrics.population, max(alive), 1)
+    max_crime = max(max(crimes), max(births) if show_births else 0, 1)
+
+    def x(i: int) -> float:
+        return pad_l + (plot_w * (i / (n - 1)) if n > 1 else plot_w / 2)
+
+    def y_left(v: float) -> float:  # population scale
+        return pad_t + plot_h * (1 - v / pop)
+
+    def y_right(v: float) -> float:  # crime/fraud scale
+        return pad_t + plot_h * (1 - v / max_crime)
+
+    def poly(values, yfn, color) -> str:
+        pts = " ".join(f"{x(i):.1f},{yfn(v):.1f}" for i, v in enumerate(values))
+        return (
+            f'<polyline points="{pts}" fill="none" stroke="{color}" '
+            f'stroke-width="2.5" />'
+        )
+
+    # Axis gridlines / labels.
+    grid = []
+    for frac in (0, 0.25, 0.5, 0.75, 1.0):
+        gy = pad_t + plot_h * frac
+        grid.append(f'<line x1="{pad_l}" y1="{gy:.0f}" x2="{pad_l+plot_w}" '
+                    f'y2="{gy:.0f}" stroke="#eceff1" />')
+        grid.append(f'<text x="{pad_l-6}" y="{gy+3:.0f}" class="ax" '
+                    f'text-anchor="end">{round(pop*(1-frac))}</text>')
+        grid.append(f'<text x="{pad_l+plot_w+6}" y="{gy+3:.0f}" class="ax" '
+                    f'text-anchor="start">{round(max_crime*(1-frac))}</text>')
+    xticks = []
+    for i, d in enumerate(days):
+        if n <= 16 or i % 2 == 0 or i == n - 1:
+            xticks.append(f'<text x="{x(i):.0f}" y="{H-pad_b+16:.0f}" class="ax" '
+                          f'text-anchor="middle">{d}</text>')
+
+    return f"""
+    <div class="panel">
+      <h2>Daily timeline</h2>
+      <svg viewBox="0 0 {W} {H}" class="chart" role="img">
+        {''.join(grid)}
+        {poly(alive, y_left, '#2e7d32')}
+        {poly(crimes, y_right, '#c62828')}
+        {poly(frauds, y_right, '#ef6c00')}
+        {poly(births, y_right, '#8e24aa') if show_births else ''}
+        {''.join(xticks)}
+        <text x="{pad_l}" y="14" class="ax">population (left)</text>
+        <text x="{pad_l+plot_w}" y="14" class="ax" text-anchor="end">crime / fraud (right)</text>
+      </svg>
+      <div class="legend">
+        <span><i style="background:#2e7d32"></i>alive</span>
+        <span><i style="background:#c62828"></i>cumulative crime</span>
+        <span><i style="background:#ef6c00"></i>cumulative fraud</span>
+        {'<span><i style="background:#8e24aa"></i>cumulative births</span>' if show_births else ''}
+      </div>
+    </div>"""
+
+
+_SEASON_BG = {"spring": "#eef6e3", "summer": "#fffceb", "autumn": "#fbeae2",
+              "winter": "#e6f0fb", "": "#fafafa"}
+
+
+# Distinct colours so you can watch gangs / faiths coalesce over the days.
+_GANG_PALETTE = ["#d32f2f", "#f57c00", "#455a64", "#5d4037", "#c2185b",
+                 "#00695c", "#283593", "#827717"]
+_FAITH_PALETTE = ["#fbc02d", "#9575cd", "#4db6ac", "#ba68c8", "#7986cb", "#aed581"]
+
+
+def _playback(sim: Simulation) -> str:
+    """An auto-playing day-by-day replay built with SVG SMIL animation — no
+    JavaScript, so it plays in any browser (and most file previews).
+
+    Watch the town live: a day counter ticks, the season tints the world, agents
+    glide across the map (fading on death, appearing at birth), each dot is
+    coloured by its **current affiliation** (gang > faith > base temperament) so
+    factions visibly coalesce, and **family lines** grow as children are born.
+    """
+    frames = getattr(sim, "frames", [])
+    if not frames:
+        return ""
+    world = sim.world
+    cell = 22
+    W, H = world.width * cell, world.height * cell
+    n = len(frames)
+    dur = max(6.0, n * 0.9)  # ~0.9s per day, looped
+
+    def anim(attr, values, discrete=False):
+        mode = ' calcMode="discrete"' if discrete else ""
+        return (f'<animate attributeName="{attr}" dur="{dur}s" '
+                f'repeatCount="indefinite"{mode} values="{";".join(values)}"/>')
+
+    # Affiliation -> colour (assigned in order of first appearance).
+    gangs = sorted({a.get("gang") for fr in frames for a in fr["agents"] if a.get("gang")})
+    faiths = sorted({a.get("faith") for fr in frames for a in fr["agents"] if a.get("faith")})
+    gcol = {g: _GANG_PALETTE[i % len(_GANG_PALETTE)] for i, g in enumerate(gangs)}
+    fcol = {f: _FAITH_PALETTE[i % len(_FAITH_PALETTE)] for i, f in enumerate(faiths)}
+
+    def affil(a):
+        if a.get("gang"):
+            return gcol[a["gang"]]
+        if a.get("faith"):
+            return fcol[a["faith"]]
+        return _PERSONA_COLOR.get(a["persona"], "#26a69a")
+
+    # Season-tinted background that steps through the days.
+    seasons = [_SEASON_BG.get(fr.get("season", ""), "#fafafa") for fr in frames]
+    bg = (f'<rect x="0" y="0" width="{W}" height="{H}" fill="{seasons[0]}" '
+          f'stroke="#e0e0e0">{anim("fill", seasons, discrete=True)}</rect>')
+
+    # Facilities fade in on the day they were built, so a founding town visibly
+    # constructs itself; pre-existing ones are simply always there.
+    day_index = {fr["day"]: i for i, fr in enumerate(frames)}
+    glyphs = []
+    for f in world.facilities:
+        glyph = _FACILITY_ICON.get(f.ftype, "•")
+        gx, gy = f.x * cell + cell / 2, f.y * cell + cell / 2
+        base = (f'<text x="{gx:.0f}" y="{gy:.0f}" text-anchor="middle" '
+                f'dominant-baseline="central" font-size="{cell * 0.7:.0f}" ')
+        title = f'<title>{_esc(f.name)} ({f.ftype.value})</title>{glyph}</text>'
+        bd = getattr(f, "built_on_day", None)
+        if bd and bd in day_index and day_index[bd] > 0:
+            ops = ["0" if i < day_index[bd] else "0.55" for i in range(n)]
+            glyphs.append(base + 'opacity="0">'
+                          + anim("opacity", ops, discrete=True) + title)
+        else:
+            glyphs.append(base + 'opacity="0.55">' + title)
+
+    # Per-agent tracks (carry last position when the agent is absent that day).
+    all_ids = sorted({a["id"] for fr in frames for a in fr["agents"]})
+    by_frame = [{a["id"]: a for a in fr["agents"]} for fr in frames]
+    xs_of, ys_of, op_of, fill_of = {}, {}, {}, {}
+    for aid in all_ids:
+        xs, ys, ops, fills = [], [], [], []
+        lx, ly, lc = W / 2, H / 2, "#26a69a"
+        for fa in by_frame:
+            a = fa.get(aid)
+            if a:
+                lx = a["x"] * cell + cell / 2
+                ly = a["y"] * cell + cell / 2
+                lc = affil(a)
+                ops.append("1" if a["alive"] else "0.18")
+            else:
+                ops.append("0")
+            xs.append(f"{lx:.0f}"); ys.append(f"{ly:.0f}"); fills.append(lc)
+        xs_of[aid], ys_of[aid], op_of[aid], fill_of[aid] = xs, ys, ops, fills
+
+    # Family lines grow as children are born (visible only while the child lives).
+    id_to_parents = {a.id: a.parent_ids for a in sim.agents}
+    lines = []
+    for cid in all_ids:
+        for pid in id_to_parents.get(cid, ()):  # 0 or 2 parents
+            if pid not in xs_of:
+                continue
+            vis = ["0.4" if o != "0" else "0" for o in op_of[cid]]
+            lines.append(
+                f'<line x1="{xs_of[pid][0]}" y1="{ys_of[pid][0]}" '
+                f'x2="{xs_of[cid][0]}" y2="{ys_of[cid][0]}" stroke="#ad7bdb" '
+                f'stroke-width="1.4" opacity="{vis[0]}">'
+                f'{anim("x1", xs_of[pid])}{anim("y1", ys_of[pid])}'
+                f'{anim("x2", xs_of[cid])}{anim("y2", ys_of[cid])}'
+                f'{anim("opacity", vis, discrete=True)}</line>'
+            )
+        if len(lines) >= 60:
+            break
+
+    circles = []
+    for aid in all_ids:
+        circles.append(
+            f'<circle r="5" fill="{fill_of[aid][0]}" stroke="#fff" stroke-width="1" '
+            f'cx="{xs_of[aid][0]}" cy="{ys_of[aid][0]}" opacity="{op_of[aid][0]}">'
+            f'{anim("cx", xs_of[aid])}{anim("cy", ys_of[aid])}'
+            f'{anim("opacity", op_of[aid], discrete=True)}'
+            f'{anim("fill", fill_of[aid], discrete=True)}</circle>'
+        )
+
+    # A day/season/population caption that ticks over (stacked texts, one shown
+    # per day via opacity — SMIL can't animate text content directly).
+    captions = []
+    for i, fr in enumerate(frames):
+        ops = ["0"] * n
+        ops[i] = "1"
+        txt = (f"Day {fr['day']}"
+               + (f" · {fr['season']} {fr.get('weather','')}".rstrip() if fr.get("season") else "")
+               + f" · alive {fr['alive']}")
+        captions.append(
+            f'<text x="8" y="20" font-size="14" font-weight="600" fill="#37474f" '
+            f'opacity="{ops[0]}">{anim("opacity", ops, discrete=True)}{_esc(txt)}</text>'
+        )
+
+    legend = "".join(
+        f'<span><i style="background:{c}"></i>{p}</span>'
+        for p, c in _PERSONA_COLOR.items()
+    )
+    if gangs:
+        legend += '<span class="muted">gang colours appear as crews form</span>'
+    season_swatches = "".join(
+        f'<span><i style="background:{_SEASON_BG[s]}"></i>{s}</span>'
+        for s in ("spring", "summer", "autumn", "winter")
+    )
+    return f"""
+    <div class="panel">
+      <h2>Town playback — {n} days, auto-looping</h2>
+      <svg viewBox="0 0 {W} {H}" class="map" role="img">
+        {bg}
+        {''.join(glyphs)}
+        {''.join(lines)}
+        {''.join(circles)}
+        {''.join(captions)}
+      </svg>
+      <div class="legend">{legend}</div>
+      <div class="legend">{season_swatches}
+        <span class="muted">dot colour = current gang &rsaquo; faith &rsaquo; temperament ·
+        purple lines = family · the day counter (top-left) ticks as it plays</span>
+      </div>
+    </div>"""
+
+
+def _town_map(sim: Simulation) -> str:
+    world = sim.world
+    cell = 22
+    W, H = world.width * cell, world.height * cell
+
+    # Aggregate crime counts per cell from the event log.
+    crime_kinds = {"theft", "violence", "arson"}
+    heat: Counter = Counter()
+    for e in world.events:
+        if e.get("kind") in crime_kinds and isinstance(e.get("pos"), (tuple, list)):
+            px, py = e["pos"]
+            heat[(int(px), int(py))] += 1
+    max_heat = max(heat.values(), default=0)
+
+    # Light grid.
+    grid = [f'<rect x="0" y="0" width="{W}" height="{H}" fill="#fafafa" '
+            f'stroke="#e0e0e0" />']
+
+    # Heat blobs under the facilities.
+    blobs = []
+    for (px, py), count in heat.items():
+        cx, cy = px * cell + cell / 2, py * cell + cell / 2
+        r = cell * (0.6 + 1.6 * (count / max_heat)) if max_heat else cell * 0.6
+        op = 0.15 + 0.55 * (count / max_heat) if max_heat else 0.2
+        blobs.append(f'<circle cx="{cx:.0f}" cy="{cy:.0f}" r="{r:.0f}" '
+                     f'fill="#e53935" opacity="{op:.2f}" />')
+
+    # Facilities, drawn as emoji icons.
+    dots = _facility_glyphs(world, cell, opacity=0.9)
+
+    # Mark facilities that took on an emergent role (society layer).
+    role_marks = {"temple": ("#fdd835", "✚"), "gang_turf": ("#d32f2f", "▲"),
+                  "drug_den": ("#6a1b9a", "✜"), "weapons_factory": ("#455a64", "⚔")}
+    role_overlay = []
+    for f in world.facilities:
+        for role, (rc, sym) in role_marks.items():
+            if role in f.roles:
+                cx, cy = f.x * cell + cell / 2, f.y * cell + cell / 2
+                role_overlay.append(
+                    f'<text x="{cx:.0f}" y="{cy-7:.0f}" text-anchor="middle" '
+                    f'font-size="13" fill="{rc}"><title>{_esc(f.name)} — {role}'
+                    f'</title>{sym}</text>')
+                break
+
+    legend = ('<span>\U0001F33E farm · \U0001F332 forest · ⛏️ mine · \U0001F528 workshop · '
+              '\U0001F3EA market · \U0001F3DB️ hall · \U0001F4DA library · \U0001F693 police · '
+              '\U0001F3E0 house · ⛲ plaza</span>'
+              '<span><i style="background:#e53935"></i>crime</span>')
+    if role_overlay:
+        legend += ('<span class="muted">✚ temple · ▲ gang turf · '
+                   '✜ drug den · ⚔ weapons</span>')
+    note = (f"hottest cell: {max_heat} crimes" if max_heat
+            else "no crime recorded")
+    return f"""
+    <div class="panel">
+      <h2>Town map &amp; crime heatmap</h2>
+      <svg viewBox="0 0 {W} {H}" class="map" role="img">
+        {''.join(grid)}
+        {''.join(blobs)}
+        {''.join(dots)}
+        {''.join(role_overlay)}
+      </svg>
+      <div class="legend">{legend}<span class="muted">{note}</span></div>
+    </div>"""
+
+
+def _trust_network(sim: Simulation) -> str:
+    agents = sim.agents
+    n = len(agents)
+    if n == 0:
+        return ""
+    size = 520
+    cx, cy, R = size / 2, size / 2, size / 2 - 60
+    pos = {}
+    for i, a in enumerate(agents):
+        ang = 2 * math.pi * i / n - math.pi / 2
+        pos[a.id] = (cx + R * math.cos(ang), cy + R * math.sin(ang))
+
+    edges = []
+    for a in agents:
+        ax, ay = pos[a.id]
+        for other_id, val in a.trust.items():
+            if other_id not in pos or abs(val) < 0.25:
+                continue
+            bx, by = pos[other_id]
+            color = "#2e7d32" if val > 0 else "#c62828"
+            width = 0.8 + 2.6 * min(1.0, abs(val))
+            op = 0.25 + 0.5 * min(1.0, abs(val))
+            edges.append(f'<line x1="{ax:.0f}" y1="{ay:.0f}" x2="{bx:.0f}" '
+                         f'y2="{by:.0f}" stroke="{color}" stroke-width="{width:.1f}" '
+                         f'opacity="{op:.2f}" />')
+
+    nodes = []
+    for a in agents:
+        px, py = pos[a.id]
+        fill = "#1565c0" if a.alive else "#b0bec5"
+        ring = "#0d47a1" if a.alive else "#78909c"
+        nodes.append(
+            f'<circle cx="{px:.0f}" cy="{py:.0f}" r="9" fill="{fill}" '
+            f'stroke="{ring}" stroke-width="2"><title>{_esc(a.name)} '
+            f'({_esc(a.persona)}) — '
+            f'{"alive" if a.alive else "dead"}</title></circle>'
+            f'<text x="{px:.0f}" y="{py-14:.0f}" class="nodelbl" '
+            f'text-anchor="middle">{_esc(a.name)}</text>'
+        )
+
+    return f"""
+    <div class="panel">
+      <h2>Trust network (end of run)</h2>
+      <svg viewBox="0 0 {size} {size}" class="net" role="img">
+        {''.join(edges)}
+        {''.join(nodes)}
+      </svg>
+      <div class="legend">
+        <span><i style="background:#2e7d32"></i>trusts</span>
+        <span><i style="background:#c62828"></i>distrusts</span>
+        <span><i style="background:#b0bec5"></i>deceased</span>
+      </div>
+    </div>"""
+
+
+def _needs_pyramid(sim: Simulation) -> str:
+    """Maslow's pyramid, each tier brightened by how satisfied that need is."""
+    L = _layers(sim)
+    if not (L["drives"] or L["status"] or L["psyche"]):
+        return ""  # nothing to show on a bare run
+    living = [a for a in sim.agents if a.alive] or sim.agents
+    n = len(living) or 1
+
+    def clamp(v: float) -> float:
+        return max(0.0, min(1.0, v))
+
+    def avg(fn) -> float:
+        return sum(fn(a) for a in living) / n
+
+    def best_trust(a) -> float:
+        vals = [t for t in a.trust.values()]
+        return max(vals) if vals else 0.0
+
+    # (label, satisfaction 0..1, active?, colour)
+    tiers = [
+        ("Physiological  食欲・睡眠・性欲",
+         avg(lambda a: 1 - clamp((a.hunger + a.fatigue) / 200)), L["drives"], "#2e7d32"),
+        ("Safety  安全（恐怖からの自由）",
+         avg(lambda a: 1 - clamp(a.fear / 100)), L["psyche"], "#1565c0"),
+        ("Belonging  社会・つがい・信頼",
+         avg(lambda a: clamp(best_trust(a))), True, "#00838f"),
+        ("Esteem  承認・名誉・権力",
+         avg(lambda a: 1 - clamp(a.esteem / 100)), L["status"], "#8e24aa"),
+        ("Self-actualization  自己実現・創造",
+         avg(lambda a: clamp(a.fulfillment / 20)), L["psyche"], "#fbc02d"),
+    ]
+
+    W, H = 620, 320
+    band_h = H / len(tiers)
+    base_half = W / 2 * 0.92
+    cx = W / 2
+    bands, labels = [], []
+    for i, (label, sat, active, color) in enumerate(tiers):
+        # Bottom tier (i=0) is the widest; apex is the top.
+        level = len(tiers) - 1 - i  # 0 at top, 4 at bottom for geometry
+        y_bot = H - i * band_h
+        y_top = H - (i + 1) * band_h
+        hw_bot = base_half * (1 - (i) / len(tiers))
+        hw_top = base_half * (1 - (i + 1) / len(tiers))
+        poly = (f"{cx - hw_bot:.0f},{y_bot:.0f} {cx + hw_bot:.0f},{y_bot:.0f} "
+                f"{cx + hw_top:.0f},{y_top:.0f} {cx - hw_top:.0f},{y_top:.0f}")
+        if active:
+            op = 0.18 + 0.72 * clamp(sat)
+            fill = color
+            pct = f"{sat * 100:.0f}%"
+        else:
+            op = 0.10
+            fill = "#90a4ae"
+            pct = "—"
+        bands.append(f'<polygon points="{poly}" fill="{fill}" opacity="{op:.2f}" '
+                     f'stroke="#fff" stroke-width="1.5" />')
+        ty = (y_bot + y_top) / 2
+        labels.append(
+            f'<text x="{cx:.0f}" y="{ty - 2:.0f}" class="pyr" text-anchor="middle">'
+            f'{_esc(label)}</text>'
+            f'<text x="{cx:.0f}" y="{ty + 12:.0f}" class="pyrpct" text-anchor="middle">'
+            f'{pct}</text>'
+        )
+
+    return f"""
+    <div class="panel">
+      <h2>Needs pyramid — average satisfaction</h2>
+      <svg viewBox="0 0 {W} {H}" class="pyramid" role="img">
+        {''.join(bands)}
+        {''.join(labels)}
+      </svg>
+      <div class="legend"><span class="muted">brighter band = that need is
+      better met across the living; grey = layer not enabled this run</span></div>
+    </div>"""
+
+
+def _reputation_ranking(sim: Simulation) -> str:
+    """Horizontal bars of standing/honour — who the town admires."""
+    if not _layers(sim)["status"]:
+        return ""
+    ranked = sorted(sim.agents, key=lambda a: a.reputation, reverse=True)
+    ranked = [a for a in ranked if a.reputation > 0][:12]
+    if not ranked:
+        return ""
+    top = ranked[0].reputation
+    rows = []
+    bar_w = 320
+    for a in ranked:
+        frac = a.reputation / top if top else 0
+        w = max(2, bar_w * frac)
+        fill = "#8e24aa" if a.alive else "#b39ddb"
+        crown = " ♛" if a.times_mayor else ""
+        rows.append(
+            f'<div class="rep-row">'
+            f'<span class="rep-name">{_esc(a.name)}{crown}</span>'
+            f'<span class="rep-bar"><i style="width:{w:.0f}px;background:{fill}"></i></span>'
+            f'<span class="rep-val">{a.reputation:.0f}</span>'
+            f'</div>'
+        )
+    return f"""
+    <div class="panel">
+      <h2>Honour &amp; power — reputation ranking</h2>
+      {''.join(rows)}
+      <div class="legend"><span>♛ = held the mayoralty</span>
+      <span class="muted">prestige from monuments, passed laws, office, praise</span></div>
+    </div>"""
+
+
+def _lineage(sim: Simulation) -> str:
+    """A genealogy: founders and the children born during the run."""
+    if sim.metrics.births <= 0:
+        return ""
+    agents = sim.agents
+    by_id = {a.id: a for a in agents}
+    # Generation = longest parent chain to a founder.
+    gen: dict[str, int] = {}
+
+    def resolve(a) -> int:
+        if a.id in gen:
+            return gen[a.id]
+        if not a.parent_ids:
+            gen[a.id] = 0
+            return 0
+        parents = [by_id[p] for p in a.parent_ids if p in by_id]
+        g = 1 + max((resolve(p) for p in parents), default=0)
+        gen[a.id] = g
+        return g
+
+    for a in agents:
+        resolve(a)
+    max_gen = max(gen.values(), default=0)
+    if max_gen == 0:
+        return ""
+
+    # Lay out by generation column.
+    cols: dict[int, list] = {}
+    for a in agents:
+        cols.setdefault(gen[a.id], []).append(a)
+    col_w = 150
+    row_h = 34
+    W = (max_gen + 1) * col_w + 20
+    H = max(len(v) for v in cols.values()) * row_h + 30
+    pos = {}
+    for g, members in cols.items():
+        members.sort(key=lambda a: a.id)
+        for j, a in enumerate(members):
+            x = 20 + g * col_w
+            y = 24 + j * row_h
+            pos[a.id] = (x, y)
+
+    edges, nodes = [], []
+    for a in agents:
+        if not a.parent_ids:
+            continue
+        cxv, cyv = pos[a.id]
+        for p in a.parent_ids:
+            if p in pos:
+                px, py = pos[p]
+                edges.append(f'<path d="M{px+70},{py} C{px+110},{py} {cxv-40},{cyv} '
+                             f'{cxv},{cyv}" fill="none" stroke="#ce93d8" '
+                             f'stroke-width="1.4" opacity="0.8" />')
+    for a in agents:
+        x, y = pos[a.id]
+        founder = not a.parent_ids
+        fill = "#5e35b1" if founder else ("#26a69a" if a.alive else "#cfd8dc")
+        nodes.append(
+            f'<circle cx="{x:.0f}" cy="{y:.0f}" r="6" fill="{fill}">'
+            f'<title>{_esc(a.name)} ({_esc(a.persona)})'
+            f'{" — founder" if founder else ""}{"" if a.alive else " — deceased"}'
+            f'</title></circle>'
+            f'<text x="{x+10:.0f}" y="{y+4:.0f}" class="treelbl">{_esc(a.name)}</text>'
+        )
+
+    return f"""
+    <div class="panel">
+      <h2>Lineage — {sim.metrics.births} born across {max_gen} generation(s)</h2>
+      <div class="scroll">
+        <svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" class="tree" role="img">
+          {''.join(edges)}
+          {''.join(nodes)}
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i style="background:#5e35b1"></i>founder</span>
+        <span><i style="background:#26a69a"></i>born &amp; living</span>
+        <span><i style="background:#cfd8dc"></i>born, deceased</span>
+      </div>
+    </div>"""
+
+
+def _factions(sim: Simulation) -> str:
+    """Gangs and faiths that crystallised during the run."""
+    if not getattr(sim.society, "enabled", False):
+        return ""
+    gangs = getattr(sim, "gangs", [])
+    religions = getattr(sim, "religions", [])
+    if not gangs and not religions:
+        return ""
+    by_id = {a.id: a for a in sim.agents}
+
+    def name_of(aid):
+        a = by_id.get(aid)
+        return a.name if a else aid
+
+    blocks = []
+    if gangs:
+        items = "".join(
+            f'<li><b>{_esc(g.name)}</b> — {g.size()} members, '
+            f'led by {_esc(name_of(g.leader))}'
+            f'{f", {len(g.turf)} turf" if g.turf else ""}</li>'
+            for g in sorted(gangs, key=lambda g: -g.size()))
+        blocks.append(f'<div class="faction"><h3>Gangs ({len(gangs)})</h3>'
+                      f'<ul>{items}</ul></div>')
+    if religions:
+        items = "".join(
+            f'<li><b>{_esc(r.name)}</b> — {r.size()} faithful, '
+            f'founded by {_esc(name_of(r.prophet))}</li>'
+            for r in sorted(religions, key=lambda r: -r.size()))
+        blocks.append(f'<div class="faction"><h3>Faiths ({len(religions)})</h3>'
+                      f'<ul>{items}</ul></div>')
+    m = sim.metrics
+    return f"""
+    <div class="panel">
+      <h2>Factions &amp; faiths</h2>
+      <div class="factions">{''.join(blocks)}</div>
+      <div class="legend">
+        <span>⚔ {m.weapons_crafted} armed</span>
+        <span>🏴 {m.rebellions} rebellions</span>
+        <span>💊 {m.doses_taken} doses / {m.addicts} addicts</span>
+        <span>🙏 {m.acts_of_worship} acts of worship</span>
+      </div>
+    </div>"""
+
+
+def _citizens(sim: Simulation) -> str:
+    L = _layers(sim)
+    # Build columns dynamically so advanced layers surface their own stats.
+    cols = [("Name", lambda a: _esc(a.name)),
+            ("Persona", lambda a: _esc(a.persona)),
+            ("Status", lambda a: ("alive" if a.alive
+                                  else f"died d{a.day_of_death} ({_esc(a.cause_of_death)})")),
+            ("Crimes", lambda a: a.crimes_committed),
+            ("Votes", lambda a: a.votes_cast)]
+    if L["reproduction"]:
+        cols.append(("Children", lambda a: a.children))
+    if L["status"]:
+        cols.append(("Honour", lambda a: f"{a.reputation:.0f}"))
+        cols.append(("Praised", lambda a: a.praise_received))
+    if L["psyche"]:
+        cols.append(("Works", lambda a: a.works_created))
+    if L["drives"]:
+        cols.append(("Pleasure", lambda a: f"{a.pleasure:.0f}"))
+
+    head = "".join(f"<th>{_esc(name)}</th>" for name, _ in cols)
+    rows = []
+    for a in sim.agents:
+        cls = "" if a.alive else ' class="dead"'
+        cells = "".join(f"<td>{fn(a)}</td>" for _, fn in cols)
+        rows.append(f"<tr{cls}>{cells}</tr>")
+    return f"""
+    <div class="panel">
+      <h2>Citizens</h2>
+      <div class="scroll">
+        <table class="tbl">
+          <tr>{head}</tr>
+          {''.join(rows)}
+        </table>
+      </div>
+    </div>"""
+
+
+_CSS = """
+:root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { margin: 0; background: #f4f6f8; color: #263238; }
+.wrap { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+.verdict { font-size: 15px; color: #455a64; margin: 0 0 20px; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
+.card { background: #fff; border-radius: 10px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card-val { font-size: 26px; font-weight: 700; }
+.card-key { font-size: 13px; font-weight: 600; color: #37474f; margin-top: 2px; }
+.card-sub { font-size: 11px; color: #90a4ae; }
+.panel { background: #fff; border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.panel h2 { font-size: 16px; margin: 0 0 12px; }
+.chart, .map, .net { width: 100%; height: auto; }
+.ax { font-size: 10px; fill: #78909c; }
+.nodelbl { font-size: 10px; fill: #37474f; }
+.legend { margin-top: 10px; font-size: 12px; color: #546e7a; display: flex; flex-wrap: wrap; gap: 14px; }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.legend .muted { color: #b0bec5; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eceff1; }
+.tbl th { color: #607d8b; font-weight: 600; }
+.tbl tr.dead td { color: #b0bec5; }
+.scroll { overflow-x: auto; }
+.pyramid { width: 100%; height: auto; }
+.pyr { font-size: 11px; fill: #fff; font-weight: 600; }
+.pyrpct { font-size: 11px; fill: #fff; font-weight: 700; }
+.treelbl { font-size: 9px; fill: #455a64; }
+.rep-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; font-size: 13px; }
+.rep-name { width: 110px; flex: none; color: #37474f; }
+.rep-bar { flex: 1; background: #f3e5f5; border-radius: 4px; height: 14px; }
+.rep-bar i { display: block; height: 14px; border-radius: 4px; }
+.rep-val { width: 40px; flex: none; text-align: right; color: #6a1b9a; font-weight: 600; }
+.factions { display: flex; flex-wrap: wrap; gap: 24px; }
+.faction { flex: 1; min-width: 220px; }
+.faction h3 { font-size: 13px; margin: 0 0 6px; color: #455a64; }
+.faction ul { margin: 0; padding-left: 18px; font-size: 12px; color: #37474f; }
+.faction li { margin: 3px 0; }
+.pb-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pb-btn { font-size: 13px; padding: 4px 10px; border: 1px solid #cfd8dc; border-radius: 6px;
+          background: #fff; cursor: pointer; flex: none; }
+.pb-slider { flex: 1; }
+.pb-lbl { font-size: 12px; color: #455a64; flex: none; min-width: 200px; text-align: right; }
+.pb-ag { transition: cx .45s ease, cy .45s ease, opacity .3s, fill .3s; }
+.footer { font-size: 12px; color: #b0bec5; text-align: center; margin-top: 24px; }
+"""
+
+
+def render_html(sim: Simulation, title: str = "Emergence World") -> str:
+    """Return a complete, self-contained HTML document for ``sim``."""
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{_esc(title)}</title>
+<style>{_CSS}</style></head>
+<body><div class="wrap">
+  <h1>{_esc(title)}</h1>
+  <p class="verdict">{_esc(one_line_verdict(sim))}</p>
+  {_cards(sim)}
+  {_playback(sim)}
+  {_timeline(sim)}
+  {_needs_pyramid(sim)}
+  <div class="panel" style="padding:0;background:none;box-shadow:none">
+    {_town_map(sim)}
+    {_trust_network(sim)}
+  </div>
+  {_reputation_ranking(sim)}
+  {_factions(sim)}
+  {_lineage(sim)}
+  {_citizens(sim)}
+  <div class="footer">Generated by Emergence World — emergence.viz</div>
+</div></body></html>"""
+
+
+def write_html(sim: Simulation, path: str, title: str = "Emergence World") -> str:
+    """Render ``sim`` and write it to ``path``; return ``path``."""
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(render_html(sim, title))
+    return path
