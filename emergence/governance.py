@@ -40,28 +40,26 @@ class GovernanceConfig:
     supermajority: float = 0.67  # fraction needed for constitutional bills
     oligarch_count: int = 3      # how many top-wealth agents vote in oligarchy
     election_interval: int = 5   # days between mayoral elections
-    police_deterrence: float = 0.55  # crime probability multiplier near police
-    police_range: int = 7        # tiles within which police deters
+    police_range: int = 7        # tiles within which a station enables the punishment fine
     fine_amount: int = 8         # money taken when punishment law triggers
     tax_rate: float = 0.10       # fraction of money taken from richest each day
 
 
-# Named presets the CLI accepts.
+# Named presets the CLI accepts. (Crime deterrence is no longer a config knob:
+# order emerges from a guard's ARREST act and agents complying with published
+# norms — see docs/PRINCIPLED_MIGRATION.md.)
 GOVERNANCE_PRESETS: dict[str, GovernanceConfig] = {
     "direct": GovernanceConfig(form=GovernanceForm.DIRECT),
     "oligarchy": GovernanceConfig(
         form=GovernanceForm.OLIGARCHY,
         oligarch_count=3,
-        police_deterrence=0.4,  # rulers invest in policing their property
     ),
     "constitutional": GovernanceConfig(
         form=GovernanceForm.CONSTITUTIONAL,
         supermajority=0.67,
-        police_deterrence=0.5,
     ),
     "anarchy": GovernanceConfig(
         form=GovernanceForm.ANARCHY,
-        police_deterrence=1.0,  # police has no legal backing → no deterrence
     ),
 }
 
