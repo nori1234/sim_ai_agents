@@ -63,6 +63,8 @@ class ActionType(str, Enum):
     USE = "use"    # consume/apply a held item to self or a target (eat, dose)
     STRIKE = "strike"  # apply force to damage an agent or a structure
     MAKE = "make"  # transform inputs / effort into an output (a work, a good)
+    SAY = "say"    # broadcast a signal/message (optionally at a target)
+    BOND = "bond"  # commit to an agreement or allegiance (a vote, a pact)
 
 
 # Actions the world treats as crimes for metric purposes.
@@ -91,6 +93,8 @@ class Action:
       USE         -> {"item": str, "qty": int, "on": agent_id (optional, default self)}
       STRIKE      -> {"target": agent_id} or {"facility_name": str}
       MAKE        -> {"output": "work"|recipe_item, "title": str (for a work)}
+      SAY         -> {"text": str, "to": agent_id (optional)}
+      BOND        -> {"proposal_id": int, "support": bool} or {"with": agent_id}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
       DEAL_DRUG   -> {"target": agent_id}

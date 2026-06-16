@@ -235,8 +235,27 @@ stays **byte-identical** and `test_baseline_contract` stays green.
   construction couples to the public-works treasury/voting) and `craft_weapon`
   (society layer) route through `make` in a later pass; `craft`/`offer`/`accept`
   already live in the economy-primitives layer.
-* **Slice 3b — `say` / `bond` (the social ones).** Lower speak/praise/propose/
-  report (→ say) and vote/accept/lend/repay/worship/join_gang (→ bond).
+* **Slice 3b — `say` / `bond` (the social ones). (DONE)** `say` broadcasts a
+  signal: `speak` lowers to a public say, `report_crime` to a say aimed at the
+  accused. `bond` commits to an agreement: `vote` lowers to `_bond_to_proposal`
+  (assent to a collective decision), and the raw `bond` verb also forms a pact
+  of mutual allegiance (trust) between two agents — a new affordance the LLM can
+  improvise with. Raw `say`/`bond` are in the LLM menu; the contract is
+  byte-identical. **Deferred with rationale:** `praise` (esteem layer),
+  `propose` (governance-structured: text→law parsing, build inference), and
+  `preach`/`worship`/`join_gang` (society layer) stay as structured macros for
+  now; `accept`/`lend`/`repay` are already bond-family economy primitives.
+
+## Where the instruction set stands
+
+The substrate now exists: **move, take, give, use, strike, make, say, bond**
+(plus mate). The everyday institutional verbs (steal, transfer, eat, attack,
+arson, create, speak, report_crime, vote) are thin macros that lower to them,
+and meaning (theft, gift, violence, arson) is read by `_interpret` from the act
+plus context. The LLM brain can call the raw primitives to improvise; the
+heuristic brain stays on the macros, so all four societies remain byte-identical.
+What is intentionally left as structured macros — governance proposals, the
+esteem/society/economy layers — is documented above, not hidden.
 * Each slice: heuristic stays on macros (contract byte-identical); the LLM menu
   gains the new primitive so it can improvise.
 

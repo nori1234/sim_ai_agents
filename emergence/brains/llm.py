@@ -69,6 +69,8 @@ Choose ONE action. Common actions and their params:
   use  {"item": "food", "qty": N}   (apply a held item to yourself; food restores energy)
   strike {"target": id} or {"facility_name": "..."}  (raw force; vs a person = violence, vs a building = arson)
   make {"output": "work", "title": "..."}            (raw production; a work of art/scholarship, or a recipe good)
+  say  {"text": "...", "to": id}                      (raw signal; a public statement, optionally aimed at someone)
+  bond {"proposal_id": N, "support": true} or {"with": id}  (commit: a vote, or a pact of mutual allegiance)
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)

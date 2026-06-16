@@ -113,6 +113,40 @@ class TestStrikePrimitive(unittest.TestCase):
         self.assertEqual(a.money, c.money)
 
 
+class TestSayPrimitive(unittest.TestCase):
+    def test_say_logs_a_public_statement(self):
+        a = _agent(id="a")
+        sim = _sim([a])
+        before = len(sim.world.events)
+        sim._do_say(a, Action(ActionType.SAY, {"text": "hello town"}))
+        self.assertEqual(len(sim.world.events), before + 1)
+        self.assertEqual(sim.world.events[-1]["kind"], "speech")
+
+    def test_speak_macro_is_a_say(self):
+        a = _agent(id="a")
+        sim = _sim([a])
+        sim._do_speak(a, Action(ActionType.SPEAK, {"text": "x"}))
+        self.assertEqual(sim.world.events[-1]["kind"], "speech")
+
+
+class TestBondPrimitive(unittest.TestCase):
+    def test_bond_with_an_agent_is_a_mutual_pact(self):
+        a, b = _agent(id="a"), _agent(id="b")
+        sim = _sim([a, b])
+        sim._do_bond(a, Action(ActionType.BOND, {"with": "b"}))
+        self.assertGreater(a.trust_of("b"), 0)   # allegiance is mutual
+        self.assertGreater(b.trust_of("a"), 0)
+
+    def test_bond_to_a_proposal_casts_a_vote(self):
+        a, b = _agent(id="a"), _agent(id="b")
+        sim = _sim([a, b])
+        p = sim.legislature.propose(b.id, "Plant more farms", sim.world.day)
+        sim._do_bond(a, Action(ActionType.BOND,
+                     {"proposal_id": p.id, "support": True}))
+        self.assertEqual(a.votes_cast, 1)
+        self.assertIn(a.id, p.votes)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)

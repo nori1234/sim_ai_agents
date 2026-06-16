@@ -57,6 +57,8 @@ ACTION_ENERGY_COST = {
     ActionType.GIVE: 1.0,
     ActionType.STRIKE: 5.0,
     ActionType.MAKE: 3.0,
+    ActionType.SAY: 1.0,
+    ActionType.BOND: 1.0,
 }
 ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arrestable
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
@@ -638,14 +640,38 @@ class Simulation:
         self.world.log("proposal", id=p.id, author=agent.id, text=text)
 
     def _do_vote(self, agent: Agent, action: Action) -> None:
-        eligible = self._eligible_voters()
+        # A macro: a vote is committing assent (a bond) to a proposal.
         pid = action.params.get("proposal_id")
-        support = bool(action.params.get("support", True))
         if pid is None:
             return
-        if self.legislature.cast_vote(int(pid), agent.id, support,
+        self._bond_to_proposal(agent, int(pid),
+                               bool(action.params.get("support", True)))
+
+    def _bond_to_proposal(self, agent: Agent, pid: int, support: bool) -> None:
+        """The commitment physics behind a vote: assent (or dissent) to a
+        collective decision, if the agent is eligible to bind itself to it."""
+        eligible = self._eligible_voters()
+        if self.legislature.cast_vote(pid, agent.id, support,
                                       eligible_ids=eligible or None):
             agent.votes_cast += 1
+
+    def _do_bond(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): commit to an agreement. To a proposal it is a
+        vote; with another agent it is a pact expressed as mutual allegiance."""
+        if action.params.get("proposal_id") is not None:
+            self._spend(agent, ActionType.BOND)
+            self._bond_to_proposal(agent, int(action.params["proposal_id"]),
+                                   bool(action.params.get("support", True)))
+            return
+        other = self._by_id.get(action.params.get("with")
+                                or action.params.get("target"))
+        if other is None or other is agent or not other.alive:
+            return
+        self._spend(agent, ActionType.BOND)
+        # A pact: allegiance expressed as mutual trust between the two.
+        agent.adjust_trust(other.id, +0.2)
+        other.adjust_trust(agent.id, +0.2)
+        self.world.log("bond", a=agent.id, b=other.id)
 
     # -- construction & collaboration -----------------------------------
     def _do_build(self, agent: Agent, action: Action) -> None:
@@ -750,9 +776,29 @@ class Simulation:
         self.world.log("collaboration", agent=agent.id,
                        text=str(action.params.get("text", "shared project")))
 
+    def _say(self, agent: Agent, *, content: str = "",
+             to: Optional[Agent] = None, kind: str = "speech") -> Event:
+        """Broadcast a signal. A plain statement is logged as speech; a signal
+        aimed at an offender is an accusation. Meaning beyond the log (a
+        proposal, a sermon) is left to richer interpretation later."""
+        if kind == "accusation":
+            if to is not None:
+                self.world.log("crime_report", reporter=agent.id, accused=to.id)
+        else:
+            self.world.log("speech", agent=agent.id, text=content)
+        ev = Event(kind="say", actor=agent, other=to)
+        self._interpret(ev)
+        return ev
+
     def _do_speak(self, agent: Agent, action: Action) -> None:
-        self.world.log("speech", agent=agent.id,
-                       text=str(action.params.get("text", "")))
+        # A macro: a speech is just a public say.
+        self._say(agent, content=str(action.params.get("text", "")))
+
+    def _do_say(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): broadcast a statement, optionally at a target."""
+        to = self._by_id.get(action.params.get("to") or action.params.get("target"))
+        self._spend(agent, ActionType.SAY)
+        self._say(agent, content=str(action.params.get("text", "")), to=to)
 
     def _do_praise(self, agent: Agent, action: Action) -> None:
         """Publicly commend a peer — the praised agent gains esteem relief,
@@ -1186,9 +1232,9 @@ class Simulation:
         self._strike(agent, facility=f)
 
     def _do_report_crime(self, agent: Agent, action: Action) -> None:
+        # A macro: reporting a crime is a say aimed at the accused.
         target = self._by_id.get(action.params.get("target"))
-        if target is not None:
-            self.world.log("crime_report", reporter=agent.id, accused=target.id)
+        self._say(agent, to=target, kind="accusation")
 
     def _is_wanted(self, a: Agent) -> bool:
         """A recent offender is arrestable until the window lapses."""
