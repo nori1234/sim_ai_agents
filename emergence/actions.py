@@ -55,6 +55,13 @@ class ActionType(str, Enum):
     REPAY = "repay"  # settle a loan you owe (builds trust; defaulting destroys it)
 
 
+    # -- physical primitives (the instruction set the macros lower to) --
+    # Institutions are read off these acts + context, not baked into the verb:
+    # a consent-less take from an agent IS theft; a consensual give IS a gift.
+    TAKE = "take"  # pull items into own inventory (from an agent or the world)
+    GIVE = "give"  # push items out of own inventory (to an agent or the world)
+
+
 # Actions the world treats as crimes for metric purposes.
 CRIME_ACTIONS = {ActionType.STEAL, ActionType.ATTACK, ActionType.ARSON}
 
@@ -76,6 +83,8 @@ class Action:
       ARSON       -> {"facility_name": str}
       REPORT_CRIME-> {"target": agent_id}
       ARREST      -> {"target": agent_id}
+      TAKE        -> {"from": agent_id, "items": {res: qty}, "consent": bool}
+      GIVE        -> {"to": agent_id, "items": {res: qty}, "consent": bool}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
       DEAL_DRUG   -> {"target": agent_id}
@@ -90,6 +99,23 @@ class Action:
 
     def is_crime(self) -> bool:
         return self.type in CRIME_ACTIONS
+
+
+@dataclass
+class Event:
+    """A structured record of what *physically* happened when a primitive ran.
+
+    The interpretation layer reads the event plus context to decide what it
+    *means* (theft, gift, trade), so meaning is derived from the act rather
+    than hard-coded into a verb. ``other`` is the counterparty (or None),
+    ``items`` is what actually moved after clamping, ``consent`` is whether the
+    counterparty agreed (True/False/None when not applicable)."""
+
+    kind: str
+    actor: Any                       # Agent (kept loose to avoid an import cycle)
+    other: Optional[Any] = None
+    items: dict[str, int] = field(default_factory=dict)
+    consent: Optional[bool] = None
 
     def __str__(self) -> str:
         if self.params:

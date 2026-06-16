@@ -118,3 +118,117 @@ slice changes behaviour, never silently.
 Per the AskUserQuestion options, the smallest testable start is: add
 `take`/`give`/`use`, route `steal`/`transfer`/`gather`/`eat` through them, and
 introduce the consent→crime interpretation — one slice, contract green.
+
+---
+
+# Concrete shape — the layered architecture
+
+## One tick, end to end
+
+```
+  Brain (heuristic | LLM) emits one Action
+   ├── heuristic -> macro verbs only  (STEAL, TRANSFER, GATHER, EAT, ...)
+   └── LLM       -> macros OR raw primitives (take, give, use, ...)
+        │
+        ▼
+  Lowering: a macro is a thin handler that calls the shared physics helper
+     steal    -> _move_items(actor, victim, {money:5, food:2}, kind=take, consent=False)
+     transfer -> _move_items(actor, target, {resource:amount}, kind=give, consent=True)
+        │
+        ▼
+  Physics helper (the ONLY code that moves items between holders)
+     _move_items(...) -> mutates inventories, builds an Event, calls _interpret
+        │   Event(kind=take, actor, other=victim, items={money:5,food:2}, consent=False)
+        ▼
+  Interpretation: institution is read off the act + context (not the verb name)
+     take from agent, consent False -> theft  -> _register_crime (fear, trust--)
+     give to agent,  consent True   -> gift   -> metrics.transfers, ledger, trust++
+        ▼
+  metrics / world.log / memory
+```
+
+## The split that makes it safe: physics vs accounting
+
+Two responsibilities that are tangled inside today's `_do_steal` get separated:
+
+* **Accounting (energy cost)** stays in the *entry handler*. `steal` costs 3.0,
+  `transfer`/`eat` cost 0. If every verb routed through one spending primitive,
+  those costs would collapse to a single value and the baseline would shift.
+  So each entry handler spends its own `ACTION_ENERGY_COST`, then calls the
+  physics helper, which **never** spends. Raw primitives (LLM) get their own
+  modest cost entries; the heuristic never emits them, so the baseline is
+  untouched.
+* **Physics (item movement)** lives in `_move_items`, shared by every verb that
+  moves goods. It returns an `Event` and hands it to `_interpret`.
+
+## The Event object — the new connective tissue
+
+```python
+@dataclass
+class Event:
+    kind: str                 # "take" | "give" | "use" | ...
+    actor: Agent
+    other: Optional[Agent]    # counterparty, if any
+    items: dict[str, int]     # what ACTUALLY moved (post-clamp)
+    consent: Optional[bool]   # True | False | None
+```
+
+Metrics, fear, trust, and memory key off the `Event`, not the verb name. A new
+institution becomes a new branch in `_interpret`, not a new verb.
+
+## `_do_steal`: before → after
+
+```python
+# before — institution welded into the verb
+def _do_steal(self, agent, action):
+    victim = self._adjacent_or_targeted(agent, action)
+    if victim is None: return
+    self._spend(agent, ActionType.STEAL)
+    agent.money += victim.take("money", 5)
+    agent.add("food", victim.take("food", 2))
+    self._register_crime(agent, "theft", victim)
+
+# after — macro lowers to a primitive; meaning is interpreted
+def _do_steal(self, agent, action):
+    victim = self._adjacent_or_targeted(agent, action)
+    if victim is None: return
+    self._spend(agent, ActionType.STEAL)                 # accounting stays here
+    self._move_items(agent, victim, {"money": 5, "food": 2},
+                     kind="take", consent=False)         # physics + interpret
+```
+
+The order of mutations (`money` then `food`), the lack of RNG, and the
+`_register_crime` effects are all preserved exactly — so the heuristic baseline
+stays **byte-identical** and `test_baseline_contract` stays green.
+
+## Slice plan (each slice keeps the contract green)
+
+* **Slice 1 — `take` / `give` + interpretation. (DONE)** Added the two
+  movement primitives, the `Event` record, the shared `_move_items` physics
+  helper, and the `_interpret` layer. `steal` lowers to `take(consent=False)`
+  and `transfer` to `give(consent=True)`; their theft/gift effects now live in
+  `_interpret`, keyed off the act not the verb name. Raw `take`/`give` are in
+  the LLM menu. The Phase-4 contract snapshot is **byte-identical** (the
+  lowering preserved every mutation, RNG draw, and metric call), and
+  `tests/test_primitives.py` covers consent-less take → theft, consensual
+  give → gift, conservation, and the macros still behaving.
+* **Slice 2 — `use`.** Lower `eat` (→ use food on self) and `gather` (→ take
+  from a resource node), with item effects (food→energy, drug→addiction) living
+  in the `use` physics.
+* **Slice 3 — `make` / `strike` / `say` / `bond`.** Lower craft/build/create,
+  attack/arson, speak/praise/propose/report, and vote/accept/lend/repay/worship.
+* Each slice: heuristic stays on macros (contract byte-identical); the LLM menu
+  gains the new primitive so it can improvise.
+
+## Re-checked for breakdown — none found
+
+* **Energy** — preserved by keeping the spend in the entry handler (see above).
+* **RNG/determinism** — `steal`/`transfer` draw no randomness; movement order is
+  preserved, so the deterministic stream is unchanged.
+* **Double-counting** — verbs not yet lowered (e.g. `attack`) keep calling
+  `_register_crime` directly; lowered verbs reach it once via `_interpret`. No
+  overlap.
+* **Money** — `take`/`add` operate on inventory-backed money, identical to the
+  current `agent.money += ...` arithmetic.
+* **Metric fidelity** — `transfer`'s ledger/trust/remember/log effects are
+  replicated verbatim in `_interpret`'s gift branch.

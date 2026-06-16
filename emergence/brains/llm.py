@@ -64,6 +64,8 @@ Choose ONE action. Common actions and their params:
   speak     {"text": "..."}         praise {"target": id}    create {"title": "..."}
   steal/attack {"target": id}       mate {"target": id}      worship {}
   arrest {"target": id}   (detain a recent offender; enforcement is an act, not an aura)
+  take {"from": id, "items": {"food": N, "money": M}, "consent": false}  (raw move; no consent = theft)
+  give {"to": id, "items": {"food": N}, "consent": true}                 (raw move; a voluntary gift)
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)

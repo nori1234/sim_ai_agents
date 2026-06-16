@@ -6,7 +6,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-from .actions import Action, ActionType
+from .actions import Action, ActionType, Event
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
 from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
@@ -51,6 +51,10 @@ ACTION_ENERGY_COST = {
     ActionType.STEAL: 3.0,
     ActionType.ARSON: 4.0,
     ActionType.ARREST: 4.0,
+    # Raw primitives (used directly only by the LLM brain; the heuristic emits
+    # macros that spend their own cost, so the baseline is untouched).
+    ActionType.TAKE: 2.0,
+    ActionType.GIVE: 1.0,
 }
 ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arrestable
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
@@ -300,6 +304,79 @@ class Simulation:
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
 
+    # ==================================================================
+    # Physical primitives + interpretation
+    # ------------------------------------------------------------------
+    # The only code that moves goods between holders. Macros (steal, transfer,
+    # ...) lower to this; the LLM brain may call the raw take/give verbs. The
+    # helper performs the physics and returns an Event; _interpret reads the
+    # Event + context to decide what institution it is (theft, gift, ...).
+    # Energy is NOT spent here — the entry handler owns that, so each verb keeps
+    # its own cost and the heuristic baseline is unchanged.
+    # ==================================================================
+    def _move_items(self, actor: Agent, other: Optional[Agent],
+                    items: dict, *, kind: str,
+                    consent: Optional[bool]) -> Event:
+        src, dst = (other, actor) if kind == "take" else (actor, other)
+        moved: dict[str, int] = {}
+        if src is not None and dst is not None:
+            for resource, qty in items.items():
+                got = src.take(resource, int(qty))
+                dst.add(resource, got)
+                if got:
+                    moved[resource] = got
+        ev = Event(kind=kind, actor=actor, other=other, items=moved, consent=consent)
+        self._interpret(ev)
+        return ev
+
+    def _interpret(self, ev: Event) -> None:
+        """Read an act + its context as an institution. New institutions are new
+        branches here, not new verbs."""
+        if ev.kind == "take" and ev.other is not None and ev.consent is False:
+            # A non-consensual take from a person is theft.
+            self._register_crime(ev.actor, "theft", ev.other)
+        elif ev.kind == "give" and ev.other is not None and ev.consent is True \
+                and ev.items:
+            # A consensual handover to a person is a gift/transfer.
+            self.metrics.transfers += 1
+            for resource, qty in ev.items.items():
+                self.ledger.record(LedgerEntry(
+                    self.world.day, self.world.tick,
+                    ev.actor.id, ev.other.id, resource, qty))
+                ev.other.adjust_trust(ev.actor.id, +0.15)
+                ev.other.remember(
+                    f"Day {self.world.day}: {ev.actor.name} gave me {qty} {resource}.")
+                self.world.log("transfer", sender=ev.actor.id, receiver=ev.other.id,
+                               resource=resource, amount=qty)
+
+    def _do_take(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): pull items from another agent. Consent defaults
+        to False — taking without an agreement is theft and is interpreted so."""
+        # Resolve "from" through the same adjacency/pursuit logic as steal.
+        other = self._adjacent_or_targeted(
+            agent, Action(action.type, {"target": action.params.get("from")}))
+        if other is None:
+            return
+        items = action.params.get("items") or {}
+        if not items:
+            return
+        self._spend(agent, ActionType.TAKE)
+        self._move_items(agent, other, items, kind="take",
+                         consent=bool(action.params.get("consent", False)))
+
+    def _do_give(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): push items to another agent. Consent defaults to
+        True — a voluntary handover is a gift and is interpreted so."""
+        other = self._by_id.get(action.params.get("to") or action.params.get("target"))
+        if other is None or not other.alive:
+            return
+        items = action.params.get("items") or {}
+        if not items:
+            return
+        self._spend(agent, ActionType.GIVE)
+        self._move_items(agent, other, items, kind="give",
+                         consent=bool(action.params.get("consent", True)))
+
     # -- movement & survival -------------------------------------------
     def _do_idle(self, agent: Agent, action: Action) -> None:
         pass
@@ -423,20 +500,16 @@ class Simulation:
 
     # -- economy --------------------------------------------------------
     def _do_transfer(self, agent: Agent, action: Action) -> None:
+        # A macro: a transfer is a consensual give to another agent. The act
+        # moves the item; the interpretation layer reads "consensual give to a
+        # person" as a gift (trust, ledger, the transfers tally — see _interpret).
         target = self._by_id.get(action.params.get("target"))
         if target is None or not target.alive:
             return
         resource = action.params.get("resource", "food")
         amount = int(action.params.get("amount", 1))
-        ok, moved = apply_transfer(agent, target, resource, amount)
-        if ok:
-            self.metrics.transfers += 1
-            self.ledger.record(LedgerEntry(
-                self.world.day, self.world.tick, agent.id, target.id, resource, moved))
-            target.adjust_trust(agent.id, +0.15)
-            target.remember(f"Day {self.world.day}: {agent.name} gave me {moved} {resource}.")
-            self.world.log("transfer", sender=agent.id, receiver=target.id,
-                           resource=resource, amount=moved)
+        self._move_items(agent, target, {resource: amount},
+                         kind="give", consent=True)
 
     def _do_solicit(self, agent: Agent, action: Action) -> None:
         target = self._by_id.get(action.params.get("target"))
@@ -987,16 +1060,16 @@ class Simulation:
 
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
+        # A macro: theft is just a non-consensual take from an agent. The act
+        # moves the items; the interpretation layer reads "consent-less take
+        # from a person" as the crime of theft (see _interpret). Money is an
+        # inventory item like any other, so a thief takes coin and food alike.
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
-        self._spend(agent, ActionType.STEAL)
-        # Money is an inventory item like any other, so theft drains real coin
-        # as well as food — a thief takes what the victim has.
-        agent.money += victim.take("money", 5)
-        food = victim.take("food", 2)
-        agent.add("food", food)
-        self._register_crime(agent, "theft", victim)
+        self._spend(agent, ActionType.STEAL)          # accounting stays in the macro
+        self._move_items(agent, victim, {"money": 5, "food": 2},
+                         kind="take", consent=False)
 
     def _do_attack(self, agent: Agent, action: Action) -> None:
         victim = self._adjacent_or_targeted(agent, action)
