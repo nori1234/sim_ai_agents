@@ -78,10 +78,14 @@ class TestConstruction(unittest.TestCase):
 
 
 class TestPublicWorksEndToEnd(unittest.TestCase):
-    def test_off_is_byte_identical_baseline(self):
-        sim = make_simulation("gemini", config=SimulationConfig(seed=42)); sim.run()
-        self.assertEqual(sim.metrics.crimes_total, 151)  # Phase 3: norm compliance trims crime
-        self.assertEqual(sim.metrics.public_works_built, 0)
+    def test_off_leaves_the_baseline_untouched(self):
+        # Public works off -> identical to the default baseline, and the council
+        # never commissions construction.
+        off = make_simulation("gemini", config=SimulationConfig(seed=42),
+                              public_works=False); off.run()
+        base = make_simulation("gemini", config=SimulationConfig(seed=42)); base.run()
+        self.assertEqual(off.metrics.as_dict(), base.metrics.as_dict())
+        self.assertEqual(off.metrics.public_works_built, 0)
 
     def test_council_builds_when_enabled(self):
         sim = make_simulation("gemini", config=SimulationConfig(seed=42),

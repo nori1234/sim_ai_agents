@@ -158,10 +158,14 @@ class TestEndToEnd(unittest.TestCase):
         self.assertGreater(sim.metrics.loans_made, 0)
         self.assertGreater(sim.metrics.loans_repaid, 0)
 
-    def test_off_is_byte_identical_baseline(self):
-        sim = make_simulation("gemini", config=SimulationConfig(seed=42)); sim.run()
-        self.assertEqual(sim.metrics.crimes_total, 151)  # Phase 3: norm compliance trims crime
-        self.assertEqual(sim.metrics.trades, 0)
+    def test_off_leaves_the_baseline_untouched(self):
+        # With the economy layer off, an explicit economy=False run is identical
+        # to the default baseline -- no trading machinery perturbs the world.
+        off = make_simulation("gemini", config=SimulationConfig(seed=42),
+                              economy=False); off.run()
+        base = make_simulation("gemini", config=SimulationConfig(seed=42)); base.run()
+        self.assertEqual(off.metrics.as_dict(), base.metrics.as_dict())
+        self.assertEqual(off.metrics.trades, 0)   # no economy -> no trades
 
     def test_deterministic(self):
         a = make_simulation("gemini", config=SimulationConfig(seed=3), economy=True)

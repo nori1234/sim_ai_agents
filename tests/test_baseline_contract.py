@@ -37,21 +37,20 @@ CONTRACT = {
     "predator": "FAILURE",
 }
 
-# Snapshot last updated at Phase 3 (seed 42). Phase 0 baseline preserved
-# through Phase 1 (money->item) byte-identical; Phase 2 (police-aura ->
-# guard ARREST) made crime reactive so counts rose; Phase 3 (law-magic ->
-# norms) gives crime laws force again, but only through agent compliance
-# weighed by conformity and enforcement credibility, so counts fall back
-# (gemini 211 -> 151). The four qualitative endings hold throughout. Tracks
-# drift; update deliberately when a phase intentionally moves it.
+# Snapshot last updated at Phase 4 (seed 42). Phases 1-3 dissolved money,
+# the police aura, and law-magic into primitives; Phase 4 finishes the money
+# story by letting theft/violence loot real coin (money is an inventory item
+# like any other). No persona re-tuning was needed -- the arrest + norm
+# primitives absorb the change, and the four endings still emerge and stay
+# distinct. Tracks drift; update deliberately when a phase moves it.
 SNAPSHOT = {
     "guardian": dict(survivors=10, population=10, crimes_total=0,
                      frauds=18, collaborations=3),
-    "philosopher": dict(survivors=7, population=10, crimes_total=151,
-                        frauds=2, collaborations=0),
+    "philosopher": dict(survivors=8, population=10, crimes_total=137,
+                        frauds=0, collaborations=0),
     "idealist": dict(survivors=0, population=10, crimes_total=0,
                      frauds=2, collaborations=4),
-    "predator": dict(survivors=2, population=10, crimes_total=60,
+    "predator": dict(survivors=1, population=10, crimes_total=74,
                      frauds=3, collaborations=0),
 }
 

@@ -33,13 +33,16 @@ committed alongside a justification.
 **Acceptance criterion for every phase:** the four endings still emerge, and
 they remain distinct from one another.
 
-## The institutions to dissolve
+## The institutions to dissolve — all done
 
-| # | institution (hardcoded) | the magic | becomes (primitive) |
-|---|-------------------------|-----------|---------------------|
-| 1 | `Agent.money` — a privileged scalar field | money exists by fiat | an item in inventory (`inventory["money"]`); a medium that *emerges* as the common want |
-| 2 | police-aura (`_deterred`) — crime suppressed by proximity to a building | a building radiates lawfulness | enforcement is an *act* by an agent (a guard who can `ARREST`); buildings only host the role |
-| 3 | law-keyword magic (`crime_deterrence_multiplier`) | passing a law named "police" globally lowers crime | a law is a *norm*: a published expectation + an enforcer who acts on it + compliance that agents weigh |
+| # | institution (hardcoded) | the magic | becomes (primitive) | status |
+|---|-------------------------|-----------|---------------------|--------|
+| 1 | `Agent.money` — a privileged scalar field | money exists by fiat | an item in inventory (`inventory["money"]`) looted, traded, and conserved like any other good | ✅ Phase 1, 4 |
+| 2 | police-aura (`_deterred`) — crime suppressed by proximity to a building | a building radiates lawfulness | enforcement is an *act* by an agent (a guard who can `ARREST`); buildings only host the role | ✅ Phase 2 |
+| 3 | law-keyword magic (`crime_deterrence_multiplier`) | passing a law named "police" globally lowers crime | a law is a *norm*: a published expectation + an enforcer who acts on it + compliance that agents weigh | ✅ Phase 3 |
+
+The migration is complete: the four societies still emerge and stay distinct,
+now from primitives rather than baked-in institutions.
 
 ## Phases
 
@@ -80,10 +83,17 @@ they remain distinct from one another.
   (The remaining law effects — punishment fines, tax, food redistribution —
   are economic-policy actions of the state rather than crime magic; they are
   out of this phase's scope.)
-- **Phase 4 — re-tune & re-document.** Re-tune personas so the four endings
-  re-emerge from the new primitives; rewrite the brittle numeric assertions
-  as qualitative ones where appropriate; update the README's claims so they
-  describe an engine, not a set of institutions.
+- **Phase 4 — finish the money story, re-document, de-brittle the tests.
+  (DONE)** Theft and violence now loot real coin (money is an inventory item
+  like any other), completing the change deferred in Phase 1. No persona
+  re-tuning was needed: the Phase 2-3 arrest + norm primitives absorb the
+  change, so the four endings still emerge and stay distinct (the contract
+  snapshot was updated). The three "layer-off" canaries that hard-coded a
+  baseline crime count (which had to be bumped 133 -> 211 -> 151 each phase)
+  were rewritten to compare a layer-off run directly against the default
+  baseline via `metrics.as_dict()` -- a stronger invariant that never needs
+  a magic number again. README updated to describe the engine and its
+  primitives rather than a set of institutions.
 
 ## How to run the safety net
 

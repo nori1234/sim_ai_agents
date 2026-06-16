@@ -991,11 +991,9 @@ class Simulation:
         if victim is None:
             return
         self._spend(agent, ActionType.STEAL)
-        # Money is now an inventory item, so take("money") would loot real coin.
-        # Historically that call hit an empty, separate slot and netted nothing,
-        # so theft only ever transferred food. Making theft drain coin is a
-        # behavioural change (it tips the predator society into full collapse),
-        # deferred to the re-tune phase; see docs/PRINCIPLED_MIGRATION.md.
+        # Money is an inventory item like any other, so theft drains real coin
+        # as well as food — a thief takes what the victim has.
+        agent.money += victim.take("money", 5)
         food = victim.take("food", 2)
         agent.add("food", food)
         self._register_crime(agent, "theft", victim)
@@ -1009,8 +1007,7 @@ class Simulation:
         if self.society.enabled and self.society.weapons and agent.weapons > 0:
             damage += self.society.weapon_attack_bonus  # armed: far deadlier
         victim.energy -= damage
-        # See _do_steal: looting coin is a deferred behavioural change, so
-        # violence drains energy/food but not money (historically a no-op).
+        agent.money += victim.take("money", 3)  # violence robs coin too
         self._register_crime(agent, "violence", victim)
         if victim.energy <= 0 and victim.alive:
             victim.die(self.world.day, "killed in violence")

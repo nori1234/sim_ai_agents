@@ -93,9 +93,13 @@ class TestDisasters(unittest.TestCase):
 
 class TestEnvironmentEndToEnd(unittest.TestCase):
     def test_env_off_matches_baseline(self):
-        # Enabling nothing leaves the run byte-identical to a plain run.
+        # Environment off -> byte-identical to a plain run (no season/weather
+        # machinery perturbs the world). Compared directly, not via a magic
+        # number, so it never needs bumping when the baseline shifts.
+        off = make_simulation("gemini", config=SimulationConfig(seed=42),
+                              environment=False); off.run()
         base = make_simulation("gemini", config=SimulationConfig(seed=42)); base.run()
-        self.assertEqual(base.metrics.crimes_total, 151)  # known baseline (Phase 3)
+        self.assertEqual(off.metrics.as_dict(), base.metrics.as_dict())
 
     def test_env_run_is_deterministic(self):
         a = make_simulation("gemini", config=SimulationConfig(seed=7), environment=True)
