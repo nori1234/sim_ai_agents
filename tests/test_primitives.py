@@ -62,6 +62,27 @@ class TestInterpretation(unittest.TestCase):
         self.assertEqual(a.money + b.money, before)   # conserved
 
 
+class TestUsePrimitive(unittest.TestCase):
+    def test_use_food_restores_energy_and_consumes_it(self):
+        a = _agent(id="a")
+        a.inventory["food"] = 3
+        a.energy = 50.0
+        sim = _sim([a])
+        sim._do_use(a, Action(ActionType.USE, {"item": "food", "qty": 2}))
+        self.assertEqual(a.food(), 1)         # 3 - 2 consumed
+        self.assertGreater(a.energy, 50.0)    # energy restored
+
+    def test_eat_macro_matches_use(self):
+        # The eat macro is exactly "use 2 food on self".
+        a = _agent(id="a"); a.inventory["food"] = 5; a.energy = 40.0
+        b = _agent(id="b"); b.inventory["food"] = 5; b.energy = 40.0
+        sim = _sim([a, b])
+        sim._do_eat(a, Action(ActionType.EAT))
+        sim._do_use(b, Action(ActionType.USE, {"item": "food", "qty": 2}))
+        self.assertEqual(a.food(), b.food())
+        self.assertEqual(a.energy, b.energy)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)

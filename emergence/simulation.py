@@ -377,6 +377,36 @@ class Simulation:
         self._move_items(agent, other, items, kind="give",
                          consent=bool(action.params.get("consent", True)))
 
+    def _use_item(self, agent: Agent, item: str, qty: int,
+                  target: Optional[Agent] = None) -> Event:
+        """Consume a held item and apply its effect to self (or a target). The
+        metabolic effect (food -> energy) is item physics, not an institution,
+        so it lives here; _interpret is still called for any institutional
+        reading of the act."""
+        user = target or agent
+        used = agent.take(item, qty)
+        if item == "food":
+            user.energy = min(MAX_ENERGY, user.energy + used * EAT_ENERGY_PER_FOOD)
+            if self.drives.enabled and used:
+                # Pleasure scales with how hungry you were — relief feels good.
+                relief = used * self.drives.eat_hunger_relief
+                self._reward(user, self.drives.pleasure_per_eat * (user.hunger / 100.0))
+                user.hunger = max(0.0, user.hunger - relief)
+        ev = Event(kind="use", actor=agent, other=target,
+                   items={item: used} if used else {}, consent=None)
+        self._interpret(ev)
+        return ev
+
+    def _do_use(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): apply a held item to self or a named target."""
+        item = action.params.get("item")
+        if not item:
+            return
+        qty = int(action.params.get("qty", 1))
+        target = self._by_id.get(action.params.get("on"))
+        self._spend(agent, ActionType.USE)
+        self._use_item(agent, item, qty, target=target)
+
     # -- movement & survival -------------------------------------------
     def _do_idle(self, agent: Agent, action: Action) -> None:
         pass
@@ -410,13 +440,8 @@ class Simulation:
         self._spend(agent, ActionType.GATHER)
 
     def _do_eat(self, agent: Agent, action: Action) -> None:
-        used = agent.take("food", EAT_FOOD_USED)
-        agent.energy = min(MAX_ENERGY, agent.energy + used * EAT_ENERGY_PER_FOOD)
-        if self.drives.enabled and used:
-            # Pleasure scales with how hungry you were — relief feels good.
-            relief = used * self.drives.eat_hunger_relief
-            self._reward(agent, self.drives.pleasure_per_eat * (agent.hunger / 100.0))
-            agent.hunger = max(0.0, agent.hunger - relief)
+        # A macro: eating is using food on oneself (food -> energy + relief).
+        self._use_item(agent, "food", EAT_FOOD_USED)
 
     def _do_sleep(self, agent: Agent, action: Action) -> None:
         """Relieve fatigue (more effectively under a roof)."""

@@ -60,6 +60,7 @@ class ActionType(str, Enum):
     # a consent-less take from an agent IS theft; a consensual give IS a gift.
     TAKE = "take"  # pull items into own inventory (from an agent or the world)
     GIVE = "give"  # push items out of own inventory (to an agent or the world)
+    USE = "use"    # consume/apply a held item to self or a target (eat, dose)
 
 
 # Actions the world treats as crimes for metric purposes.
@@ -85,6 +86,7 @@ class Action:
       ARREST      -> {"target": agent_id}
       TAKE        -> {"from": agent_id, "items": {res: qty}, "consent": bool}
       GIVE        -> {"to": agent_id, "items": {res: qty}, "consent": bool}
+      USE         -> {"item": str, "qty": int, "on": agent_id (optional, default self)}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
       DEAL_DRUG   -> {"target": agent_id}

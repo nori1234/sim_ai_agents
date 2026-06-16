@@ -212,9 +212,17 @@ stays **byte-identical** and `test_baseline_contract` stays green.
   lowering preserved every mutation, RNG draw, and metric call), and
   `tests/test_primitives.py` covers consent-less take → theft, consensual
   give → gift, conservation, and the macros still behaving.
-* **Slice 2 — `use`.** Lower `eat` (→ use food on self) and `gather` (→ take
-  from a resource node), with item effects (food→energy, drug→addiction) living
-  in the `use` physics.
+* **Slice 2 — `use`. (DONE, partial)** Added the `use` primitive and
+  `_use_item`, the place item physics lives (food → energy + hunger relief).
+  `eat` lowers to `use(food on self)`; the contract snapshot is byte-identical
+  and `tests/test_primitives.py` checks `use` restores energy and that the
+  `eat` macro is exactly `use 2 food`. Raw `use` is in the LLM menu.
+  **Deferred from this slice with rationale:** `gather` is *extraction from the
+  world* (a resource node with yield/regen), not a holder-to-holder move, so it
+  does not fit `_move_items`; it belongs with a future world-sourced `take` /
+  `harvest`. `take_drug` carries society-layer gating (materials cost, addiction
+  thresholds, a drug-den role), so folding it into `use` is a behavioural change
+  better done deliberately. Both keep their own handlers for now.
 * **Slice 3 — `make` / `strike` / `say` / `bond`.** Lower craft/build/create,
   attack/arson, speak/praise/propose/report, and vote/accept/lend/repay/worship.
 * Each slice: heuristic stays on macros (contract byte-identical); the LLM menu
