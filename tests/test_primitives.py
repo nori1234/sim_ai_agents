@@ -83,6 +83,36 @@ class TestUsePrimitive(unittest.TestCase):
         self.assertEqual(a.energy, b.energy)
 
 
+class TestStrikePrimitive(unittest.TestCase):
+    def test_strike_a_person_is_violence(self):
+        a, b = _agent(id="a"), _agent(id="b", money=10)
+        b.energy = 100.0
+        sim = _sim([a, b])
+        sim._do_strike(a, Action(ActionType.STRIKE, {"target": "b"}))
+        self.assertLess(b.energy, 100.0)               # harmed
+        self.assertEqual(a.money, 23)                  # 20 + 3 robbed
+        self.assertEqual(sim.metrics.crimes_by_type.get("violence", 0), 1)
+
+    def test_strike_a_structure_is_arson(self):
+        from emergence.world import Facility, FacilityType, World
+        world = World(6, 6)
+        world.add_facility(Facility("Barn", FacilityType.GRANARY, 0, 0))
+        world.granary_food = 10
+        a = _agent(id="a", x=0, y=0)
+        sim = Simulation(world=world, agents=[a], brains={})
+        sim._do_strike(a, Action(ActionType.STRIKE, {"facility_name": "Barn"}))
+        self.assertEqual(sim.metrics.crimes_by_type.get("arson", 0), 1)
+        self.assertEqual(world.granary_food, 5)        # commons spilled
+
+    def test_attack_macro_matches_strike(self):
+        a = _agent(id="a"); b = _agent(id="b", money=10); b.energy = 100.0
+        c = _agent(id="c"); d = _agent(id="d", money=10); d.energy = 100.0
+        s1 = _sim([a, b]); s1._do_attack(a, Action(ActionType.ATTACK, {"target": "b"}))
+        s2 = _sim([c, d]); s2._do_strike(c, Action(ActionType.STRIKE, {"target": "d"}))
+        self.assertEqual(b.energy, d.energy)
+        self.assertEqual(a.money, c.money)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)

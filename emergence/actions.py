@@ -61,6 +61,8 @@ class ActionType(str, Enum):
     TAKE = "take"  # pull items into own inventory (from an agent or the world)
     GIVE = "give"  # push items out of own inventory (to an agent or the world)
     USE = "use"    # consume/apply a held item to self or a target (eat, dose)
+    STRIKE = "strike"  # apply force to damage an agent or a structure
+    MAKE = "make"  # transform inputs / effort into an output (a work, a good)
 
 
 # Actions the world treats as crimes for metric purposes.
@@ -87,6 +89,8 @@ class Action:
       TAKE        -> {"from": agent_id, "items": {res: qty}, "consent": bool}
       GIVE        -> {"to": agent_id, "items": {res: qty}, "consent": bool}
       USE         -> {"item": str, "qty": int, "on": agent_id (optional, default self)}
+      STRIKE      -> {"target": agent_id} or {"facility_name": str}
+      MAKE        -> {"output": "work"|recipe_item, "title": str (for a work)}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
       DEAL_DRUG   -> {"target": agent_id}
@@ -115,9 +119,10 @@ class Event:
 
     kind: str
     actor: Any                       # Agent (kept loose to avoid an import cycle)
-    other: Optional[Any] = None
+    other: Optional[Any] = None      # counterparty agent, if any
     items: dict[str, int] = field(default_factory=dict)
     consent: Optional[bool] = None
+    site: Optional[Any] = None        # a struck/used structure (Facility), if any
 
     def __str__(self) -> str:
         if self.params:

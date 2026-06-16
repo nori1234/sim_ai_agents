@@ -223,8 +223,20 @@ stays **byte-identical** and `test_baseline_contract` stays green.
   `harvest`. `take_drug` carries society-layer gating (materials cost, addiction
   thresholds, a drug-den role), so folding it into `use` is a behavioural change
   better done deliberately. Both keep their own handlers for now.
-* **Slice 3 — `make` / `strike` / `say` / `bond`.** Lower craft/build/create,
-  attack/arson, speak/praise/propose/report, and vote/accept/lend/repay/worship.
+* **Slice 3a — `strike` / `make` (the physical ones). (DONE)** `strike` applies
+  force; `_interpret` reads it as **violence** (vs a person → `_register_crime`)
+  or **arson** (vs a structure → inline crime accounting + dread from the site),
+  exactly parallel to take→theft. `attack` and `arson` lower to it, and the
+  contract snapshot stays byte-identical (both occur in the baseline). `make`
+  transforms effort into an output; `create` lowers to `_make_work`, and the
+  raw `make` verb also routes recipe goods to the craft physics. Raw
+  `strike`/`make` are in the LLM menu; tests cover violence/arson interpretation
+  and macro-equivalence. **Deferred with rationale:** `build` (facility
+  construction couples to the public-works treasury/voting) and `craft_weapon`
+  (society layer) route through `make` in a later pass; `craft`/`offer`/`accept`
+  already live in the economy-primitives layer.
+* **Slice 3b — `say` / `bond` (the social ones).** Lower speak/praise/propose/
+  report (→ say) and vote/accept/lend/repay/worship/join_gang (→ bond).
 * Each slice: heuristic stays on macros (contract byte-identical); the LLM menu
   gains the new primitive so it can improvise.
 

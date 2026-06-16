@@ -67,6 +67,8 @@ Choose ONE action. Common actions and their params:
   take {"from": id, "items": {"food": N, "money": M}, "consent": false}  (raw move; no consent = theft)
   give {"to": id, "items": {"food": N}, "consent": true}                 (raw move; a voluntary gift)
   use  {"item": "food", "qty": N}   (apply a held item to yourself; food restores energy)
+  strike {"target": id} or {"facility_name": "..."}  (raw force; vs a person = violence, vs a building = arson)
+  make {"output": "work", "title": "..."}            (raw production; a work of art/scholarship, or a recipe good)
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)

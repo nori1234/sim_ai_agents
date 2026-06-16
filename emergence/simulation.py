@@ -55,6 +55,8 @@ ACTION_ENERGY_COST = {
     # macros that spend their own cost, so the baseline is untouched).
     ActionType.TAKE: 2.0,
     ActionType.GIVE: 1.0,
+    ActionType.STRIKE: 5.0,
+    ActionType.MAKE: 3.0,
 }
 ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arrestable
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
@@ -348,6 +350,21 @@ class Simulation:
                     f"Day {self.world.day}: {ev.actor.name} gave me {qty} {resource}.")
                 self.world.log("transfer", sender=ev.actor.id, receiver=ev.other.id,
                                resource=resource, amount=qty)
+        elif ev.kind == "strike" and ev.other is not None:
+            # Force against a person is the crime of violence.
+            self._register_crime(ev.actor, "violence", ev.other)
+        elif ev.kind == "strike" and ev.other is None:
+            # Force against a structure is arson (no victim, so the crime is
+            # accounted inline and dread radiates from the site).
+            f = ev.site
+            ev.actor.crimes_committed += 1
+            ev.actor.last_crime_day = self.world.day
+            self.metrics.record_crime("arson")
+            self.world.log("arson", offender=ev.actor.id,
+                           facility=f.name if f else "unknown",
+                           pos=(f.pos if f else ev.actor.pos))
+            self._strike_fear(None, epicentre=(f.pos if f else ev.actor.pos),
+                              offender_id=ev.actor.id)
 
     def _do_take(self, agent: Agent, action: Action) -> None:
         """Raw primitive (LLM): pull items from another agent. Consent defaults
@@ -406,6 +423,45 @@ class Simulation:
         target = self._by_id.get(action.params.get("on"))
         self._spend(agent, ActionType.USE)
         self._use_item(agent, item, qty, target=target)
+
+    def _strike(self, agent: Agent, *, victim: Optional[Agent] = None,
+                facility=None) -> Event:
+        """Apply force to a target. Damaging a person robs and harms them;
+        damaging a structure may spill its contents. The interpretation layer
+        reads the act as violence (vs an agent) or arson (vs a structure)."""
+        if victim is not None:
+            damage = ATTACK_DAMAGE
+            if self.society.enabled and self.society.weapons and agent.weapons > 0:
+                damage += self.society.weapon_attack_bonus  # armed: far deadlier
+            victim.energy -= damage
+            agent.money += victim.take("money", 3)  # violence robs coin too
+        ev = Event(kind="strike", actor=agent, other=victim, site=facility)
+        self._interpret(ev)
+        # Burning a granary spills the commons (structural after-effect).
+        if victim is None and facility is not None \
+                and facility.ftype == FacilityType.GRANARY:
+            self.world.granary_food = max(0, self.world.granary_food - 5)
+        if victim is not None and victim.energy <= 0 and victim.alive:
+            victim.die(self.world.day, "killed in violence")
+            self.metrics.deaths += 1
+            self.world.log("death", agent=victim.id, cause="violence")
+        return ev
+
+    def _do_strike(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): strike a named agent or a named facility."""
+        if action.params.get("target"):
+            victim = self._adjacent_or_targeted(agent, action)
+            if victim is None:
+                return
+            self._spend(agent, ActionType.STRIKE)
+            self._strike(agent, victim=victim)
+            return
+        name = action.params.get("facility_name")
+        f = next((x for x in self.world.facilities if x.name == name), None)
+        if f is None:
+            f = self.world.facility_at(agent.pos)
+        self._spend(agent, ActionType.STRIKE)
+        self._strike(agent, facility=f)
 
     # -- movement & survival -------------------------------------------
     def _do_idle(self, agent: Agent, action: Action) -> None:
@@ -728,17 +784,20 @@ class Simulation:
             self._reward(agent, self.status.pleasure_per_achievement)
 
     def _do_create(self, agent: Agent, action: Action) -> None:
+        # A macro: creating is making a work of art/scholarship at a venue.
+        self._make_work(agent, str(action.params.get("title", "Untitled Work")))
+
+    def _make_work(self, agent: Agent, title: str) -> Optional[Event]:
         """Self-actualization: produce a work. Only possible when every lower
         need is quiet — a hungry, scared or unrecognised mind cannot create."""
         if not self.psyche.enabled:
-            return
+            return None
         if actualization_pull(agent, self.psyche) <= 0:
-            return
+            return None
         f = self.world.facility_at(agent.pos)
         if f is None or f.ftype not in {FacilityType.LIBRARY, FacilityType.WORKSHOP,
                                         FacilityType.PLAZA}:
-            return
-        title = str(action.params.get("title", "Untitled Work"))
+            return None
         agent.works_created += 1
         agent.fulfillment += self.psyche.fulfillment_per_work
         self.metrics.works_created += 1
@@ -746,8 +805,21 @@ class Simulation:
         # Creation is the deepest joy — and, if honour matters, it is admired.
         self._reward(agent, self.psyche.pleasure_per_work)
         self._recognise(agent, self.psyche.rep_per_work, 0.0, "work")
-        self.world.log("work_created", by=agent.id, title=title,
-                       at=f.name)
+        self.world.log("work_created", by=agent.id, title=title, at=f.name)
+        ev = Event(kind="make", actor=agent, site=f)
+        self._interpret(ev)
+        return ev
+
+    def _do_make(self, agent: Agent, action: Action) -> None:
+        """Raw primitive (LLM): transform effort/inputs into an output. A work
+        of art/scholarship, or a recipe good (routes to the craft physics)."""
+        output = action.params.get("output") or action.params.get("item") or "work"
+        if output in MK.RECIPES:
+            self._spend(agent, ActionType.MAKE)
+            self._do_craft(agent, Action(ActionType.CRAFT, {"item": output}))
+            return
+        self._spend(agent, ActionType.MAKE)
+        self._make_work(agent, str(action.params.get("title", "Untitled Work")))
 
     # -- society: weapons, drugs, gangs, religion -----------------------
     def _do_craft_weapon(self, agent: Agent, action: Action) -> None:
@@ -1097,38 +1169,21 @@ class Simulation:
                          kind="take", consent=False)
 
     def _do_attack(self, agent: Agent, action: Action) -> None:
+        # A macro: attack is striking a person (interpreted as violence).
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
         self._spend(agent, ActionType.ATTACK)
-        damage = ATTACK_DAMAGE
-        if self.society.enabled and self.society.weapons and agent.weapons > 0:
-            damage += self.society.weapon_attack_bonus  # armed: far deadlier
-        victim.energy -= damage
-        agent.money += victim.take("money", 3)  # violence robs coin too
-        self._register_crime(agent, "violence", victim)
-        if victim.energy <= 0 and victim.alive:
-            victim.die(self.world.day, "killed in violence")
-            self.metrics.deaths += 1
-            self.world.log("death", agent=victim.id, cause="violence")
+        self._strike(agent, victim=victim)
 
     def _do_arson(self, agent: Agent, action: Action) -> None:
+        # A macro: arson is striking a structure (interpreted as arson).
         name = action.params.get("facility_name")
         f = next((x for x in self.world.facilities if x.name == name), None)
         if f is None:
             f = self.world.facility_at(agent.pos)
         self._spend(agent, ActionType.ARSON)
-        agent.crimes_committed += 1
-        agent.last_crime_day = self.world.day
-        self.metrics.record_crime("arson")
-        self.world.log("arson", offender=agent.id,
-                       facility=f.name if f else "unknown",
-                       pos=(f.pos if f else agent.pos))
-        self._strike_fear(None, epicentre=(f.pos if f else agent.pos),
-                          offender_id=agent.id)
-        # Burning a granary spills the commons.
-        if f and f.ftype == FacilityType.GRANARY:
-            self.world.granary_food = max(0, self.world.granary_food - 5)
+        self._strike(agent, facility=f)
 
     def _do_report_crime(self, agent: Agent, action: Action) -> None:
         target = self._by_id.get(action.params.get("target"))
