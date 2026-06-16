@@ -37,7 +37,7 @@ they remain distinct from one another.
 
 | # | institution (hardcoded) | the magic | becomes (primitive) |
 |---|-------------------------|-----------|---------------------|
-| 1 | `Agent.money` — a privileged scalar field | money exists by fiat | an item in inventory (`coin`); a medium that *emerges* as the common want |
+| 1 | `Agent.money` — a privileged scalar field | money exists by fiat | an item in inventory (`inventory["money"]`); a medium that *emerges* as the common want |
 | 2 | police-aura (`_deterred`) — crime suppressed by proximity to a building | a building radiates lawfulness | enforcement is an *act* by an agent (a guard who can `ARREST`); buildings only host the role |
 | 3 | law-keyword magic (`crime_deterrence_multiplier`) | passing a law named "police" globally lowers crime | a law is a *norm*: a published expectation + an enforcer who acts on it + compliance that agents weigh |
 
@@ -45,9 +45,16 @@ they remain distinct from one another.
 
 - **Phase 0 — safety net (this commit).** Lock the contract: qualitative
   verdicts + numeric snapshot, before touching any mechanic. Purely additive.
-- **Phase 1 — money → item.** Make `Agent.money` a property over
-  `inventory["coin"]`. Coin stays conserved by the same transfer physics as
-  food/materials. No agent gets coin for free that it didn't get before.
+- **Phase 1 — money → item. (DONE)** `Agent.money` is now a property over
+  `inventory["money"]`, conserved by the same add/take physics as
+  food/materials; the `money=` constructor argument still works and is folded
+  into the inventory. Strictly representational — the Phase 0 snapshot is
+  byte-identical. One latent quirk surfaced: theft's `take("money")` used to
+  hit an empty, *separate* slot and net nothing, so theft only ever moved
+  food. Now that money is in the inventory the same call would drain real
+  coin, which tips the predator society from FAILURE into full COLLAPSE.
+  Looting coin is therefore deferred to the re-tune phase, and theft keeps its
+  historical (food-only) behaviour for now.
 - **Phase 2 — police-aura → enforcement.** Introduce an `ARREST` action an
   agent in a guard role can take against a witnessed crime; remove the
   building-proximity `_deterred` aura. Order must now be *enforced*, not

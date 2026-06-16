@@ -27,8 +27,12 @@ class Agent:
     y: int
 
     energy: float = MAX_ENERGY
-    money: int = 20
     inventory: dict[str, int] = field(default_factory=lambda: {"food": 3, "materials": 0})
+    # Money is NOT a privileged field — it is an ordinary inventory item,
+    # conserved by the same add/take physics as food and materials. This stays
+    # a constructor argument for convenience, but it is folded into
+    # ``inventory["money"]`` and read back through the ``money`` property below.
+    money: int = 20
 
     # The three primal urges (only active when DrivesConfig is enabled). Each is
     # an instinctual pressure that builds over time and is discharged — with a
@@ -153,3 +157,19 @@ class Agent:
             "crimes": self.crimes_committed,
             "frauds": self.frauds_committed,
         }
+
+
+# Money lives in the inventory, not in a privileged scalar field. We install
+# the accessor after the dataclass is built so the ``money=`` constructor
+# argument (assigned in __init__ after ``inventory``) flows through the setter
+# into ``inventory["money"]``. From here on, money is conserved by the same
+# add/take physics as every other tradable good.
+def _money_get(self: Agent) -> int:
+    return self.inventory.get("money", 0)
+
+
+def _money_set(self: Agent, value: int) -> None:
+    self.inventory["money"] = int(value)
+
+
+Agent.money = property(_money_get, _money_set)
