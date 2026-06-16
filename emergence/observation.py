@@ -55,6 +55,12 @@ class Observation:
     role: str = ""
     affordances: list = field(default_factory=list)
 
+    # Norms: published expectations the town has enacted (e.g. a law against
+    # crime) plus how credibly they are enforced. A norm is not a mechanical
+    # force — the agent weighs whether to comply with it.
+    #   {"crime": bool, "enforcement": float 0..1}
+    norms: dict = field(default_factory=dict)
+
     # Public-works loop: whether it's active and the state treasury (for proposing
     # council-funded construction).
     public_works: dict = field(default_factory=dict)

@@ -172,6 +172,7 @@ class LLMBrain(AgentBrain):
             "nearby_facilities": obs.nearby_facilities[:6],
             "other_agents": obs.others[:8],
             "open_proposals": obs.open_proposals,
+            "town_norms": obs.norms or "(none enacted)",
             "shared_granary_food": obs.granary_food,
             "your_memories": obs.memory[-8:] or ["(no relevant memories)"],
             "recent_events": obs.recent_events[-6:],

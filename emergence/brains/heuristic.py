@@ -74,13 +74,17 @@ class HeuristicBrain(AgentBrain):
         if soc is not None:
             return soc
 
-        # 2. Retaliation against whoever wronged us (vengeful personas).
+        # 2. Retaliation against whoever wronged us (vengeful personas) — unless
+        #    a published, enforced crime norm stays the agent's hand. The only
+        #    thing between temptation and the act is now the agent's own choice
+        #    to comply, not an aura cast by a building.
         foe = self._nearby_foe(obs)
-        if foe is not None and self.rng.random() < p.vengefulness:
+        if foe is not None and self.rng.random() < p.vengefulness \
+                and not self._norm_restrains(p, obs):
             return self._aggress(agent, foe, p, reason="retaliation")
 
         # 3. Unprovoked aggression (predators, chaotic philosophers).
-        if self.rng.random() < p.aggression * 0.6:
+        if self.rng.random() < p.aggression * 0.6 and not self._norm_restrains(p, obs):
             victim = self._nearby_target(obs)
             if victim is not None:
                 return self._aggress(agent, victim, p, reason="aggression")
@@ -352,6 +356,17 @@ class HeuristicBrain(AgentBrain):
                 ActionType.ATTACK, {"target": target["id"]}, rationale=reason
             )
         return Action(ActionType.STEAL, {"target": target["id"]}, rationale=reason)
+
+    def _norm_restrains(self, p: Persona, obs: Observation) -> bool:
+        """Compliance with a crime norm: an agent abstains in proportion to how
+        law-abiding it is (conformity) and how credibly the norm is enforced.
+        No norm, or no one to enforce it, means no restraint — so a conformist
+        keeps the peace by choice, while a low-conformity agent flouts it."""
+        norm = obs.norms
+        if not norm.get("crime"):
+            return False
+        enforcement = norm.get("enforcement", 0.0)
+        return self.rng.random() < p.conformity * enforcement
 
     def _nearby_foe(self, obs: Observation) -> dict | None:
         """The closest agent we distrust the most (someone who wronged us)."""

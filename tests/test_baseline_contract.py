@@ -37,20 +37,21 @@ CONTRACT = {
     "predator": "FAILURE",
 }
 
-# Snapshot last updated at Phase 2 (seed 42). Phase 0 baseline preserved
+# Snapshot last updated at Phase 3 (seed 42). Phase 0 baseline preserved
 # through Phase 1 (money->item) byte-identical; Phase 2 (police-aura ->
-# guard ARREST) deliberately moved the crime/survival numbers: with no
-# preventive aura, crimes are committed and then punished reactively, so
-# counts rise while the four qualitative endings hold. Tracks drift; update
-# deliberately when a phase intentionally moves it.
+# guard ARREST) made crime reactive so counts rose; Phase 3 (law-magic ->
+# norms) gives crime laws force again, but only through agent compliance
+# weighed by conformity and enforcement credibility, so counts fall back
+# (gemini 211 -> 151). The four qualitative endings hold throughout. Tracks
+# drift; update deliberately when a phase intentionally moves it.
 SNAPSHOT = {
     "guardian": dict(survivors=10, population=10, crimes_total=0,
                      frauds=18, collaborations=3),
-    "philosopher": dict(survivors=6, population=10, crimes_total=211,
+    "philosopher": dict(survivors=7, population=10, crimes_total=151,
                         frauds=2, collaborations=0),
-    "idealist": dict(survivors=0, population=10, crimes_total=3,
-                     frauds=1, collaborations=2),
-    "predator": dict(survivors=2, population=10, crimes_total=62,
+    "idealist": dict(survivors=0, population=10, crimes_total=0,
+                     frauds=2, collaborations=4),
+    "predator": dict(survivors=2, population=10, crimes_total=60,
                      frauds=3, collaborations=0),
 }
 

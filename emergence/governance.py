@@ -238,13 +238,14 @@ class PolicyEngine:
 
     # -- effect queries (called by Simulation per tick/day) -------------
 
-    def crime_deterrence_multiplier(self) -> float:
-        """If any crime-deterrence law is active, halve the base deterrence
-        distance bonus on top of the static police-station effect."""
-        base = self.config.police_deterrence
-        if any(l.has(LawEffect.CRIME_DETERRENCE) for l in self.laws):
-            return base * 0.7  # laws make the police even more effective
-        return base
+    def has_crime_norm(self) -> bool:
+        """Whether the town has published a norm against crime.
+
+        A norm is not a mechanical multiplier — it does nothing on its own.
+        It is an *expectation*; agents weigh whether to comply with it given
+        their disposition and how credibly it is enforced (see the simulation's
+        enforcement expectation and the brain's compliance check)."""
+        return any(l.has(LawEffect.CRIME_DETERRENCE) for l in self.laws)
 
     def has_punishment_law(self) -> bool:
         return any(l.has(LawEffect.PUNISHMENT) for l in self.laws)

@@ -80,7 +80,7 @@ class TestConstruction(unittest.TestCase):
 class TestPublicWorksEndToEnd(unittest.TestCase):
     def test_off_is_byte_identical_baseline(self):
         sim = make_simulation("gemini", config=SimulationConfig(seed=42)); sim.run()
-        self.assertEqual(sim.metrics.crimes_total, 211)  # Phase 2: enforcement is now an act
+        self.assertEqual(sim.metrics.crimes_total, 151)  # Phase 3: norm compliance trims crime
         self.assertEqual(sim.metrics.public_works_built, 0)
 
     def test_council_builds_when_enabled(self):

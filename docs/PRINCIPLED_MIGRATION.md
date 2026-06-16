@@ -65,9 +65,21 @@ they remain distinct from one another.
   happen and are punished reactively rather than being magically pre-empted,
   and the snapshot was updated to match. `crime_deterrence_multiplier` is now
   unused by the engine and falls in Phase 3.
-- **Phase 3 — law-magic → norms.** Replace `crime_deterrence_multiplier`
-  with a published norm that agents comply with in proportion to expected
-  enforcement and their persona. Remove the global multiplier.
+- **Phase 3 — law-magic → norms. (DONE)** `crime_deterrence_multiplier` is
+  gone. Enacting a crime law no longer flips a global knob; it publishes a
+  *norm* (`PolicyEngine.has_crime_norm`), surfaced to agents via
+  `Observation.norms` together with an *enforcement expectation* derived from
+  real world state (living guards + the facilities that host them, not a
+  constant). The brain's compliance check (`_norm_restrains`) then has each
+  agent abstain from a crime in proportion to its conformity times that
+  enforcement credibility: a law-abiding agent keeps the peace by choice, a
+  low-conformity one flouts it, and a norm nobody enforces deters no one.
+  Suppression thus emerges from agents weighing the rule, not from the engine
+  rewriting crime probabilities. The four endings hold; gemini crime falls
+  211 -> 151 as compliance re-enters, and the snapshot is updated to match.
+  (The remaining law effects — punishment fines, tax, food redistribution —
+  are economic-policy actions of the state rather than crime magic; they are
+  out of this phase's scope.)
 - **Phase 4 — re-tune & re-document.** Re-tune personas so the four endings
   re-emerge from the new primitives; rewrite the brittle numeric assertions
   as qualitative ones where appropriate; update the README's claims so they

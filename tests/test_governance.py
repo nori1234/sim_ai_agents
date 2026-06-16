@@ -124,13 +124,14 @@ class TestGovernanceForms(unittest.TestCase):
 
 
 class TestPolicyEngine(unittest.TestCase):
-    def test_enacted_law_reduces_deterrence_multiplier(self):
+    def test_enacted_law_publishes_a_crime_norm(self):
+        # A crime law is no longer a mechanical multiplier; it publishes a norm
+        # the agents may choose to comply with. Enacting one flips has_crime_norm.
         cfg = GOVERNANCE_PRESETS["direct"]
         engine = PolicyEngine(cfg)
-        base = engine.crime_deterrence_multiplier()
+        self.assertFalse(engine.has_crime_norm())
         engine.enact(1, "Ban all theft and crime in town", 1)
-        after = engine.crime_deterrence_multiplier()
-        self.assertLess(after, base)
+        self.assertTrue(engine.has_crime_norm())
 
     def test_summary(self):
         engine = PolicyEngine()

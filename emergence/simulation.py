@@ -230,6 +230,9 @@ class Simulation:
                         if self.society.enabled else 0.0),
             here_roles=here_roles,
             nearest_roles=nearest_roles,
+            norms=({"crime": True,
+                    "enforcement": round(self._enforcement_expectation(), 2)}
+                   if self.policy.has_crime_norm() else {}),
             environment=self.environment.snapshot() if self.environment is not None else {},
             role=role_of(agent.profession),
             affordances=affordances_at(here_f),
@@ -1312,6 +1315,19 @@ class Simulation:
                 f"frauds={summary['frauds']} fines={summary['fines']} "
                 f"laws={summary['active_laws']} gov={gov_tag}{mayor_tag}{births_tag}"
             )
+
+    def _enforcement_expectation(self) -> float:
+        """How credibly crime is punished, in 0..1 — derived from real world
+        state, not a constant. Norms only restrain when someone can actually
+        enforce them: living guards who can ARREST, backed by the facilities
+        that host them. A published norm with no enforcers deters no one."""
+        guards = sum(1 for a in self.agents
+                     if a.alive and a.profession == "guard")
+        stations = (len(self.world.facilities_of(FacilityType.POLICE_STATION))
+                    + len(self.world.facilities_of(FacilityType.PRISON)))
+        guard_term = min(1.0, guards * 0.5)       # one guard -> 0.5, two+ -> 1.0
+        station_term = min(1.0, stations * 0.5)
+        return min(1.0, 0.6 * guard_term + 0.4 * station_term)
 
     def _apply_daily_policy(self) -> None:
         """Run once per day: tax, food redistribution."""
