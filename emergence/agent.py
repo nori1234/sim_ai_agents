@@ -83,6 +83,8 @@ class Agent:
 
     # Per-agent tallies, useful for the post-mortem report.
     crimes_committed: int = 0
+    last_crime_day: Optional[int] = None  # for enforcement: a recent offender is "wanted"
+    times_arrested: int = 0
     times_victimized: int = 0
     proposals_made: int = 0
     votes_cast: int = 0
@@ -155,6 +157,7 @@ class Agent:
             "faith": self.faith,
             "age_days": self.age_days,
             "crimes": self.crimes_committed,
+            "last_crime_day": self.last_crime_day,
             "frauds": self.frauds_committed,
         }
 

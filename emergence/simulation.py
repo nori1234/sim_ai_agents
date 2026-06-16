@@ -50,7 +50,10 @@ ACTION_ENERGY_COST = {
     ActionType.ATTACK: 5.0,
     ActionType.STEAL: 3.0,
     ActionType.ARSON: 4.0,
+    ActionType.ARREST: 4.0,
 }
+ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arrestable
+ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
 ATTACK_DAMAGE = 15.0  # energy a victim loses when attacked
 
 
@@ -265,6 +268,7 @@ class Simulation:
         ActionType.ATTACK, ActionType.ARSON, ActionType.MATE,
         ActionType.DEAL_DRUG, ActionType.REBEL, ActionType.PREACH,
         ActionType.WORSHIP, ActionType.CRAFT_WEAPON, ActionType.JOIN_GANG,
+        ActionType.ARREST,
     }
 
     def _remember_action(self, agent: Agent, action: Action) -> None:
@@ -980,8 +984,6 @@ class Simulation:
 
     # -- crime ----------------------------------------------------------
     def _do_steal(self, agent: Agent, action: Action) -> None:
-        if self._deterred(agent):
-            return
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
@@ -996,8 +998,6 @@ class Simulation:
         self._register_crime(agent, "theft", victim)
 
     def _do_attack(self, agent: Agent, action: Action) -> None:
-        if self._deterred(agent):
-            return
         victim = self._adjacent_or_targeted(agent, action)
         if victim is None:
             return
@@ -1015,14 +1015,13 @@ class Simulation:
             self.world.log("death", agent=victim.id, cause="violence")
 
     def _do_arson(self, agent: Agent, action: Action) -> None:
-        if self._deterred(agent):
-            return
         name = action.params.get("facility_name")
         f = next((x for x in self.world.facilities if x.name == name), None)
         if f is None:
             f = self.world.facility_at(agent.pos)
         self._spend(agent, ActionType.ARSON)
         agent.crimes_committed += 1
+        agent.last_crime_day = self.world.day
         self.metrics.record_crime("arson")
         self.world.log("arson", offender=agent.id,
                        facility=f.name if f else "unknown",
@@ -1038,6 +1037,37 @@ class Simulation:
         if target is not None:
             self.world.log("crime_report", reporter=agent.id, accused=target.id)
 
+    def _is_wanted(self, a: Agent) -> bool:
+        """A recent offender is arrestable until the window lapses."""
+        return (a.last_crime_day is not None
+                and self.world.day - a.last_crime_day <= ARREST_WINDOW_DAYS)
+
+    def _do_arrest(self, agent: Agent, action: Action) -> None:
+        """Enforcement as an *act*: an agent (typically a guard) collars a
+        nearby recent offender. Order is no longer radiated by a building —
+        someone has to choose to keep the peace and reach the offender."""
+        target = self._adjacent_or_targeted(agent, action)
+        if target is None or target is agent:
+            return
+        # No detaining the innocent: only a recent, still-wanted offender.
+        if not self._is_wanted(target):
+            return
+        self._spend(agent, ActionType.ARREST)
+        # A real, agent-driven cost for crime: detainment drains the offender,
+        # a fine is levied, and (if one exists) they are hauled to a prison.
+        fine = min(target.money, self.policy.config.fine_amount)
+        target.money -= fine
+        self.world.granary_food += fine // 2
+        target.energy -= ARREST_ENERGY_PENALTY
+        target.times_arrested += 1
+        target.last_crime_day = None      # justice served; no longer wanted
+        prison = self.world.nearest(target.pos, FacilityType.PRISON)
+        if prison is not None:
+            target.pos = prison.pos
+        agent.reputation += 1.0           # keeping the peace earns standing
+        self.metrics.arrests += 1
+        self.world.log("arrest", guard=agent.id, offender=target.id, fine=fine)
+
     # -- crime helpers --------------------------------------------------
     def _adjacent_or_targeted(self, agent: Agent, action: Action) -> Optional[Agent]:
         target = self._by_id.get(action.params.get("target"))
@@ -1052,6 +1082,7 @@ class Simulation:
 
     def _register_crime(self, offender: Agent, kind: str, victim: Agent) -> None:
         offender.crimes_committed += 1
+        offender.last_crime_day = self.world.day   # now "wanted" for a short while
         victim.times_victimized += 1
         self.metrics.record_crime(kind)
         victim.adjust_trust(offender.id, -0.6)
@@ -1261,6 +1292,7 @@ class Simulation:
             "rejected": rejected,
             "frauds": self.metrics.frauds,
             "fines": self.metrics.fines_collected,
+            "arrests": self.metrics.arrests,
             "births": self.metrics.births,
             "granary_food": self.world.granary_food,
             "active_laws": len(self.policy.laws),
@@ -1361,32 +1393,6 @@ class Simulation:
             top = sorted(living, key=lambda a: a.money, reverse=True)
             return {a.id for a in top[: cfg.oligarch_count]}
         return set()
-
-    def _nearest_deterrent(self, pos):
-        """Closest law-enforcement facility (police station or prison) + a
-        strength factor (prisons deter harder)."""
-        best, best_d, strength = None, None, 1.0
-        for ftype, s in ((FacilityType.POLICE_STATION, 1.0), (FacilityType.PRISON, 1.5)):
-            f = self.world.nearest(pos, ftype)
-            if f is None:
-                continue
-            d = chebyshev(pos, f.pos)
-            if best_d is None or d < best_d:
-                best, best_d, strength = f, d, s
-        return best, best_d, strength
-
-    def _deterred(self, agent: Agent) -> bool:
-        """Return True if the agent should abort a crime due to law enforcement."""
-        f, dist, strength = self._nearest_deterrent(agent.pos)
-        if f is None:
-            return False
-        cfg = self.policy.config
-        if dist > cfg.police_range:
-            return False
-        mult = self.policy.crime_deterrence_multiplier()
-        proximity_factor = 1.0 - (dist / (cfg.police_range + 1))
-        deterrence_prob = min(0.95, (1.0 - mult) * proximity_factor * strength)
-        return self.rng.random() < deterrence_prob
 
     def _near_safety(self, agent: Agent) -> bool:
         """Within comforting reach of a police station, prison, or a house."""

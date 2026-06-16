@@ -55,10 +55,16 @@ they remain distinct from one another.
   coin, which tips the predator society from FAILURE into full COLLAPSE.
   Looting coin is therefore deferred to the re-tune phase, and theft keeps its
   historical (food-only) behaviour for now.
-- **Phase 2 — police-aura → enforcement.** Introduce an `ARREST` action an
-  agent in a guard role can take against a witnessed crime; remove the
-  building-proximity `_deterred` aura. Order must now be *enforced*, not
-  *radiated*.
+- **Phase 2 — police-aura → enforcement. (DONE)** The building-proximity
+  `_deterred` aura (and `_nearest_deterrent`) are gone. Crime is now punished
+  by an `ARREST` *act*: a recent offender is "wanted" for a short window, and
+  an agent — the guard role, in offline runs — pursues and detains them
+  (fine + energy cost + hauled to prison if one exists). Buildings only host
+  the role; order is enforced, not radiated. The four endings hold and stay
+  distinct; crime counts rose (e.g. gemini 133 -> 211) because crimes now
+  happen and are punished reactively rather than being magically pre-empted,
+  and the snapshot was updated to match. `crime_deterrence_multiplier` is now
+  unused by the engine and falls in Phase 3.
 - **Phase 3 — law-magic → norms.** Replace `crime_deterrence_multiplier`
   with a published norm that agents comply with in proportion to expected
   enforcement and their persona. Remove the global multiplier.

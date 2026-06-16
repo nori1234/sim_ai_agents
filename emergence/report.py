@@ -61,6 +61,11 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
             f"{m.loan_defaults} defaulted"
         )
     lines.append(f"Crimes:      {m.crimes_total}")
+    if m.arrests:
+        lines.append(
+            f"Enforcement: {m.arrests} arrests by guards "
+            f"(the peace is kept by acts, not auras)"
+        )
     if m.crimes_by_type:
         for kind, count in sorted(m.crimes_by_type.items(), key=lambda kv: -kv[1]):
             lines.append(f"   - {kind:<10} {count}")

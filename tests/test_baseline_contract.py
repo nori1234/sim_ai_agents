@@ -37,17 +37,21 @@ CONTRACT = {
     "predator": "FAILURE",
 }
 
-# Snapshot captured at Phase 0 (pre-migration baseline, seed 42).
-# Tracks drift; update deliberately when a phase intentionally moves it.
+# Snapshot last updated at Phase 2 (seed 42). Phase 0 baseline preserved
+# through Phase 1 (money->item) byte-identical; Phase 2 (police-aura ->
+# guard ARREST) deliberately moved the crime/survival numbers: with no
+# preventive aura, crimes are committed and then punished reactively, so
+# counts rise while the four qualitative endings hold. Tracks drift; update
+# deliberately when a phase intentionally moves it.
 SNAPSHOT = {
     "guardian": dict(survivors=10, population=10, crimes_total=0,
                      frauds=18, collaborations=3),
-    "philosopher": dict(survivors=7, population=10, crimes_total=133,
-                        frauds=3, collaborations=0),
+    "philosopher": dict(survivors=6, population=10, crimes_total=211,
+                        frauds=2, collaborations=0),
     "idealist": dict(survivors=0, population=10, crimes_total=3,
-                     frauds=0, collaborations=3),
-    "predator": dict(survivors=1, population=10, crimes_total=47,
-                     frauds=4, collaborations=0),
+                     frauds=1, collaborations=2),
+    "predator": dict(survivors=2, population=10, crimes_total=62,
+                     frauds=3, collaborations=0),
 }
 
 

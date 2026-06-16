@@ -30,6 +30,7 @@ class Metrics:
 
     # Governance (extended).
     fines_collected: int = 0
+    arrests: int = 0          # enforcement: offenders detained by a guard's act
     tax_days: int = 0
     elections: int = 0
     laws_enacted: int = 0
@@ -108,6 +109,7 @@ class Metrics:
             "monuments_built": self.monuments_built,
             "granary_deposits": self.granary_deposits,
             "fines_collected": self.fines_collected,
+            "arrests": self.arrests,
             "tax_days": self.tax_days,
             "elections": self.elections,
             "laws_enacted": self.laws_enacted,

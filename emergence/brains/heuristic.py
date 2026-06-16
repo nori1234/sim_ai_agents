@@ -61,6 +61,12 @@ class HeuristicBrain(AgentBrain):
             return Action(ActionType.MOVE, {"facility_type": refuge},
                           rationale="flee to safety")
 
+        # 1.6 Enforcement: a guard collars a nearby offender. Keeping the peace
+        #     is an act someone chooses, not an aura a building radiates.
+        arrest = self._enforce_action(agent, obs)
+        if arrest is not None:
+            return arrest
+
         # 1.7 Society: the underworld and culture (arming up, gangs, drugs,
         #     faith) take priority over mundane violence — they are how
         #     aggression and alienation organise themselves.
@@ -360,6 +366,26 @@ class HeuristicBrain(AgentBrain):
             return None
         # Prefer the richest nearby mark.
         return max(reachable, key=lambda o: o["money"] + o["food"] + o["materials"])
+
+    def _enforce_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """A guard pursues and arrests the nearest recently-wanted offender.
+
+        Only the guard role keeps the peace in offline runs; other personas
+        leave the action to the LLM brain. The window mirrors the engine's
+        arrest window so the guard doesn't chase a lapsed offender."""
+        if agent.profession != "guard":
+            return None
+        wanted = [
+            o for o in obs.others
+            if o.get("last_crime_day") is not None
+            and obs.day - o["last_crime_day"] <= 2
+            and o["distance"] <= 10
+        ]
+        if not wanted:
+            return None
+        target = min(wanted, key=lambda o: o["distance"])
+        return Action(ActionType.ARREST, {"target": target["id"]},
+                      rationale="keep the peace")
 
     # -- governance -----------------------------------------------------
     def _governance_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:

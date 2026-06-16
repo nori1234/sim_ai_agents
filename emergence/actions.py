@@ -36,6 +36,7 @@ class ActionType(str, Enum):
     ATTACK = "attack"  # violence against another agent (crime)
     ARSON = "arson"  # destroy/damage a facility (crime)
     REPORT_CRIME = "report_crime"  # flag an offender at a police station
+    ARREST = "arrest"  # detain a nearby recent offender (enforcement as an act)
 
     # -- society layer (weapons, drugs, gangs, religion) ----------------
     CRAFT_WEAPON = "craft_weapon"  # forge a weapon at a workshop
@@ -74,6 +75,7 @@ class Action:
       MATE        -> {"target": agent_id}
       ARSON       -> {"facility_name": str}
       REPORT_CRIME-> {"target": agent_id}
+      ARREST      -> {"target": agent_id}
       PRAISE      -> {"target": agent_id}
       CREATE      -> {"title": str}
       DEAL_DRUG   -> {"target": agent_id}

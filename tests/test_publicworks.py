@@ -43,23 +43,44 @@ class TestConstruction(unittest.TestCase):
         self.assertEqual(len(sim.world.facilities_of(FacilityType.PRISON)), 0)
         self.assertEqual(sim.treasury, 1)  # unspent
 
-    def test_prison_deters_crime_more_than_nothing(self):
+    def test_arrest_punishes_a_recent_offender(self):
+        # Enforcement is an act, not a building aura: a guard collars a nearby
+        # offender, fining and detaining them.
+        from emergence.actions import Action, ActionType
         from emergence.agent import Agent
-        from emergence.world import Facility, World
+        from emergence.world import World
         from emergence.simulation import Simulation
         world = World(10, 10)
-        a = Agent(id="x", name="X", profession="t", persona="predator", x=5, y=5)
-        sim = Simulation(world=world, agents=[a], brains={})
-        self.assertFalse(sim._deterred(a))   # no police anywhere -> never deterred
-        world.add_facility(Facility("Pen", FacilityType.PRISON, 5, 5))
-        deterred = sum(sim._deterred(a) for _ in range(200))
-        self.assertGreater(deterred, 0)      # right on top of a prison -> often deterred
+        guard = Agent(id="g", name="G", profession="guard", persona="guardian", x=5, y=5)
+        crook = Agent(id="c", name="C", profession="t", persona="predator",
+                      x=5, y=5, money=20)
+        sim = Simulation(world=world, agents=[guard, crook], brains={})
+        crook.last_crime_day = world.day            # caught in the act window
+        sim._do_arrest(guard, Action(ActionType.ARREST, {"target": "c"}))
+        self.assertEqual(sim.metrics.arrests, 1)
+        self.assertEqual(crook.times_arrested, 1)
+        self.assertLess(crook.money, 20)            # fined
+        self.assertIsNone(crook.last_crime_day)     # no longer wanted
+
+    def test_arrest_spares_the_innocent(self):
+        from emergence.actions import Action, ActionType
+        from emergence.agent import Agent
+        from emergence.world import World
+        from emergence.simulation import Simulation
+        world = World(10, 10)
+        guard = Agent(id="g", name="G", profession="guard", persona="guardian", x=5, y=5)
+        clean = Agent(id="c", name="C", profession="t", persona="idealist",
+                      x=5, y=5, money=20)
+        sim = Simulation(world=world, agents=[guard, clean], brains={})
+        sim._do_arrest(guard, Action(ActionType.ARREST, {"target": "c"}))
+        self.assertEqual(sim.metrics.arrests, 0)    # never offended -> not arrestable
+        self.assertEqual(clean.money, 20)
 
 
 class TestPublicWorksEndToEnd(unittest.TestCase):
     def test_off_is_byte_identical_baseline(self):
         sim = make_simulation("gemini", config=SimulationConfig(seed=42)); sim.run()
-        self.assertEqual(sim.metrics.crimes_total, 133)
+        self.assertEqual(sim.metrics.crimes_total, 211)  # Phase 2: enforcement is now an act
         self.assertEqual(sim.metrics.public_works_built, 0)
 
     def test_council_builds_when_enabled(self):
