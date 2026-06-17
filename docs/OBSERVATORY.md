@@ -10,6 +10,12 @@ produce visibly different societies, reproducibly.*
 
 - **Concept:** observatory + possess (a fused overview/first-person experience),
   with the engine's metrics available underneath as the "why".
+- **Immersion lead: the story, not the map.** An abstract dots-on-a-grid view
+  conveys no society; the engine's real magic is the *emergent narrative*. So the
+  experience leads with a curated **Chronicle** of the town and a **life story**
+  for any possessed citizen (`emergence/chronicle.py`); the spatial map is a
+  light supporting view. (A later layer can hand these grounded beats to an LLM
+  for flowing prose.)
 - **Distribution:** **local-first, hostable later** ("B → A"). Ship a
   local/desktop experience first (cheap, low-risk, the user brings their own LLM
   key or uses the free offline brain), architected so the *same* code becomes a
@@ -54,6 +60,8 @@ Run locally: `python -m emergence.server` → `http://127.0.0.1:8800`.
 | POST | `/api/worlds/{id}/step?days=N` | advance N days, returns state + `new_events` |
 | GET | `/api/worlds/{id}/events?since=N` | the story feed |
 | GET | `/api/worlds/{id}/agents/{aid}` | a citizen's **possess** view (needs, memory, relationships) |
+| GET | `/api/worlds/{id}/chronicle` | the curated, day-by-day **story** of the town |
+| GET | `/api/worlds/{id}/agents/{aid}/story` | a citizen's **life story** (arc, ties, beliefs, fate) |
 
 `rich=true` turns on the human-feel layers (drives, esteem, psyche, society) so a
 possessed citizen has an inner life.

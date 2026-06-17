@@ -22,6 +22,7 @@ from __future__ import annotations
 import uuid
 
 from .affordances import role_of
+from .chronicle import chronicle, chronicle_text, life_story, life_story_text
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .personas import ALIASES, PERSONAS
@@ -168,6 +169,26 @@ class EmergenceAPI:
             "memory": list(a.memory)[-20:],
             "relationships": rel,
         }
+
+    # -- narrative (the story-led experience) ---------------------------
+    def chronicle(self, world_id: str) -> dict:
+        """The curated, day-by-day story of the town."""
+        sim = self._get(world_id)
+        return {
+            "finished": getattr(sim, "_finished", False),
+            "verdict": one_line_verdict(sim) if getattr(sim, "_finished", False) else None,
+            "days": chronicle(sim),
+            "text": chronicle_text(sim),
+        }
+
+    def agent_story(self, world_id: str, agent_id: str) -> dict:
+        """One citizen's life as a readable story."""
+        sim = self._get(world_id)
+        if sim._by_id.get(agent_id) is None:
+            raise APIError(f"no such citizen {agent_id!r}", 404)
+        story = life_story(sim, agent_id)
+        story["text"] = life_story_text(sim, agent_id)
+        return story
 
     # -- serialization --------------------------------------------------
     def _state(self, sim) -> dict:

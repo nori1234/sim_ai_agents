@@ -67,8 +67,13 @@ def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
             return 200, _API.events(rest[0],
                                     since=query.get("since", [0])[0],
                                     limit=query.get("limit", [200])[0])
+        elif len(rest) == 2 and rest[1] == "chronicle" and method == "GET":
+            return 200, _API.chronicle(rest[0])
         elif len(rest) == 3 and rest[1] == "agents" and method == "GET":
             return 200, _API.agent_view(rest[0], rest[2])
+        elif len(rest) == 4 and rest[1] == "agents" and rest[3] == "story" \
+                and method == "GET":
+            return 200, _API.agent_story(rest[0], rest[2])
     raise APIError(f"no route for {method} {path}", 404)
 
 
