@@ -232,6 +232,23 @@ class TestUnderworldFoldings(unittest.TestCase):
         self.assertEqual(sim.metrics.gangs_formed, 1)
 
 
+class TestBuildFolding(unittest.TestCase):
+    def test_build_macro_lowers_to_make_a_structure(self):
+        from emergence.esteem import StatusConfig
+        from emergence.world import FacilityType, World
+        a = _agent(id="a", x=2, y=2)
+        a.inventory["materials"] = 3
+        sim = Simulation(world=World(6, 6), agents=[a], brains={},
+                         status=StatusConfig(enabled=True))
+        sim._do_build(a, Action(ActionType.BUILD,
+                      {"name": "Spire", "facility_type": "monument"}))
+        built = [f for f in sim.world.facilities if f.name == "Spire"]
+        self.assertEqual(len(built), 1)               # structure raised
+        self.assertEqual(sim.metrics.monuments_built, 1)
+        self.assertGreater(a.reputation, 0)           # a monument earns honour
+        self.assertEqual(a.materials(), 1)            # 3 - 2 spent
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)
