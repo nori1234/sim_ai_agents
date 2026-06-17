@@ -168,6 +168,36 @@ class TestSayIntentPraise(unittest.TestCase):
         self.assertEqual(b.esteem, 80.0)
 
 
+class TestReligionFoldings(unittest.TestCase):
+    def test_preach_macro_lowers_to_say_and_founds_a_faith(self):
+        from emergence.society import SocietyConfig
+        from emergence.world import Facility, FacilityType, World
+        world = World(8, 8)
+        world.add_facility(Facility("Plaza", FacilityType.PLAZA, 0, 0))
+        a = _agent(id="a", x=0, y=0, reputation=10.0)
+        sim = Simulation(world=world, agents=[a], brains={},
+                         society=SocietyConfig(enabled=True))
+        sim._do_preach(a, Action(ActionType.PREACH, {}))
+        self.assertIsNotNone(a.faith)                  # founded a faith
+        self.assertEqual(sim.metrics.religions_founded, 1)
+
+    def test_worship_macro_lowers_to_bond_and_relieves_fear(self):
+        from emergence.society import SocietyConfig
+        from emergence.world import Facility, FacilityType, World
+        world = World(8, 8)
+        temple = Facility("Temple", FacilityType.PLAZA, 0, 0)
+        temple.add_role("temple")
+        world.add_facility(temple)
+        a = _agent(id="a", x=0, y=0)
+        a.faith = "r1"
+        a.fear = 50.0
+        sim = Simulation(world=world, agents=[a], brains={},
+                         society=SocietyConfig(enabled=True))
+        sim._do_worship(a, Action(ActionType.WORSHIP, {}))
+        self.assertEqual(sim.metrics.acts_of_worship, 1)
+        self.assertLess(a.fear, 50.0)                  # prayer eases fear
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)
