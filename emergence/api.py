@@ -174,6 +174,8 @@ class EmergenceAPI:
         return {
             "day": sim.world.day,
             "tick": sim.world.tick,
+            "width": sim.world.width,
+            "height": sim.world.height,
             "finished": getattr(sim, "_finished", False),
             "config": {"days": sim.config.days,
                        "ticks": sim.config.ticks_per_day,

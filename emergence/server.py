@@ -21,12 +21,22 @@ Routes (all JSON):
 from __future__ import annotations
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .api import APIError, EmergenceAPI
 
 _API = EmergenceAPI()
+_UI_PATH = os.path.join(os.path.dirname(__file__), "web", "observatory.html")
+
+
+def _load_ui() -> bytes:
+    try:
+        with open(_UI_PATH, "rb") as fh:
+            return fh.read()
+    except OSError:
+        return b"<!doctype html><meta charset=utf-8><p>UI file missing.</p>"
 
 
 def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
@@ -99,7 +109,17 @@ class Handler(BaseHTTPRequestHandler):
         except TypeError as e:  # bad/unknown params to a create call, etc.
             self._send(400, {"error": str(e)})
 
+    def _send_html(self, body: bytes) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self) -> None:
+        path = urlparse(self.path).path
+        if path in ("/", "/index.html", "/app"):
+            return self._send_html(_load_ui())
         self._handle("GET")
 
     def do_POST(self) -> None:
