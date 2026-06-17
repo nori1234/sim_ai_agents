@@ -608,6 +608,7 @@ python3 -m emergence.cli --compare-gov --persona gemini
 | [`docs/LOCAL.md`](docs/LOCAL.md) | 自分のPC（Ollama など）で動かす最小構成 |
 | [`docs/PRINCIPLED_MIGRATION.md`](docs/PRINCIPLED_MIGRATION.md) | **エンジン原則の正典**。作り付けだった3制度（お金フィールド・警察オーラ・法律の魔法）をプリミティブへ溶かした移行記録 |
 | [`docs/VERB_PRIMITIVES.md`](docs/VERB_PRIMITIVES.md) | 動詞の語彙そのものを原始動詞（命令セット）化する設計・現状・畳み込み計画 |
+| [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 外販に向けた製品方向（観察所＋憑依）とローカルHTTP API（PoC） |
 
 設計思想の出典は `PRINCIPLED_MIGRATION.md` の "The principle"。他の文書・本READMEはそれを参照します。
 
