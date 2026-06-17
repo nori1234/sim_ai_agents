@@ -514,14 +514,27 @@ class Simulation:
         return None
 
     def _do_gather(self, agent: Agent, action: Action) -> None:
+        # A macro: gathering is a take from the world — the counterparty is a
+        # resource node, not a holder, so the yield is produced rather than
+        # drained. The gate + spend stay here; the produce-and-take is _harvest.
         f = self.world.facility_at(agent.pos)
         if f is None or not f.can_gather():
             return
+        self._harvest(agent, f)
+        self._spend(agent, ActionType.GATHER)
+
+    def _harvest(self, agent: Agent, f) -> Event:
+        """Take from a world resource node: the node *produces* a yield (shaped
+        by the environment), which flows into the gatherer. No counterparty, so
+        nothing is interpreted as an institution."""
         resource, amount = f.gather_yield()  # type: ignore[misc]
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
         agent.add(resource, amount)
-        self._spend(agent, ActionType.GATHER)
+        ev = Event(kind="take", actor=agent, other=None, site=f,
+                   items={resource: amount} if amount else {})
+        self._interpret(ev)
+        return ev
 
     def _do_eat(self, agent: Agent, action: Action) -> None:
         # A macro: eating is using food on oneself (food -> energy + relief).

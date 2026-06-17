@@ -110,6 +110,7 @@ macro-equivalences.
 | macro | lowers to | interpreted as |
 |-------|-----------|----------------|
 | steal | `take(consent=False)` | theft |
+| gather | `take(from world node)` | (harvest) |
 | transfer | `give(consent=True)` | gift |
 | eat | `use(food on self)` | (metabolism) |
 | take_drug | `use(drug on self)` | (dose: addiction) |
@@ -132,23 +133,19 @@ while the heuristic brain stays on the macros. **Guarantee:** the four-society
 contract (`tests/test_baseline_contract.py`) is byte-identical through every
 slice — the lowerings preserved every mutation, RNG draw, and metric call.
 
-Still structured macros (documented, not hidden): the baseline-active verbs
-`gather` and governance `propose` — folded last, one at a time, with
-byte-identity diligence. `accept`/`lend`/`repay`/`craft`/`offer` already live in
-the economy-primitives layer. The plan for the remaining two follows.
+One verb remains a structured macro (documented, not hidden): governance
+`propose` — folded last, with byte-identity diligence.
+`accept`/`lend`/`repay`/`craft`/`offer` already live in the economy-primitives
+layer. The plan for the last verb follows.
 
 ## Folding-in plan for the remaining verbs
 
-All the opt-in layer verbs are folded (**DONE**): `praise`→say, `preach`→say,
-`worship`→bond, `take_drug`→use, `craft_weapon`→make, `join_gang`→bond, and now
-`build`→make. The two remaining verbs are **baseline-active**, folded last and
-one at a time with byte-identity diligence against `test_baseline_contract`
-(those verbs run in the baseline itself, so the contract guards them directly):
+Nearly every verb is folded (**DONE**): the opt-in layer verbs (`praise`→say,
+`preach`→say, `worship`→bond, `take_drug`→use, `craft_weapon`→make,
+`join_gang`→bond) plus the baseline-active `build`→make and `gather`→take(world
+node). One verb remains, folded last with byte-identity diligence (it runs in
+the baseline itself, so the contract guards it directly):
 
-- **`gather` → `take(from=world node)`.** Extend movement so a source can be a
-  Facility that *produces* via `gather_yield()` + `environment.gather()` rather
-  than draining a holder; Event `other=None, site=node`; no institution to
-  interpret. **Risk: HIGH** (environment-coupled).
 - **`propose` → `say(intent="proposal")`.** `_interpret` creates the `Proposal`
   (legislature + build inference). **Risk: HIGH** (governance is baseline-active;
   do the explicit-payload version first, free-text intent parsing later).
