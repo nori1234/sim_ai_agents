@@ -110,6 +110,12 @@ class Action:
     def is_crime(self) -> bool:
         return self.type in CRIME_ACTIONS
 
+    def __str__(self) -> str:
+        if self.params:
+            kv = ", ".join(f"{k}={v}" for k, v in self.params.items())
+            return f"{self.type.value}({kv})"
+        return self.type.value
+
 
 @dataclass
 class Event:
@@ -127,12 +133,7 @@ class Event:
     items: dict[str, int] = field(default_factory=dict)
     consent: Optional[bool] = None
     site: Optional[Any] = None        # a struck/used structure (Facility), if any
-
-    def __str__(self) -> str:
-        if self.params:
-            kv = ", ".join(f"{k}={v}" for k, v in self.params.items())
-            return f"{self.type.value}({kv})"
-        return self.type.value
+    intent: Optional[str] = None      # say/bond sub-kind (praise, accusation, ...)
 
 
 def idle(rationale: str = "") -> Action:
