@@ -141,6 +141,26 @@ class Simulation:
         self._finalize(day)
         return self.metrics
 
+    def step_day(self, verbose: bool = False) -> bool:
+        """Advance the simulation by a single day, for incremental/streamed
+        running (the API observatory). Equivalent, day-for-day, to ``run()`` --
+        same tick order, same RNG usage, same finalisation -- so stepping is
+        byte-identical to a full run. Returns True while the world is still
+        running, False once it has finished (extinct or out of days)."""
+        if getattr(self, "_finished", False):
+            return False
+        day = getattr(self, "_step_day", 0) + 1
+        self._step_day = day
+        self.world.day = day
+        for tick in range(1, self.config.ticks_per_day + 1):
+            self.world.tick = tick
+            self._run_tick()
+        self._end_of_day(verbose=verbose)
+        if self._living() == 0 or day >= self.config.days:
+            self._finalize(day)
+            self._finished = True
+        return not getattr(self, "_finished", False)
+
     def _run_tick(self) -> None:
         order = [a for a in self.agents if a.alive]
         self.rng.shuffle(order)
