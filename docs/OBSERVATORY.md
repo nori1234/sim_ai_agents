@@ -74,9 +74,11 @@ authz, per-tenant isolation, and runaway-sim limits.
 
 ## Roadmap
 
-1. **API core** — create/inspect/step/possess + event feed. ✅ (this slice)
-2. **Web UI** — a live town canvas, an event "story feed", and a possess panel
-   (a citizen's needs, memory, relationships, life timeline).
+1. **API core** — create/inspect/step/possess + event feed. ✅
+2. **Web UI** — a live town canvas (agents coloured by persona, click to
+   possess), an event **story feed**, and a **possess panel** (needs bars,
+   wealth, relationships, memories). Single self-contained HTML served at `/`;
+   no build step, no dependencies; polls `step`. ✅
 3. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
 4. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.

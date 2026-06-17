@@ -116,5 +116,34 @@ class TestRouting(unittest.TestCase):
         self.assertEqual(cm.exception.status, 404)
 
 
+class TestHttpServer(unittest.TestCase):
+    def setUp(self):
+        import threading
+        from http.server import ThreadingHTTPServer
+        from emergence.server import Handler
+        self.srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.port = self.srv.server_address[1]
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+    def tearDown(self):
+        self.srv.shutdown()
+
+    def _get(self, path):
+        import urllib.request
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}{path}") as r:
+            return r.status, r.headers.get("Content-Type", ""), r.read()
+
+    def test_root_serves_the_ui(self):
+        status, ctype, body = self._get("/")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", ctype)
+        self.assertIn(b"Emergence", body)
+
+    def test_health_is_json(self):
+        status, ctype, body = self._get("/api/health")
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", ctype)
+
+
 if __name__ == "__main__":
     unittest.main()
