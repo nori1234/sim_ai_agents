@@ -701,6 +701,8 @@ class Simulation:
 
     # -- construction & collaboration -----------------------------------
     def _do_build(self, agent: Agent, action: Action) -> None:
+        # A macro: building is making a structure. The materials cost + spend
+        # stay here; raising/joining the facility is the _make_structure physics.
         if agent.take("materials", 2) < 2:
             # Not enough materials actually spent; refund nothing, abort.
             return
@@ -711,6 +713,11 @@ class Simulation:
             ftype = FacilityType(ftype_name)
         except ValueError:
             ftype = FacilityType.MONUMENT
+        self._make_structure(agent, name, ftype)
+
+    def _make_structure(self, agent: Agent, name: str, ftype) -> Event:
+        """Raise a new facility (or join an existing build). A monument is a
+        conspicuous achievement that earns honour."""
         existing = next((f for f in self.world.facilities
                          if f.name == name and f.ftype == ftype), None)
         if existing is None:
@@ -726,6 +733,9 @@ class Simulation:
         if agent.id not in existing.builders:
             existing.builders.append(agent.id)
         agent.collaborations += 1
+        ev = Event(kind="make", actor=agent, site=existing, items={ftype.value: 1})
+        self._interpret(ev)
+        return ev
 
     def _build_public_work(self, facility_value: str) -> None:
         """A passed public-works proposal: the state funds it and a builder

@@ -117,6 +117,7 @@ macro-equivalences.
 | arson | `strike(structure)` | arson |
 | create | `make(work)` | (creation) |
 | craft_weapon | `make(weapon)` | (arming) |
+| build | `make(structure)` | (a monument earns honour) |
 | speak | `say` | (public statement) |
 | report_crime | `say(intent=accusation)` | (accusation) |
 | praise | `say(intent=praise)` | esteem grant (honour, relief) |
@@ -132,39 +133,22 @@ contract (`tests/test_baseline_contract.py`) is byte-identical through every
 slice — the lowerings preserved every mutation, RNG draw, and metric call.
 
 Still structured macros (documented, not hidden): the baseline-active verbs
-`gather`, `build`, and governance `propose` — folded last, with byte-identity
-diligence. `accept`/`lend`/`repay`/`craft`/`offer` already live in the
-economy-primitives layer. The plan for the remaining three follows.
+`gather` and governance `propose` — folded last, one at a time, with
+byte-identity diligence. `accept`/`lend`/`repay`/`craft`/`offer` already live in
+the economy-primitives layer. The plan for the remaining two follows.
 
 ## Folding-in plan for the remaining verbs
 
-Each remaining verb lowers to a primitive, with its layer-specific physics
-moving into the primitive's effect dispatch or into an `_interpret` branch, and
-its preconditions (layer flag, location, cost) staying in the macro.
-
-**Ordering principle: contract risk.** The contract runs with the esteem/
-society/economy layers *off*, so folding those verbs is low risk — their
-interpretation branches never fire in the baseline, and their own layer tests
-(`test_status`, `test_society`) guard them. The baseline-active verbs —
-`gather`, `build`, `propose` — need byte-identity diligence against
-`test_baseline_contract`.
-
-- **Into `take` (world-sourced):** `gather` → `take(from=world node)`. Extend
-  movement so a source can be a Facility that *produces* via `gather_yield()` +
-  `environment.gather()` rather than draining a holder; Event `other=None,
-  site=node`; no institution to interpret. **Risk: HIGH** (baseline-active,
-  environment-coupled).
-All the opt-in layer verbs are now folded (**DONE**): `praise`→say,
-`preach`→say, `worship`→bond, `take_drug`→use, `craft_weapon`→make,
-`join_gang`→bond. Only the three **baseline-active** verbs remain, to be folded
-last with byte-identity diligence against `test_baseline_contract`:
+All the opt-in layer verbs are folded (**DONE**): `praise`→say, `preach`→say,
+`worship`→bond, `take_drug`→use, `craft_weapon`→make, `join_gang`→bond, and now
+`build`→make. The two remaining verbs are **baseline-active**, folded last and
+one at a time with byte-identity diligence against `test_baseline_contract`
+(those verbs run in the baseline itself, so the contract guards them directly):
 
 - **`gather` → `take(from=world node)`.** Extend movement so a source can be a
   Facility that *produces* via `gather_yield()` + `environment.gather()` rather
   than draining a holder; Event `other=None, site=node`; no institution to
-  interpret. **Risk: HIGH** (baseline-active, environment-coupled).
-- **`build` → `make(output=facility_type)`.** Construction + the public-works
-  treasury route through make. **Risk: MED** (monuments build in the baseline).
+  interpret. **Risk: HIGH** (environment-coupled).
 - **`propose` → `say(intent="proposal")`.** `_interpret` creates the `Proposal`
   (legislature + build inference). **Risk: HIGH** (governance is baseline-active;
   do the explicit-payload version first, free-text intent parsing later).
