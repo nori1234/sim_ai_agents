@@ -116,7 +116,8 @@ macro-equivalences.
 | arson | `strike(structure)` | arson |
 | create | `make(work)` | (creation) |
 | speak | `say` | (public statement) |
-| report_crime | `say(accusation)` | (accusation) |
+| report_crime | `say(intent=accusation)` | (accusation) |
+| praise | `say(intent=praise)` | esteem grant (honour, relief) |
 | vote | `bond(proposal)` | (assent) |
 
 Raw `take/give/use/strike/make/say/bond` are in the LLM action menu, so an LLM
@@ -125,10 +126,10 @@ while the heuristic brain stays on the macros. **Guarantee:** the four-society
 contract (`tests/test_baseline_contract.py`) is byte-identical through every
 slice — the lowerings preserved every mutation, RNG draw, and metric call.
 
-Still structured macros (documented, not hidden): governance `propose`, the
-esteem layer (`praise`), and the society layer (`preach`/`worship`/`join_gang`/
-`take_drug`/`craft_weapon`). `accept`/`lend`/`repay`/`craft`/`offer` already
-live in the economy-primitives layer. The plan to fold them follows.
+Still structured macros (documented, not hidden): governance `propose` and the
+society layer (`preach`/`worship`/`join_gang`/`take_drug`/`craft_weapon`).
+`accept`/`lend`/`repay`/`craft`/`offer` already live in the economy-primitives
+layer. The plan to fold the rest follows.
 
 ## Folding-in plan for the remaining verbs
 
@@ -153,11 +154,11 @@ interpretation branches never fire in the baseline, and their own layer tests
 - **Into `make`:** `build` → `make(output=facility_type)` (construction +
   public-works treasury route through make; **Risk: MED**, monuments build in
   the baseline). `craft_weapon` → `make(output="weapon")` (**Risk: LOW**).
-- **Into `say`:** `praise` → `say(kind="praise")` interpreted as the esteem
-  effects (**Risk: LOW**, clean fit). `propose` → `say(kind="proposal")`
-  interpreted to create a `Proposal` (**Risk: HIGH**, governance is baseline-
-  active; do the explicit-payload version first, free-text parsing later).
-  `preach` → `say(kind="sermon")` (**Risk: LOW**).
+- **Into `say`:** `praise` → `say(intent="praise")` interpreted as the esteem
+  effects — **DONE** (the `Event.intent` dimension was added here). `propose` →
+  `say(intent="proposal")` interpreted to create a `Proposal` (**Risk: HIGH**,
+  governance is baseline-active; do the explicit-payload version first, free-text
+  parsing later). `preach` → `say(intent="sermon")` (**Risk: LOW**).
 - **Into `bond`:** `worship` → `bond(to=faith)`; `join_gang` → `bond(to=gang)`
   (both **Risk: LOW**). `accept`/`lend`/`repay` are already bond-family.
 
@@ -168,8 +169,8 @@ heuristic macros always pass it); add free-text intent parsing for the LLM's
 free-form `say` later. `Event.kind` already exists; the foldings extend its
 vocabulary and add the matching `_interpret` branches.
 
-**Suggested sequence:** (1) the low-risk layer verbs — `praise`, `take_drug`,
-`craft_weapon`, `preach`, `worship`, `join_gang`; (2) the baseline-active verbs
+**Suggested sequence:** (1) the low-risk layer verbs — `praise` (done),
+`take_drug`, `craft_weapon`, `preach`, `worship`, `join_gang`; (2) the baseline-active verbs
 with byte-identity diligence — `gather`, `build`, `propose` (the last also adds
 the structured-intent `say`). Each step keeps `test_baseline_contract` green and
 adds a primitive-level test, exactly as slices 1–3 did.

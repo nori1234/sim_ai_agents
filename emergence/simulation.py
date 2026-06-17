@@ -367,6 +367,19 @@ class Simulation:
                            pos=(f.pos if f else ev.actor.pos))
             self._strike_fear(None, epicentre=(f.pos if f else ev.actor.pos),
                               offender_id=ev.actor.id)
+        elif ev.kind == "say" and ev.intent == "praise" and ev.other is not None:
+            # A signal of public commendation grants the recipient esteem
+            # relief, honour, pleasure, and warms the bond both ways.
+            a, t = ev.actor, ev.other
+            a.praise_given += 1
+            t.praise_received += 1
+            self.metrics.total_praise += 1
+            t.esteem = max(0.0, t.esteem - self.status.praise_relief)
+            t.reputation += self.status.rep_per_praise
+            self._reward(t, self.status.pleasure_per_praise)
+            t.adjust_trust(a.id, +0.1)
+            a.adjust_trust(t.id, +0.05)
+            self.world.log("praise", by=a.id, of=t.id)
 
     def _do_take(self, agent: Agent, action: Action) -> None:
         """Raw primitive (LLM): pull items from another agent. Consent defaults
@@ -784,9 +797,11 @@ class Simulation:
         if kind == "accusation":
             if to is not None:
                 self.world.log("crime_report", reporter=agent.id, accused=to.id)
+        elif kind == "praise":
+            pass  # the praise effects + log are handled in _interpret
         else:
             self.world.log("speech", agent=agent.id, text=content)
-        ev = Event(kind="say", actor=agent, other=to)
+        ev = Event(kind="say", actor=agent, other=to, intent=kind)
         self._interpret(ev)
         return ev
 
@@ -801,23 +816,15 @@ class Simulation:
         self._say(agent, content=str(action.params.get("text", "")), to=to)
 
     def _do_praise(self, agent: Agent, action: Action) -> None:
-        """Publicly commend a peer — the praised agent gains esteem relief,
-        honour, and a hit of pleasure (褒められて気持ちいい)."""
+        """A macro: praise is a say aimed at a peer; the esteem effects are read
+        off it by the interpretation layer (褒められて気持ちいい). Gating stays
+        here — praise only means anything when the esteem layer is active."""
         if not self.status.enabled:
             return
         target = self._by_id.get(action.params.get("target"))
         if target is None or target is agent or not target.alive:
             return
-        agent.praise_given += 1
-        target.praise_received += 1
-        self.metrics.total_praise += 1
-        target.esteem = max(0.0, target.esteem - self.status.praise_relief)
-        target.reputation += self.status.rep_per_praise
-        self._reward(target, self.status.pleasure_per_praise)
-        # Praise warms the bond in both directions.
-        target.adjust_trust(agent.id, +0.1)
-        agent.adjust_trust(target.id, +0.05)
-        self.world.log("praise", by=agent.id, of=target.id)
+        self._say(agent, to=target, kind="praise")
 
     def _recognise(self, agent: Agent, rep_gain: float, esteem_relief: float,
                    kind: str) -> None:

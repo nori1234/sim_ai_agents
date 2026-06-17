@@ -147,6 +147,27 @@ class TestBondPrimitive(unittest.TestCase):
         self.assertIn(a.id, p.votes)
 
 
+class TestSayIntentPraise(unittest.TestCase):
+    def test_praise_macro_lowers_to_say_and_grants_esteem(self):
+        from emergence.esteem import StatusConfig
+        a, b = _agent(id="a"), _agent(id="b", esteem=80.0)
+        sim = Simulation(world=World(6, 6), agents=[a, b], brains={},
+                         status=StatusConfig(enabled=True))
+        sim._do_praise(a, Action(ActionType.PRAISE, {"target": "b"}))
+        self.assertEqual(sim.metrics.total_praise, 1)
+        self.assertEqual(b.praise_received, 1)
+        self.assertLess(b.esteem, 80.0)            # esteem relieved
+        self.assertGreater(b.reputation, 0)        # honour granted
+        self.assertGreater(b.trust_of("a"), 0)     # bond warmed
+
+    def test_praise_is_noop_when_esteem_layer_off(self):
+        a, b = _agent(id="a"), _agent(id="b", esteem=80.0)
+        sim = _sim([a, b])                          # status off
+        sim._do_praise(a, Action(ActionType.PRAISE, {"target": "b"}))
+        self.assertEqual(sim.metrics.total_praise, 0)
+        self.assertEqual(b.esteem, 80.0)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)
