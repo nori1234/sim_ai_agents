@@ -380,6 +380,12 @@ class Simulation:
             t.adjust_trust(a.id, +0.1)
             a.adjust_trust(t.id, +0.05)
             self.world.log("praise", by=a.id, of=t.id)
+        elif ev.kind == "say" and ev.intent == "sermon":
+            # A sermon founds or spreads a faith.
+            self._preach_faith(ev.actor)
+        elif ev.kind == "bond" and ev.intent == "worship":
+            # An act of worship: relief, peace, and communion among the faithful.
+            self._worship_effect(ev.actor)
 
     def _do_take(self, agent: Agent, action: Action) -> None:
         """Raw primitive (LLM): pull items from another agent. Consent defaults
@@ -797,8 +803,8 @@ class Simulation:
         if kind == "accusation":
             if to is not None:
                 self.world.log("crime_report", reporter=agent.id, accused=to.id)
-        elif kind == "praise":
-            pass  # the praise effects + log are handled in _interpret
+        elif kind in ("praise", "sermon"):
+            pass  # the effects + log are handled in _interpret
         else:
             self.world.log("speech", agent=agent.id, text=content)
         ev = Event(kind="say", actor=agent, other=to, intent=kind)
@@ -1007,8 +1013,15 @@ class Simulation:
                        deposed=deposed)
 
     def _do_preach(self, agent: Agent, action: Action) -> None:
+        # A macro: preaching is a say carrying a sermon; founding/spreading the
+        # faith is read off it by the interpretation layer. Gating stays here.
         if not (self.society.enabled and self.society.religion):
             return
+        self._say(agent, kind="sermon")
+
+    def _preach_faith(self, agent: Agent) -> None:
+        """A sermon: found a faith if you have the standing, else spread yours
+        to the trusting unaffiliated nearby."""
         c = self.society
         if agent.faith is None:
             # Found a faith if you have the standing; else you cannot preach yet.
@@ -1046,11 +1059,19 @@ class Simulation:
                 break
 
     def _do_worship(self, agent: Agent, action: Action) -> None:
+        # A macro: worship is a bond of allegiance to one's faith at a temple;
+        # its relief/communion effects are read off it by the interpretation
+        # layer. Gating (a faith, standing on a temple) stays here.
         if not (self.society.enabled and self.society.religion) or agent.faith is None:
             return
         f = self.world.facility_at(agent.pos)
         if f is None or "temple" not in f.roles:
             return
+        self._interpret(Event(kind="bond", actor=agent, intent="worship"))
+
+    def _worship_effect(self, agent: Agent) -> None:
+        """Prayer eases fear and the need for esteem, brings a hit of peace, and
+        binds the faithful who pray together."""
         c = self.society
         agent.fear = max(0.0, agent.fear - c.worship_fear_relief)
         agent.esteem = max(0.0, agent.esteem - c.worship_esteem_relief)

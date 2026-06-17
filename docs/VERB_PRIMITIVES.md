@@ -118,7 +118,9 @@ macro-equivalences.
 | speak | `say` | (public statement) |
 | report_crime | `say(intent=accusation)` | (accusation) |
 | praise | `say(intent=praise)` | esteem grant (honour, relief) |
+| preach | `say(intent=sermon)` | found / spread a faith |
 | vote | `bond(proposal)` | (assent) |
+| worship | `bond(intent=worship)` | prayer: relief + communion |
 
 Raw `take/give/use/strike/make/say/bond` are in the LLM action menu, so an LLM
 agent can improvise on the physics (a spontaneous gift, an offering, a pact)
@@ -127,7 +129,7 @@ contract (`tests/test_baseline_contract.py`) is byte-identical through every
 slice — the lowerings preserved every mutation, RNG draw, and metric call.
 
 Still structured macros (documented, not hidden): governance `propose` and the
-society layer (`preach`/`worship`/`join_gang`/`take_drug`/`craft_weapon`).
+society layer (`join_gang`/`take_drug`/`craft_weapon`).
 `accept`/`lend`/`repay`/`craft`/`offer` already live in the economy-primitives
 layer. The plan to fold the rest follows.
 
@@ -158,8 +160,8 @@ interpretation branches never fire in the baseline, and their own layer tests
   effects — **DONE** (the `Event.intent` dimension was added here). `propose` →
   `say(intent="proposal")` interpreted to create a `Proposal` (**Risk: HIGH**,
   governance is baseline-active; do the explicit-payload version first, free-text
-  parsing later). `preach` → `say(intent="sermon")` (**Risk: LOW**).
-- **Into `bond`:** `worship` → `bond(to=faith)`; `join_gang` → `bond(to=gang)`
+  parsing later). `preach` → `say(intent="sermon")` — **DONE**.
+- **Into `bond`:** `worship` → `bond(intent="worship")` — **DONE**; `join_gang` → `bond(to=gang)`
   (both **Risk: LOW**). `accept`/`lend`/`repay` are already bond-family.
 
 **Cross-cutting: the act gains an *intent* dimension.** praise/propose/preach
@@ -169,8 +171,8 @@ heuristic macros always pass it); add free-text intent parsing for the LLM's
 free-form `say` later. `Event.kind` already exists; the foldings extend its
 vocabulary and add the matching `_interpret` branches.
 
-**Suggested sequence:** (1) the low-risk layer verbs — `praise` (done),
-`take_drug`, `craft_weapon`, `preach`, `worship`, `join_gang`; (2) the baseline-active verbs
+**Suggested sequence:** (1) the low-risk layer verbs — `praise`, `preach`,
+`worship` (done); `take_drug`, `craft_weapon`, `join_gang` (next); (2) the baseline-active verbs
 with byte-identity diligence — `gather`, `build`, `propose` (the last also adds
 the structured-intent `say`). Each step keeps `test_baseline_contract` green and
 adds a primitive-level test, exactly as slices 1–3 did.
