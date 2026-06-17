@@ -198,6 +198,40 @@ class TestReligionFoldings(unittest.TestCase):
         self.assertLess(a.fear, 50.0)                  # prayer eases fear
 
 
+class TestUnderworldFoldings(unittest.TestCase):
+    def test_take_drug_lowers_to_use_and_doses(self):
+        from emergence.society import SocietyConfig
+        a = _agent(id="a")
+        a.inventory["materials"] = 2
+        sim = Simulation(world=World(6, 6), agents=[a], brains={},
+                         society=SocietyConfig(enabled=True))
+        sim._do_take_drug(a, Action(ActionType.TAKE_DRUG, {}))
+        self.assertEqual(sim.metrics.doses_taken, 1)
+        self.assertGreater(a.addiction, 0)         # the dose hooks
+
+    def test_craft_weapon_lowers_to_make(self):
+        from emergence.society import SocietyConfig
+        from emergence.world import Facility, FacilityType, World
+        world = World(6, 6)
+        world.add_facility(Facility("Forge", FacilityType.WORKSHOP, 0, 0))
+        a = _agent(id="a", x=0, y=0)
+        a.inventory["materials"] = 2
+        sim = Simulation(world=world, agents=[a], brains={},
+                         society=SocietyConfig(enabled=True))
+        sim._do_craft_weapon(a, Action(ActionType.CRAFT_WEAPON, {}))
+        self.assertEqual(a.weapons, 1)
+        self.assertEqual(sim.metrics.weapons_crafted, 1)
+
+    def test_join_gang_lowers_to_bond(self):
+        from emergence.society import SocietyConfig
+        a = _agent(id="a")
+        sim = Simulation(world=World(6, 6), agents=[a], brains={},
+                         society=SocietyConfig(enabled=True))
+        sim._do_join_gang(a, Action(ActionType.JOIN_GANG, {}))
+        self.assertIsNotNone(a.gang_id)            # founded/joined a crew
+        self.assertEqual(sim.metrics.gangs_formed, 1)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)

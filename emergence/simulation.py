@@ -386,6 +386,9 @@ class Simulation:
         elif ev.kind == "bond" and ev.intent == "worship":
             # An act of worship: relief, peace, and communion among the faithful.
             self._worship_effect(ev.actor)
+        elif ev.kind == "bond" and ev.intent == "gang":
+            # A bond of allegiance to a crew: join the nearest, else found one.
+            self._join_or_found_gang(ev.actor)
 
     def _do_take(self, agent: Agent, action: Action) -> None:
         """Raw primitive (LLM): pull items from another agent. Consent defaults
@@ -430,6 +433,10 @@ class Simulation:
                 relief = used * self.drives.eat_hunger_relief
                 self._reward(user, self.drives.pleasure_per_eat * (user.hunger / 100.0))
                 user.hunger = max(0.0, user.hunger - relief)
+        elif item == "drug":
+            # A narcotic is cooked on the spot (materials spent by the caller),
+            # so there is nothing in inventory to consume — the dose is the act.
+            self._dose(user)
         ev = Event(kind="use", actor=agent, other=target,
                    items={item: used} if used else {}, consent=None)
         self._interpret(ev)
@@ -877,11 +884,17 @@ class Simulation:
             self._spend(agent, ActionType.MAKE)
             self._do_craft(agent, Action(ActionType.CRAFT, {"item": output}))
             return
+        if output == "weapon":
+            self._spend(agent, ActionType.MAKE)
+            self._do_craft_weapon(agent, Action(ActionType.CRAFT_WEAPON, {}))
+            return
         self._spend(agent, ActionType.MAKE)
         self._make_work(agent, str(action.params.get("title", "Untitled Work")))
 
     # -- society: weapons, drugs, gangs, religion -----------------------
     def _do_craft_weapon(self, agent: Agent, action: Action) -> None:
+        # A macro: forging a weapon is a make at a workshop. Gating + the
+        # material cost stay here; the production is the _make_weapon physics.
         if not (self.society.enabled and self.society.weapons):
             return
         f = self.world.facility_at(agent.pos)
@@ -890,10 +903,16 @@ class Simulation:
         if agent.take("materials", self.society.weapon_material_cost) \
                 < self.society.weapon_material_cost:
             return
+        self._make_weapon(agent, f)
+
+    def _make_weapon(self, agent: Agent, f) -> Event:
         agent.weapons += 1
         self.metrics.weapons_crafted += 1
         f.add_role("weapons_factory")
         self.world.log("craft_weapon", by=agent.id, at=f.name)
+        ev = Event(kind="make", actor=agent, site=f, items={"weapon": 1})
+        self._interpret(ev)
+        return ev
 
     def _do_deal_drug(self, agent: Agent, action: Action) -> None:
         if not (self.society.enabled and self.society.drugs):
@@ -917,13 +936,15 @@ class Simulation:
         self.world.log("deal_drug", dealer=agent.id, buyer=buyer.id, price=price)
 
     def _do_take_drug(self, agent: Agent, action: Action) -> None:
+        # A macro: taking a dose is using a (self-cooked) drug. Gating + the
+        # material self-supply stay here; the dose effect is in _use_item.
         if not (self.society.enabled and self.society.drugs):
             return
         # Self-supply if needed (an addict will cook their own).
         if agent.take("materials", self.society.drug_material_cost) \
                 < self.society.drug_material_cost and agent.addiction < 10:
             return
-        self._dose(agent)
+        self._use_item(agent, "drug", 1)
         f = self.world.facility_at(agent.pos)
         if f is not None:
             f.add_role("drug_den")
@@ -937,8 +958,13 @@ class Simulation:
         self.metrics.doses_taken += 1
 
     def _do_join_gang(self, agent: Agent, action: Action) -> None:
+        # A macro: joining a gang is a bond of allegiance to a crew. Gating
+        # stays here; the join/found physics is read off the act by _interpret.
         if not (self.society.enabled and self.society.gangs) or agent.gang_id:
             return
+        self._interpret(Event(kind="bond", actor=agent, intent="gang"))
+
+    def _join_or_found_gang(self, agent: Agent) -> None:
         # Join a gang with a member nearby, else found one.
         for g in self.gangs:
             for mid in g.members:
