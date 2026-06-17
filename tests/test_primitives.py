@@ -249,6 +249,25 @@ class TestBuildFolding(unittest.TestCase):
         self.assertEqual(a.materials(), 1)            # 3 - 2 spent
 
 
+class TestGatherFolding(unittest.TestCase):
+    def test_gather_macro_takes_yield_from_a_world_node(self):
+        from emergence.world import Facility, FacilityType, World
+        world = World(6, 6)
+        world.add_facility(Facility("Field", FacilityType.FARM, 0, 0))
+        a = _agent(id="a", x=0, y=0)
+        before = a.food()
+        sim = Simulation(world=world, agents=[a], brains={})
+        sim._do_gather(a, Action(ActionType.GATHER, {}))
+        self.assertGreater(a.food(), before)       # yield flowed in from the node
+
+    def test_gather_is_noop_off_a_node(self):
+        a = _agent(id="a", x=3, y=3)               # standing on nothing
+        before = (a.food(), a.materials())
+        sim = _sim([a])
+        sim._do_gather(a, Action(ActionType.GATHER, {}))
+        self.assertEqual((a.food(), a.materials()), before)
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)
