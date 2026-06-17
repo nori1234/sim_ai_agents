@@ -268,6 +268,25 @@ class TestGatherFolding(unittest.TestCase):
         self.assertEqual((a.food(), a.materials()), before)
 
 
+class TestProposeFolding(unittest.TestCase):
+    def test_propose_macro_lowers_to_say_and_files_a_proposal(self):
+        a = _agent(id="a")
+        sim = _sim([a])
+        sim._do_propose(a, Action(ActionType.PROPOSE, {"text": "Plant more farms"}))
+        self.assertEqual(sim.metrics.proposals_total, 1)
+        self.assertEqual(a.proposals_made, 1)
+        self.assertEqual(len(sim.legislature.open_proposals()), 1)
+
+    def test_propose_carries_public_works_build_in_the_payload(self):
+        a = _agent(id="a")
+        sim = Simulation(world=World(6, 6), agents=[a], brains={},
+                         public_works=True)
+        sim._do_propose(a, Action(ActionType.PROPOSE,
+                        {"text": "Let us build a prison"}))
+        p = sim.legislature.open_proposals()[0]
+        self.assertEqual(p.build, "prison")     # inferred build flows through
+
+
 class TestMacrosLowerToPrimitives(unittest.TestCase):
     def test_steal_macro_still_loots_and_is_a_crime(self):
         a, b = _agent(id="a"), _agent(id="b", money=10)

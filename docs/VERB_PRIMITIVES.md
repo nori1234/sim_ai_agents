@@ -120,6 +120,7 @@ macro-equivalences.
 | craft_weapon | `make(weapon)` | (arming) |
 | build | `make(structure)` | (a monument earns honour) |
 | speak | `say` | (public statement) |
+| propose | `say(intent=proposal)` | a bill put to the legislature |
 | report_crime | `say(intent=accusation)` | (accusation) |
 | praise | `say(intent=praise)` | esteem grant (honour, relief) |
 | preach | `say(intent=sermon)` | found / spread a faith |
@@ -133,22 +134,32 @@ while the heuristic brain stays on the macros. **Guarantee:** the four-society
 contract (`tests/test_baseline_contract.py`) is byte-identical through every
 slice — the lowerings preserved every mutation, RNG draw, and metric call.
 
-One verb remains a structured macro (documented, not hidden): governance
-`propose` — folded last, with byte-identity diligence.
-`accept`/`lend`/`repay`/`craft`/`offer` already live in the economy-primitives
-layer. The plan for the last verb follows.
+**The folding is complete.** Every institutional verb now lowers to a primitive
+and its meaning is read off the act by `_interpret`. `accept`/`lend`/`repay`/
+`craft`/`offer` already lived in the economy-primitives layer. The four-society
+contract (`tests/test_baseline_contract.py`) stayed byte-identical through all of
+it.
 
-## Folding-in plan for the remaining verbs
+## What's left as a structured macro — on purpose
 
-Nearly every verb is folded (**DONE**): the opt-in layer verbs (`praise`→say,
-`preach`→say, `worship`→bond, `take_drug`→use, `craft_weapon`→make,
-`join_gang`→bond) plus the baseline-active `build`→make and `gather`→take(world
-node). One verb remains, folded last with byte-identity diligence (it runs in
-the baseline itself, so the contract guards it directly):
+A few things stay as macros because they are *compositions* or carry preconditions
+the primitive shouldn't own:
 
-- **`propose` → `say(intent="proposal")`.** `_interpret` creates the `Proposal`
-  (legislature + build inference). **Risk: HIGH** (governance is baseline-active;
-  do the explicit-payload version first, free-text intent parsing later).
+- **`arrest`** — composite enforcement (`take` a fine + `move` to prison + a
+  status change); a macro over primitives, not a primitive itself.
+- **Layer gating** — each folded verb keeps its preconditions (the esteem/society
+  layer flag, a workshop/temple, a material cost) in the macro; only the *effect*
+  moved into `_interpret`.
+
+## Possible future work
+
+- **Free-text intent for `say`.** Today only the `propose`/`praise`/`preach`
+  macros set an explicit `intent`; a raw LLM `say` is always plain speech. A
+  later step could parse free-form content into intent (a speech that *is* a
+  proposal), making the LLM's raw `say` fully expressive.
+- **World-sourced raw `take`.** `gather` lowers to a world-take internally, but
+  the raw `take` verb still only targets agents; it could be extended to harvest
+  from a node directly.
 
 **Cross-cutting: the *intent* dimension.** Folded say/bond verbs carry an
 `Event.intent` (praise / sermon / worship / gang); `propose` will add

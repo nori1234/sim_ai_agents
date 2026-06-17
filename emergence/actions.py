@@ -134,6 +134,7 @@ class Event:
     consent: Optional[bool] = None
     site: Optional[Any] = None        # a struck/used structure (Facility), if any
     intent: Optional[str] = None      # say/bond sub-kind (praise, accusation, ...)
+    payload: Optional[dict] = None    # intent-specific data (e.g. a proposal's text/build)
 
 
 def idle(rationale: str = "") -> Action:
