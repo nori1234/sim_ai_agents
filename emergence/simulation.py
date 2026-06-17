@@ -383,6 +383,9 @@ class Simulation:
         elif ev.kind == "say" and ev.intent == "sermon":
             # A sermon founds or spreads a faith.
             self._preach_faith(ev.actor)
+        elif ev.kind == "say" and ev.intent == "proposal":
+            # A proposal put to the town: the legislature takes it up.
+            self._make_proposal(ev.actor, ev.payload or {})
         elif ev.kind == "bond" and ev.intent == "worship":
             # An act of worship: relief, peace, and communion among the faithful.
             self._worship_effect(ev.actor)
@@ -660,7 +663,9 @@ class Simulation:
 
     # -- governance -----------------------------------------------------
     def _do_propose(self, agent: Agent, action: Action) -> None:
-        eligible = self._eligible_voters()
+        # A macro: proposing is a say carrying a proposal; putting it to the
+        # legislature is read off the act by _interpret. The proposal's text and
+        # any inferred public-works build are bundled as the say's payload.
         text = str(action.params.get("text", "Untitled proposal")).strip()
         # A public-works proposal names a facility to build (explicit param, or
         # inferred from the text). Only meaningful when the loop is enabled.
@@ -669,6 +674,14 @@ class Simulation:
             raw = action.params.get("build")
             ft = PW.parse_build(str(raw)) if raw else PW.parse_build(text)
             build = ft.value if ft is not None else None
+        self._interpret(Event(kind="say", actor=agent, intent="proposal",
+                              payload={"text": text, "build": build}))
+
+    def _make_proposal(self, agent: Agent, payload: dict) -> None:
+        """Put a proposal to the legislature, and have the author vote yes."""
+        text = payload.get("text", "Untitled proposal")
+        build = payload.get("build")
+        eligible = self._eligible_voters()
         p = self.legislature.propose(agent.id, text, self.world.day,
                                      eligible_ids=eligible or None, build=build)
         if p is None:
