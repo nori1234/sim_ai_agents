@@ -52,7 +52,9 @@ def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
             if method == "GET":
                 return 200, _API.list_worlds()
             if method == "POST":
-                return 201, _API.create_world(**(body or {}))
+                payload = dict(body or {})
+                payload.pop("llm_client", None)  # not injectable over HTTP
+                return 201, _API.create_world(**payload)
         elif len(rest) == 1:
             wid = rest[0]
             if method == "GET":
