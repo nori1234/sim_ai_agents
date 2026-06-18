@@ -70,7 +70,8 @@ def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
                                     since=query.get("since", [0])[0],
                                     limit=query.get("limit", [200])[0])
         elif len(rest) == 2 and rest[1] == "chronicle" and method == "GET":
-            return 200, _API.chronicle(rest[0])
+            narrate = query.get("narrate", ["0"])[0] in ("1", "true", "yes")
+            return 200, _API.chronicle(rest[0], narrate_prose=narrate)
         elif len(rest) == 2 and rest[1] == "transcript" and method == "GET":
             return 200, _API.transcript(rest[0])
         elif len(rest) == 3 and rest[1] == "agents" and method == "GET":

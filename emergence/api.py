@@ -22,7 +22,8 @@ from __future__ import annotations
 import uuid
 
 from .affordances import role_of
-from .chronicle import chronicle, chronicle_text, life_story, life_story_text
+from .chronicle import (chronicle, chronicle_text, life_story, life_story_text,
+                        narrate)
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .personas import ALIASES, PERSONAS
@@ -111,7 +112,7 @@ class EmergenceAPI:
         if len(self._worlds) >= MAX_WORLDS:
             raise APIError("world limit reached; delete a world first", 429)
 
-        brain_factory, brain_label, transcript = self._brain_factory(
+        brain_factory, brain_label, transcript, client = self._brain_factory(
             brain, provider, model, base_url, api_key, temperature,
             llm_client, replay)
 
@@ -129,6 +130,7 @@ class EmergenceAPI:
         )
         sim._brain_label = brain_label
         sim._transcript = transcript
+        sim._llm_client = client  # reused for recorded, reproducible narration
         world_id = uuid.uuid4().hex[:12]
         self._worlds[world_id] = sim
         state = self._state(sim)
@@ -142,7 +144,7 @@ class EmergenceAPI:
         a ``replay`` transcript serves recorded responses instead of the model.
         Returns ``(factory_or_None, label, transcript)``."""
         if brain == "heuristic":
-            return None, "heuristic", {}
+            return None, "heuristic", {}, None
         from .brains.llm import LLMBrain, make_http_client
         from .replay import RecordingClient, ReplayClient
         prov = "anthropic" if (brain == "api" and provider == "anthropic") else "openai"
@@ -173,7 +175,7 @@ class EmergenceAPI:
                             temperature=temperature, client=client)
 
         mode = "replay" if replay is not None else "live"
-        return factory, f"llm:{prov}:{model} ({mode})", transcript
+        return factory, f"llm:{prov}:{model} ({mode})", transcript, client
 
     def list_worlds(self) -> dict:
         return {"worlds": [
@@ -242,15 +244,22 @@ class EmergenceAPI:
         }
 
     # -- narrative (the story-led experience) ---------------------------
-    def chronicle(self, world_id: str) -> dict:
-        """The curated, day-by-day story of the town."""
+    def chronicle(self, world_id: str, narrate_prose=False) -> dict:
+        """The curated, day-by-day story of the town. With ``narrate_prose`` and
+        an LLM brain, also return flowing prose — recorded into the world's
+        transcript, so the narration is as reproducible as the run."""
         sim = self._get(world_id)
-        return {
+        text = chronicle_text(sim)
+        out = {
             "finished": getattr(sim, "_finished", False),
             "verdict": one_line_verdict(sim) if getattr(sim, "_finished", False) else None,
             "days": chronicle(sim),
-            "text": chronicle_text(sim),
+            "text": text,
+            "narrative": None,
         }
+        if narrate_prose:
+            out["narrative"] = narrate(text, getattr(sim, "_llm_client", None))
+        return out
 
     def agent_story(self, world_id: str, agent_id: str) -> dict:
         """One citizen's life as a readable story."""

@@ -116,6 +116,10 @@ authz, per-tenant isolation, and runaway-sim limits.
 5. **Record/replay** — every LLM run records by default (`prompt → response`);
    `GET /worlds/{id}/transcript` exports it, and `create_world(replay=…)` re-runs
    it bit-exactly with no model call. The reproducibility backbone. ✅
+5b. **LLM-narrated chronicle** — `GET /worlds/{id}/chronicle?narrate=1` turns the
+   curated beats into flowing prose via the world's LLM, through the *same*
+   recording client — so the narration is recorded and replays bit-exactly too
+   (story × reproducibility). Heuristic worlds fall back to the curated text. ✅
 6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
    are the main reading panes; the map becomes a supporting strip.
 7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.

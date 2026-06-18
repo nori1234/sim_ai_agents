@@ -168,3 +168,29 @@ def life_story_text(sim, agent_id: str) -> str:
         lines.append(f"**Marks:** {', '.join(s['beliefs'])}")
     lines.append(f"**Fate:** {s['fate']}")
     return "\n".join(lines)
+
+
+_NARRATE_SYSTEM = (
+    "You are the chronicler of a small simulated town. Given a list of "
+    "day-by-day events, write a vivid but FAITHFUL short chronicle — a few "
+    "short paragraphs. Use only the events given; invent no new facts, and "
+    "keep the names exactly. Aim for the feel of a brief history, not a list."
+)
+
+
+def narrate(chronicle_md: str, client) -> str | None:
+    """Turn the deterministic chronicle into flowing prose via an LLM client
+    (``client(system, user) -> str``). This is where 'story' meets
+    'reproducibility': the narration call goes through the *same* recording
+    client as the agents, so a narrated chronicle replays bit-exactly.
+
+    Returns ``None`` when there is no client (heuristic worlds) or the call
+    fails — callers then fall back to the curated `chronicle_text`."""
+    if client is None:
+        return None
+    try:
+        prose = client(_NARRATE_SYSTEM, chronicle_md)
+    except Exception:
+        return None
+    prose = (prose or "").strip()
+    return prose or None
