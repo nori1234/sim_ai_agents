@@ -83,6 +83,7 @@ Run locally: `python -m emergence.server` → `http://127.0.0.1:8800`.
 | GET | `/api/worlds/{id}/agents/{aid}` | a citizen's **possess** view (needs, memory, relationships) |
 | GET | `/api/worlds/{id}/chronicle` | the curated, day-by-day **story** of the town |
 | GET | `/api/worlds/{id}/agents/{aid}/story` | a citizen's **life story** (arc, ties, beliefs, fate) |
+| GET | `/api/worlds/{id}/transcript` | export the recorded LLM transcript (feed back as `replay`) |
 
 `rich=true` turns on the human-feel layers (drives, esteem, psyche, society) so a
 possessed citizen has an inner life.
@@ -112,8 +113,9 @@ authz, per-tenant isolation, and runaway-sim limits.
    (`emergence/chronicle.py`), the immersion lead. ✅
 4. **Brain selector** — `heuristic` / `local` / `api` per world, LLM brains
    wired through `LLMBrain` with per-agent heuristic fallback. ✅
-5. **Record/replay** — record every LLM run by default (`prompt → response`);
-   replay bit-exactly for research/audit/free re-runs. *(next)*
+5. **Record/replay** — every LLM run records by default (`prompt → response`);
+   `GET /worlds/{id}/transcript` exports it, and `create_world(replay=…)` re-runs
+   it bit-exactly with no model call. The reproducibility backbone. ✅
 6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
    are the main reading panes; the map becomes a supporting strip.
 7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
