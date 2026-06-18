@@ -52,6 +52,8 @@ dist/
 .venv/
 venv/
 
-# Generated visualization output
+# Generated visualization output (exported demos, viz dumps)
 out/
 *.html
+# ...but the observatory web UI is real source, not generated output
+!emergence/web/*.html
