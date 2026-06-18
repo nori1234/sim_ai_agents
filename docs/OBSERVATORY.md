@@ -83,6 +83,7 @@ Run locally: `python -m emergence.server` → `http://127.0.0.1:8800`.
 | GET | `/api/worlds/{id}/agents/{aid}` | a citizen's **possess** view (needs, memory, relationships) |
 | GET | `/api/worlds/{id}/chronicle` | the curated, day-by-day **story** of the town |
 | GET | `/api/worlds/{id}/agents/{aid}/story` | a citizen's **life story** (arc, ties, beliefs, fate) |
+| GET | `/api/worlds/{id}/transcript` | export the recorded LLM transcript (feed back as `replay`) |
 
 `rich=true` turns on the human-feel layers (drives, esteem, psyche, society) so a
 possessed citizen has an inner life.
@@ -112,10 +113,17 @@ authz, per-tenant isolation, and runaway-sim limits.
    (`emergence/chronicle.py`), the immersion lead. ✅
 4. **Brain selector** — `heuristic` / `local` / `api` per world, LLM brains
    wired through `LLMBrain` with per-agent heuristic fallback. ✅
-5. **Record/replay** — record every LLM run by default (`prompt → response`);
-   replay bit-exactly for research/audit/free re-runs. *(next)*
-6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
-   are the main reading panes; the map becomes a supporting strip.
+5. **Record/replay** — every LLM run records by default (`prompt → response`);
+   `GET /worlds/{id}/transcript` exports it, and `create_world(replay=…)` re-runs
+   it bit-exactly with no model call. The reproducibility backbone. ✅
+5b. **LLM-narrated chronicle** — `GET /worlds/{id}/chronicle?narrate=1` turns the
+   curated beats into flowing prose via the world's LLM, through the *same*
+   recording client — so the narration is recorded and replays bit-exactly too
+   (story × reproducibility). Heuristic worlds fall back to the curated text. ✅
+6. **Story-led UI** — the web UI leads with the **Chronicle** and a possessed
+   citizen's **life story** as the main reading panes; the town map is a
+   supporting strip (context + click-to-possess) with a citizen roster. ✅
+
 7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
 8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.

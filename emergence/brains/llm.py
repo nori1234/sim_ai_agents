@@ -101,6 +101,44 @@ def _build_system_prompt(persona: Optional[Persona]) -> str:
     return rules
 
 
+def _post(url: str, body: dict, headers: dict, timeout: float) -> dict:
+    payload = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def make_http_client(provider: str, model: str, base_url: str,
+                     api_key: Optional[str], temperature: float,
+                     timeout: float = 30.0) -> Callable[[str, str], str]:
+    """A live completion client, ``client(system, user) -> str``.
+
+    Factored out of the brain so a recording/replay wrapper can sit in front of
+    the *same* path used by real runs. Speaks the OpenAI chat schema (Llama via
+    Ollama, etc.) or the Anthropic Messages API."""
+    base = base_url.rstrip("/")
+
+    def client(system: str, user: str) -> str:
+        if provider == "anthropic":
+            body = {"model": model, "max_tokens": 512, "temperature": temperature,
+                    "system": system,
+                    "messages": [{"role": "user", "content": user}]}
+            headers = {"Content-Type": "application/json",
+                       "x-api-key": api_key or "",
+                       "anthropic-version": "2023-06-01"}
+            return _post(f"{base}/messages", body, headers, timeout)["content"][0]["text"]
+        body = {"model": model, "temperature": temperature,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user}]}
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        data = _post(f"{base}/chat/completions", body, headers, timeout)
+        return data["choices"][0]["message"]["content"]
+
+    return client
+
+
 class LLMBrain(AgentBrain):
     name = "llm"
 
@@ -121,8 +159,6 @@ class LLMBrain(AgentBrain):
         self.api_key = api_key
         self.temperature = temperature
         self.timeout = timeout
-        self.client = client  # client(system, user) -> str; bypasses HTTP if set
-        self.name = f"llm:{provider}:{model}"
 
         if base_url is None:
             base_url = (
@@ -131,6 +167,13 @@ class LLMBrain(AgentBrain):
                 else "http://localhost:11434/v1"
             )
         self.base_url = base_url.rstrip("/")
+
+        # The completion path is always a client(system, user) -> str. If none
+        # is injected (a mock, or a recording/replay wrapper), default to a live
+        # HTTP client — so recording can wrap *any* run uniformly.
+        self.client = client or make_http_client(
+            provider, model, self.base_url, api_key, temperature, timeout)
+        self.name = f"llm:{provider}:{model}"
 
         self.persona = get_persona(persona) if isinstance(persona, str) else persona
         self.system_prompt = _build_system_prompt(self.persona)
@@ -193,48 +236,7 @@ class LLMBrain(AgentBrain):
 
     # -- transport ------------------------------------------------------
     def _complete(self, user_prompt: str) -> str:
-        if self.client is not None:
-            return self.client(self.system_prompt, user_prompt)
-        if self.provider == "anthropic":
-            return self._complete_anthropic(user_prompt)
-        return self._complete_openai(user_prompt)
-
-    def _complete_openai(self, user_prompt: str) -> str:
-        body = {
-            "model": self.model,
-            "temperature": self.temperature,
-            "messages": [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        }
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        data = self._post(f"{self.base_url}/chat/completions", body, headers)
-        return data["choices"][0]["message"]["content"]
-
-    def _complete_anthropic(self, user_prompt: str) -> str:
-        body = {
-            "model": self.model,
-            "max_tokens": 512,
-            "temperature": self.temperature,
-            "system": self.system_prompt,
-            "messages": [{"role": "user", "content": user_prompt}],
-        }
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": self.api_key or "",
-            "anthropic-version": "2023-06-01",
-        }
-        data = self._post(f"{self.base_url}/messages", body, headers)
-        return data["content"][0]["text"]
-
-    def _post(self, url: str, body: dict, headers: dict) -> dict:
-        payload = json.dumps(body).encode("utf-8")
-        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        return self.client(self.system_prompt, user_prompt)
 
     # -- parsing --------------------------------------------------------
     @staticmethod

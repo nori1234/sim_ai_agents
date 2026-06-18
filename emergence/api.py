@@ -22,7 +22,8 @@ from __future__ import annotations
 import uuid
 
 from .affordances import role_of
-from .chronicle import chronicle, chronicle_text, life_story, life_story_text
+from .chronicle import (chronicle, chronicle_text, life_story, life_story_text,
+                        narrate)
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .personas import ALIASES, PERSONAS
@@ -85,7 +86,7 @@ class EmergenceAPI:
                      agents=10, rich=False, economy=False, environment=False,
                      public_works=False, brain="heuristic", provider="openai",
                      model="llama3.1", base_url=None, api_key=None,
-                     temperature=0.8, llm_client=None) -> dict:
+                     temperature=0.8, llm_client=None, replay=None) -> dict:
         """Create a world.
 
         ``rich`` turns on the human-feel layers (drives, esteem, psyche,
@@ -111,8 +112,9 @@ class EmergenceAPI:
         if len(self._worlds) >= MAX_WORLDS:
             raise APIError("world limit reached; delete a world first", 429)
 
-        brain_factory, brain_label = self._brain_factory(
-            brain, provider, model, base_url, api_key, temperature, llm_client)
+        brain_factory, brain_label, transcript, client = self._brain_factory(
+            brain, provider, model, base_url, api_key, temperature,
+            llm_client, replay)
 
         cfg = SimulationConfig(days=days, ticks_per_day=ticks, seed=seed)
         sim = make_simulation(
@@ -127,6 +129,8 @@ class EmergenceAPI:
             brain_factory=brain_factory,
         )
         sim._brain_label = brain_label
+        sim._transcript = transcript
+        sim._llm_client = client  # reused for recorded, reproducible narration
         world_id = uuid.uuid4().hex[:12]
         self._worlds[world_id] = sim
         state = self._state(sim)
@@ -134,24 +138,44 @@ class EmergenceAPI:
         return state
 
     def _brain_factory(self, brain, provider, model, base_url, api_key,
-                       temperature, llm_client):
-        """Build the per-agent brain factory (or None for the heuristic)."""
+                       temperature, llm_client, replay):
+        """Build the per-agent brain factory, the brain label, and the run's
+        transcript. Every LLM run records by default (so it is reproducible);
+        a ``replay`` transcript serves recorded responses instead of the model.
+        Returns ``(factory_or_None, label, transcript)``."""
         if brain == "heuristic":
-            return None, "heuristic"
-        from .brains.llm import LLMBrain
+            return None, "heuristic", {}, None
+        from .brains.llm import LLMBrain, make_http_client
+        from .replay import RecordingClient, ReplayClient
         prov = "anthropic" if (brain == "api" and provider == "anthropic") else "openai"
         if brain == "local":
             prov = "openai"
             base_url = base_url or "http://localhost:11434/v1"
+        else:
+            base_url = base_url or ("https://api.anthropic.com/v1"
+                                    if prov == "anthropic"
+                                    else "http://localhost:11434/v1")
         model = str(model)[:64]
         temperature = max(0.0, min(2.0, float(temperature)))
+
+        # One completion path, shared by every agent, so the whole run records
+        # into a single transcript. Replay serves from a recording (model-free).
+        inner = llm_client or make_http_client(
+            prov, model, base_url, api_key, temperature)
+        if replay is not None:
+            client = ReplayClient(dict(replay))
+            transcript = client.transcript
+        else:
+            transcript = {}
+            client = RecordingClient(inner, transcript)
 
         def factory(agent, persona, rng):
             return LLMBrain(provider=prov, model=model, base_url=base_url,
                             api_key=api_key, persona=persona,
-                            temperature=temperature, client=llm_client)
+                            temperature=temperature, client=client)
 
-        return factory, f"llm:{prov}:{model}"
+        mode = "replay" if replay is not None else "live"
+        return factory, f"llm:{prov}:{model} ({mode})", transcript, client
 
     def list_worlds(self) -> dict:
         return {"worlds": [
@@ -165,6 +189,13 @@ class EmergenceAPI:
         self._get(world_id)
         del self._worlds[world_id]
         return {"deleted": world_id}
+
+    def transcript(self, world_id: str) -> dict:
+        """Export the recorded LLM transcript — the reproducibility artifact.
+        Feed it back as ``replay`` on a new world to re-run it bit-exactly."""
+        sim = self._get(world_id)
+        t = getattr(sim, "_transcript", {})
+        return {"size": len(t), "transcript": t}
 
     # -- running --------------------------------------------------------
     def step(self, world_id: str, days=1) -> dict:
@@ -213,15 +244,22 @@ class EmergenceAPI:
         }
 
     # -- narrative (the story-led experience) ---------------------------
-    def chronicle(self, world_id: str) -> dict:
-        """The curated, day-by-day story of the town."""
+    def chronicle(self, world_id: str, narrate_prose=False) -> dict:
+        """The curated, day-by-day story of the town. With ``narrate_prose`` and
+        an LLM brain, also return flowing prose — recorded into the world's
+        transcript, so the narration is as reproducible as the run."""
         sim = self._get(world_id)
-        return {
+        text = chronicle_text(sim)
+        out = {
             "finished": getattr(sim, "_finished", False),
             "verdict": one_line_verdict(sim) if getattr(sim, "_finished", False) else None,
             "days": chronicle(sim),
-            "text": chronicle_text(sim),
+            "text": text,
+            "narrative": None,
         }
+        if narrate_prose:
+            out["narrative"] = narrate(text, getattr(sim, "_llm_client", None))
+        return out
 
     def agent_story(self, world_id: str, agent_id: str) -> dict:
         """One citizen's life as a readable story."""
@@ -244,6 +282,7 @@ class EmergenceAPI:
                        "ticks": sim.config.ticks_per_day,
                        "seed": sim.config.seed},
             "brain": getattr(sim, "_brain_label", "heuristic"),
+            "transcript_size": len(getattr(sim, "_transcript", {})),
             "population": len(sim.agents),
             "living": sim._living(),
             "agents": [self._agent_summary(a) for a in sim.agents],
