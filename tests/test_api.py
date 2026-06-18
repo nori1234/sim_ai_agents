@@ -111,6 +111,34 @@ class TestBrainSelector(unittest.TestCase):
         self.assertTrue(out["finished"])
 
 
+class TestStreaming(unittest.TestCase):
+    def setUp(self):
+        self.api = EmergenceAPI()
+
+    def test_stream_days_yields_one_frame_per_day(self):
+        st = self.api.create_world(persona="philosopher", seed=42, days=15)
+        frames = list(self.api.stream_days(st["world_id"], days=4))
+        self.assertEqual([f["day"] for f in frames], [1, 2, 3, 4])
+        self.assertTrue(all("new_events" in f for f in frames))
+
+    def test_stream_stops_when_world_finishes(self):
+        st = self.api.create_world(persona="idealist", seed=42, days=15)
+        frames = list(self.api.stream_days(st["world_id"], days=30))
+        self.assertTrue(frames[-1]["finished"])
+        self.assertLessEqual(len(frames), 15)
+
+    def test_stream_matches_step(self):
+        # Streaming day-by-day reaches the same state as stepping.
+        a = self.api.create_world(persona="gemini", seed=42, days=6)
+        list(self.api.stream_days(a["world_id"], days=6))
+        b = EmergenceAPI().create_world(persona="gemini", seed=42, days=6)
+        api_b = EmergenceAPI()
+        wid = api_b.create_world(persona="gemini", seed=42, days=6)["world_id"]
+        api_b.step(wid, days=6)
+        self.assertEqual(self.api.world_state(a["world_id"])["metrics"],
+                         api_b.world_state(wid)["metrics"])
+
+
 class TestPossessView(unittest.TestCase):
     def setUp(self):
         self.api = EmergenceAPI()

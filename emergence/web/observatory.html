@@ -91,7 +91,7 @@
 <script>
 const PC = { guardian:"#4aa3ff", philosopher:"#f0b429", idealist:"#3fb950", predator:"#f85149" };
 const $ = s => document.querySelector(s);
-let world=null, agents=[], facilities=[], selected=null, playing=false, timer=null;
+let world=null, agents=[], facilities=[], selected=null, playing=false, timer=null, es=null;
 
 async function api(method, path, body) {
   const opt={method,headers:{}}; if(body!==undefined){opt.headers["Content-Type"]="application/json";opt.body=JSON.stringify(body);}
@@ -195,8 +195,16 @@ async function step(days){
   applyState(st); await loadChronicle(); if(selected) possess(selected);
 }
 function togglePlay(){ playing?stopPlay():startPlay(); }
-function startPlay(){ if(!world)return; playing=true; $("#play").textContent="⏸ Pause"; timer=setInterval(()=>step(1).catch(stopPlay),900); }
-function stopPlay(){ playing=false; $("#play").textContent="▶ Play"; if(timer){clearInterval(timer);timer=null;} }
+function startPlay(){
+  if(!world)return; playing=true; $("#play").textContent="⏸ Pause"; narrative=null;
+  // Live SSE playback: one frame per simulated day, pushed by the server.
+  es=new EventSource(`/api/worlds/${world.id}/stream?days=30`);
+  es.onmessage=ev=>{ const st=JSON.parse(ev.data); applyState(st);
+    loadChronicle(); if(st.finished) stopPlay(); };
+  es.onerror=()=>stopPlay();
+}
+function stopPlay(){ playing=false; $("#play").textContent="▶ Play";
+  if(es){es.close();es=null;} if(timer){clearInterval(timer);timer=null;} }
 
 $("#create").onclick=()=>createWorld().catch(e=>alert(e.message));
 $("#step1").onclick=()=>step(1).catch(e=>alert(e.message));

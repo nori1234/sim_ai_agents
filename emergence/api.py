@@ -209,6 +209,21 @@ class EmergenceAPI:
         state["new_events"] = sim.world.events[before:]
         return state
 
+    def stream_days(self, world_id: str, days=1):
+        """Yield one state per day as the world advances — the basis for live
+        (SSE) playback. Deterministic: same step_day() as run(), one day at a
+        time. Stops early when the world finishes."""
+        sim = self._get(world_id)
+        days = _clamp(days, 1, MAX_STEP_DAYS, 1)
+        for _ in range(days):
+            before = len(sim.world.events)
+            alive = sim.step_day()
+            state = self._state(sim)
+            state["new_events"] = sim.world.events[before:]
+            yield state
+            if not alive:
+                break
+
     # -- reading --------------------------------------------------------
     def world_state(self, world_id: str) -> dict:
         return self._state(self._get(world_id))
