@@ -120,8 +120,10 @@ authz, per-tenant isolation, and runaway-sim limits.
    curated beats into flowing prose via the world's LLM, through the *same*
    recording client — so the narration is recorded and replays bit-exactly too
    (story × reproducibility). Heuristic worlds fall back to the curated text. ✅
-6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
-   are the main reading panes; the map becomes a supporting strip.
+6. **Story-led UI** — the web UI leads with the **Chronicle** and a possessed
+   citizen's **life story** as the main reading panes; the town map is a
+   supporting strip (context + click-to-possess) with a citizen roster. ✅
+
 7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
 8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.
