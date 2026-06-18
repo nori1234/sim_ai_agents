@@ -114,8 +114,9 @@ authz, per-tenant isolation, and runaway-sim limits.
    wired through `LLMBrain` with per-agent heuristic fallback. ✅
 5. **Record/replay** — record every LLM run by default (`prompt → response`);
    replay bit-exactly for research/audit/free re-runs. *(next)*
-6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
-   are the main reading panes; the map becomes a supporting strip.
+6. **Story-led UI** — the web UI now leads with the **Chronicle** and a
+   possessed citizen's **life story** as the main reading panes; the town map
+   is a supporting strip (context + click-to-possess) with a citizen roster. ✅
 7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
 8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.
