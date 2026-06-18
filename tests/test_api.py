@@ -70,6 +70,47 @@ class TestWorldLifecycle(unittest.TestCase):
             self.api.world_state(wid)
 
 
+class TestBrainSelector(unittest.TestCase):
+    def setUp(self):
+        self.api = EmergenceAPI()
+
+    def test_default_brain_is_heuristic(self):
+        st = self.api.create_world(persona="guardian", seed=1, days=3)
+        self.assertEqual(st["brain"], "heuristic")
+
+    def test_unknown_brain_rejected(self):
+        with self.assertRaises(APIError):
+            self.api.create_world(brain="quantum")
+
+    def test_llm_brain_runs_via_injected_client(self):
+        # A local/API world drives agents through an injected client (no
+        # network here). The client always proposes a harmless action; the
+        # world must run to completion and be labelled as an LLM brain.
+        calls = []
+
+        def fake_client(system, user):
+            calls.append(1)
+            return '{"action": "speak", "params": {"text": "hello"}, "rationale": "x"}'
+
+        st = self.api.create_world(persona="guardian", seed=1, days=2,
+                                   brain="local", llm_client=fake_client)
+        self.assertTrue(st["brain"].startswith("llm:"))
+        wid = st["world_id"]
+        out = self.api.step(wid, days=2)
+        self.assertTrue(out["finished"])
+        self.assertTrue(calls, "the injected LLM client should have been called")
+
+    def test_llm_brain_falls_back_when_client_errors(self):
+        def broken(system, user):
+            raise RuntimeError("model unreachable")
+
+        st = self.api.create_world(persona="guardian", seed=1, days=2,
+                                   brain="local", llm_client=broken)
+        wid = st["world_id"]
+        out = self.api.step(wid, days=2)   # survives on heuristic fallback
+        self.assertTrue(out["finished"])
+
+
 class TestPossessView(unittest.TestCase):
     def setUp(self):
         self.api = EmergenceAPI()

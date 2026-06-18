@@ -83,16 +83,36 @@ class EmergenceAPI:
     # -- world lifecycle ------------------------------------------------
     def create_world(self, *, persona="guardian", seed=42, days=15, ticks=8,
                      agents=10, rich=False, economy=False, environment=False,
-                     public_works=False) -> dict:
-        """Create a world. ``rich`` turns on the human-feel layers (drives,
-        esteem, psyche, society) so possessed citizens have inner lives."""
+                     public_works=False, brain="heuristic", provider="openai",
+                     model="llama3.1", base_url=None, api_key=None,
+                     temperature=0.8, llm_client=None) -> dict:
+        """Create a world.
+
+        ``rich`` turns on the human-feel layers (drives, esteem, psyche,
+        society) so possessed citizens have inner lives.
+
+        ``brain`` chooses who does the thinking:
+          * ``"heuristic"`` (default) — free, instant, deterministic; the test
+            and demo tier (caricatured personas, not real AI).
+          * ``"local"`` — a local LLM (e.g. Llama via Ollama); the main mode:
+            private, ~free, real reasoning.
+          * ``"api"`` — an ad-hoc hosted model (OpenAI-compatible or Anthropic).
+        LLM brains fall back to the heuristic per-agent if the model is
+        unreachable, so a world always runs.
+        """
         persona = self._valid_persona(persona)
         seed = _clamp(seed, 0, 2**31 - 1, 42)
         days = _clamp(days, 1, MAX_DAYS, 15)
         ticks = _clamp(ticks, 1, MAX_TICKS, 8)
         agents = _clamp(agents, 1, MAX_AGENTS, 10)
+        if brain not in ("heuristic", "local", "api"):
+            raise APIError(f"unknown brain {brain!r}; "
+                           "choose heuristic, local, or api")
         if len(self._worlds) >= MAX_WORLDS:
             raise APIError("world limit reached; delete a world first", 429)
+
+        brain_factory, brain_label = self._brain_factory(
+            brain, provider, model, base_url, api_key, temperature, llm_client)
 
         cfg = SimulationConfig(days=days, ticks_per_day=ticks, seed=seed)
         sim = make_simulation(
@@ -104,12 +124,34 @@ class EmergenceAPI:
             economy=bool(economy),
             environment=bool(environment),
             public_works=bool(public_works),
+            brain_factory=brain_factory,
         )
+        sim._brain_label = brain_label
         world_id = uuid.uuid4().hex[:12]
         self._worlds[world_id] = sim
         state = self._state(sim)
         state["world_id"] = world_id
         return state
+
+    def _brain_factory(self, brain, provider, model, base_url, api_key,
+                       temperature, llm_client):
+        """Build the per-agent brain factory (or None for the heuristic)."""
+        if brain == "heuristic":
+            return None, "heuristic"
+        from .brains.llm import LLMBrain
+        prov = "anthropic" if (brain == "api" and provider == "anthropic") else "openai"
+        if brain == "local":
+            prov = "openai"
+            base_url = base_url or "http://localhost:11434/v1"
+        model = str(model)[:64]
+        temperature = max(0.0, min(2.0, float(temperature)))
+
+        def factory(agent, persona, rng):
+            return LLMBrain(provider=prov, model=model, base_url=base_url,
+                            api_key=api_key, persona=persona,
+                            temperature=temperature, client=llm_client)
+
+        return factory, f"llm:{prov}:{model}"
 
     def list_worlds(self) -> dict:
         return {"worlds": [
@@ -201,6 +243,7 @@ class EmergenceAPI:
             "config": {"days": sim.config.days,
                        "ticks": sim.config.ticks_per_day,
                        "seed": sim.config.seed},
+            "brain": getattr(sim, "_brain_label", "heuristic"),
             "population": len(sim.agents),
             "living": sim._living(),
             "agents": [self._agent_summary(a) for a in sim.agents],

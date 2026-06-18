@@ -25,6 +25,27 @@ produce visibly different societies, reproducibly.*
   that runs forever would wreck SaaS unit economics if we paid for inference, so
   the offline `HeuristicBrain` (free, deterministic) and bring-your-own-key are
   the default; hosted inference is an opt-in we add later behind quotas.
+- **The brain, and what the product *is*.** The soul is **LLM-driven
+  emergence** — that is what "AI societies that differ by model" requires, and
+  what makes the story real. So the product is **LLM-forward**, with three brain
+  modes selectable per world:
+  - `heuristic` — free, instant, deterministic; the **test + demo/preview tier**
+    (caricatured personas, *not* real AI — never sold as the AI).
+  - `local` — a local LLM (Llama via Ollama); the **main** mode: private,
+    ~free, real reasoning.
+  - `api` — an ad-hoc hosted model (OpenAI-compatible or Anthropic).
+  LLM brains fall back to the heuristic per-agent if the model is unreachable.
+- **Reproducibility = engine seed + record/replay (not temperature=0).** The
+  engine is already deterministic from its `seed`; the only non-determinism is
+  the LLM call. We do **not** chase determinism with `temperature=0` — that
+  isn't guaranteed (hardware/version drift) and it flattens the emergent
+  richness that *is* the soul. Instead, **record every LLM run by default**
+  (cache `prompt → response`); a recording replays bit-exactly, free, offline,
+  hardware- and model-drift-independent — the gold standard for research/audit,
+  and shippable alongside a paper. Temperature stays a plain knob (sensible
+  default for richness; set 0 only to *study* modal behaviour), not a "mode".
+  Sweep seeds for the *space* of societies; each seed stays reproducible.
+  *(record/replay client: planned next.)*
 
 ## Architecture
 
@@ -53,7 +74,7 @@ Run locally: `python -m emergence.server` → `http://127.0.0.1:8800`.
 | Method | Route | Purpose |
 |--------|-------|---------|
 | GET | `/api/health` | liveness |
-| POST | `/api/worlds` | create a world (body: persona, seed, days, ticks, agents, rich, economy, environment, public_works) |
+| POST | `/api/worlds` | create a world (body: persona, seed, days, ticks, agents, rich, economy, environment, public_works, brain[`heuristic`\|`local`\|`api`], provider, model, base_url, temperature) |
 | GET | `/api/worlds` | list worlds |
 | GET | `/api/worlds/{id}` | full world state (agents, facilities, metrics, verdict) |
 | DELETE | `/api/worlds/{id}` | delete a world |
@@ -87,6 +108,14 @@ authz, per-tenant isolation, and runaway-sim limits.
    possess), an event **story feed**, and a **possess panel** (needs bars,
    wealth, relationships, memories). Single self-contained HTML served at `/`;
    no build step, no dependencies; polls `step`. ✅
-3. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
-4. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
+3. **Narrative engine** — a curated chronicle + per-citizen life stories
+   (`emergence/chronicle.py`), the immersion lead. ✅
+4. **Brain selector** — `heuristic` / `local` / `api` per world, LLM brains
+   wired through `LLMBrain` with per-agent heuristic fallback. ✅
+5. **Record/replay** — record every LLM run by default (`prompt → response`);
+   replay bit-exactly for research/audit/free re-runs. *(next)*
+6. **Story-led UI** — restructure the web UI so the chronicle + possessed life
+   are the main reading panes; the map becomes a supporting strip.
+7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
+8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.
