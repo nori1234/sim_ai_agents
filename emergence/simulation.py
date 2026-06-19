@@ -211,13 +211,23 @@ class Simulation:
                         nearest_roles[role] = (f.pos, d)
             nearest_roles = {r: pos for r, (pos, _d) in nearest_roles.items()}
         others = []
+        apos = agent.pos
         for o in self.agents:
             if o.id == agent.id or not o.alive:
                 continue
-            snap = o.snapshot()
-            snap["distance"] = chebyshev(agent.pos, o.pos)
-            snap["trust"] = round(agent.trust_of(o.id), 2)
-            others.append(snap)
+            # A lean per-other view: only the fields a brain reads, with the
+            # SAME rounding as snapshot() for the ones compared to thresholds
+            # (hunger/fatigue/reputation) so decisions stay byte-identical.
+            # (self_view below keeps the full snapshot; this is the O(N^2) path.)
+            others.append({
+                "id": o.id, "name": o.name, "profession": o.profession,
+                "distance": chebyshev(apos, o.pos),
+                "trust": round(agent.trust_of(o.id), 2),
+                "money": o.money, "food": o.food(), "materials": o.materials(),
+                "hunger": round(o.hunger, 1), "fatigue": round(o.fatigue, 1),
+                "age_days": o.age_days, "reputation": round(o.reputation, 1),
+                "last_crime_day": o.last_crime_day,
+            })
         eligible = self._eligible_voters()
         proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
                      if agent.id in eligible or not eligible]
