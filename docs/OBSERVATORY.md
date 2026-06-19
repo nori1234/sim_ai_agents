@@ -79,6 +79,7 @@ Run locally: `python -m emergence.server` → `http://127.0.0.1:8800`.
 | GET | `/api/worlds/{id}` | full world state (agents, facilities, metrics, verdict) |
 | DELETE | `/api/worlds/{id}` | delete a world |
 | POST | `/api/worlds/{id}/step?days=N` | advance N days, returns state + `new_events` |
+| GET | `/api/worlds/{id}/stream?days=N` | **SSE**: one `data:` frame per simulated day (live playback) |
 | GET | `/api/worlds/{id}/events?since=N` | the story feed |
 | GET | `/api/worlds/{id}/agents/{aid}` | a citizen's **possess** view (needs, memory, relationships) |
 | GET | `/api/worlds/{id}/chronicle` | the curated, day-by-day **story** of the town |
@@ -124,6 +125,8 @@ authz, per-tenant isolation, and runaway-sim limits.
    citizen's **life story** as the main reading panes; the town map is a
    supporting strip (context + click-to-possess) with a citizen roster. ✅
 
-7. **Streaming** — push ticks via SSE/WebSocket instead of polling `step`.
+7. **Streaming** — `GET /worlds/{id}/stream` pushes one Server-Sent-Events
+   frame per simulated day; the UI's Play uses `EventSource` for live playback
+   (matters most for LLM worlds, where a day takes seconds). ✅
 8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.

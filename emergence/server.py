@@ -130,7 +130,35 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html", "/app"):
             return self._send_html(_load_ui())
+        parts = [p for p in path.strip("/").split("/") if p]
+        if (len(parts) == 4 and parts[:2] == ["api", "worlds"]
+                and parts[3] == "stream"):
+            return self._stream(parts[2], parse_qs(urlparse(self.path).query))
         self._handle("GET")
+
+    def _stream(self, world_id: str, query: dict) -> None:
+        """Server-Sent Events: push one `data:` frame per simulated day."""
+        try:
+            _API.world_state(world_id)   # validate before committing to a stream
+        except APIError as e:
+            return self._send(e.status, {"error": e.message})
+        days = query.get("days", ["30"])[0]
+        # A finite stream: close when it ends so the client gets a clean EOF
+        # (the UI's EventSource closes on the `finished` frame to avoid reconnect).
+        self.close_connection = True
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        try:
+            for state in _API.stream_days(world_id, days=days):
+                frame = "data: " + json.dumps(state, ensure_ascii=False) + "\n\n"
+                self.wfile.write(frame.encode("utf-8"))
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the client closed the stream; stop quietly
 
     def do_POST(self) -> None:
         self._handle("POST")
