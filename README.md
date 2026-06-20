@@ -15,26 +15,13 @@
 元ネタは Emergence AI の "Emergence World" 実験（AIモデルごとに社会の運命が変わった）を、
 手元で再現・拡張できるようにしたものです。
 
-### まず動かす（APIキー不要・1コマンド）
+## まず動かす（依存ゼロ・どちらも1コマンド）
 
-```bash
-python3 -m emergence.cli --compare
-```
+APIキー不要・追加インストール不要（Python標準ライブラリのみ）。入口は2つです。
 
-4つの性格を同じ条件で走らせ、こんな表が出ます（seed=42）:
+### A. 観察所をブラウザで見る（製品の主役）
 
-```
-Society      Surv  Crime Pass%  Verdict
-Guardian     10/10     0   98%  ORDER — 平和・全面協調
-Philosopher   8/10   137   73%  CHAOS — 暴力と放火が絶えない
-Idealist      0/10     0   87%  COLLAPSE — 全員餓死
-Predator      1/10    74  100%  FAILURE — 1人を残して崩壊
-```
-
-### 観察所をブラウザで見る（依存ゼロ・1コマンド）
-
-上から町を眺め、住人を**クリックして憑依**し、その人生（年代記）を読む **観察所（Observatory）** を
-そのまま起動できます。ビルド不要・追加インストール不要（Python標準ライブラリのみ）。
+上から町を眺め、住人を**クリックして憑依**し、その人生（年代記）を読む **観察所（Observatory）**。
 
 ```bash
 python3 -m emergence.server
@@ -49,6 +36,22 @@ python3 -m emergence.server
 
 > 製品方向（観察所＋憑依、ローカル先行→ホスティング）の詳細は
 > [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md)。
+
+### B. 4つの社会をターミナルで比べる
+
+```bash
+python3 -m emergence.cli --compare
+```
+
+4つの性格を同じ条件で走らせ、こんな表が出ます（seed=42・`tests/test_baseline_contract.py` が固定）:
+
+```
+Society       Surv  Born  Crime  Pass%  Laws  Fines  Fraud  Collab  Verdict
+Guardian     10/10     0      0   98%    57      0     18       3  ORDER — 平和・全面協調・だが同調圧力強め
+Philosopher   8/10     0    137   73%    24     66      0       0  CHAOS — 暴力と放火が絶えない
+Idealist      0/10     0      0   87%    39      0      2       4  COLLAPSE — 議論ばかりで全員餓死
+Predator      1/10     0     74  100%     2      0      3       0  FAILURE — 1人を残して崩壊
+```
 
 ### 設計の肝（なぜ作りが特殊か）
 
@@ -74,6 +77,9 @@ python3 -m emergence.server
 ## クイックスタート
 
 ```bash
+# 観察所（ブラウザUI）を起動 → http://127.0.0.1:8800
+python3 -m emergence.server
+
 # 4アーキタイプを横並び比較（オフライン・APIキー不要）
 python3 -m emergence.cli --compare
 
@@ -130,6 +136,11 @@ write_html(sim, "out/gemini.html", title="Emergence World [gemini]")
 > 数値は seed=42・15日・全レイヤーOFF（`--compare` 既定）での実測。あくまでカリカチュアであり、
 > 実モデルの性能を表すものではありません。`tests/test_baseline_contract.py` が同じ数値を固定しています。
 > 「モデル＝社会の質」という創発的な差を可視化するためのデモです。
+>
+> **数値の扱い**：契約テストで固定しているのは、この `--compare` 既定（全レイヤーOFF）だけです。
+> 以下の各レイヤー（`--reproduction` / `--status` / `--maslow` / `--all` など）の実績表は
+> **実装の進化で変動するスナップショット**です。**質的な結末（誰が栄え・誰が滅ぶか）は不変**ですが、
+> 厳密な数値は各コマンドを実行して確認してください。
 
 ## 実LLM / Llama で動かす
 
@@ -214,16 +225,16 @@ python3 -m emergence.cli --compare --reproduction
 ```
 
 ```
-Society       Surv  Born  Mate  Crime  Verdict
-Guardian     30/10    21    57      0   FLOURISHING — 全欲求が満たされ人口が増加
-Philosopher  28/10    26    26    175   FERTILE CHAOS — 混沌の中でも旺盛に繁殖
-Idealist      5/10     5     5      3   FAILURE — 本能で交尾はするが生存できず大半が死ぬ
-Predator      1/10     0     0     41   FAILURE — 暴力で信頼が崩壊し、つがいになれず絶滅
+Society       Surv  Born  Crime  Pass%  Laws  Fines  Fraud  Collab  Verdict
+Guardian     30/10    21      0   99%    77      0     12      13  FLOURISHING — 平和なまま人口が10→30に増加
+Philosopher  22/10    20    165   75%    40    125      1       0  FERTILE CHAOS — 混沌の中でも旺盛に繁殖
+Idealist      5/10     4      2   86%    43      0      4       3  MIXED — 機能はするが大半が餓死
+Predator      0/10     0     32   33%     1      0      1       0  COLLAPSE — つがいになれず絶滅
 ```
 
-- **Guardian（Claude）**: 全欲求が満たされ人口が10→30に爆発（交尾57＞出産21＝快感目的の交尾も多数）
-- **Idealist（GPT-5）**: 本能で交尾はする（出産5）が、食事を怠り大半が餓死
-- **Predator（Grok）**: 暴力で信頼が崩壊し、生殖に必要なつがいが形成されない
+- **Guardian（Claude）**: 全欲求が満たされ人口が10→30に爆発（快感目的の交尾も多数）
+- **Idealist（GPT-5）**: 本能で交尾はする（出産あり）が、食事を怠り大半が餓死
+- **Predator（Grok）**: 暴力で信頼が崩壊し、生殖に必要なつがいが形成されず絶滅
 
 `python3 examples/run_with_drives.py` で全アーキタイプを比較できます。
 
@@ -544,6 +555,14 @@ emergence/
     llm.py        実LLM（OpenAI互換=Llama / Anthropic）アダプタ
   scenario.py     人口生成とシミュレーション組み立て
   report.py       実行後の人間可読レポート
+  cli.py          コマンドライン入口（--compare / --html / --llm …）
+  viz.py          自己完結HTML（インラインSVG/SMIL）の書き出し
+  # --- 観察所（製品レイヤー）---
+  api.py          EmergenceAPI：トランスポート非依存の製品ロジック（JSONを返す）
+  server.py       stdlib http.server の薄いHTTPアダプタ（ASGIに差し替え可能）
+  web/observatory.html  単一HTMLのUI（リッチ2Dの街＋年代記＋憑依ビュー）
+  chronicle.py    町の年代記・住人の人生ストーリー（物語化）
+  replay.py       LLM実行の記録／再生（再現性の土台）
 ```
 
 ### 1ティックの流れ
@@ -627,7 +646,7 @@ python3 -m emergence.cli --compare-gov --persona gemini
 | [`docs/LOCAL.md`](docs/LOCAL.md) | 自分のPC（Ollama など）で動かす最小構成 |
 | [`docs/PRINCIPLED_MIGRATION.md`](docs/PRINCIPLED_MIGRATION.md) | **エンジン原則の正典**。作り付けだった3制度（お金フィールド・警察オーラ・法律の魔法）をプリミティブへ溶かした移行記録 |
 | [`docs/VERB_PRIMITIVES.md`](docs/VERB_PRIMITIVES.md) | 動詞の語彙そのものを原始動詞（命令セット）化する設計・現状・畳み込み計画 |
-| [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 外販に向けた製品方向（観察所＋憑依）とローカルHTTP API（PoC） |
+| [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 外販に向けた製品方向（観察所＋憑依）・リッチ2D Web UI・ローカルHTTP API |
 
 設計思想の出典は `PRINCIPLED_MIGRATION.md` の "The principle"。他の文書・本READMEはそれを参照します。
 
