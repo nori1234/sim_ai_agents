@@ -27,6 +27,11 @@ class Observation:
     # Memory of the acting agent (its private recollections).
     memory: list[str] = field(default_factory=list)
 
+    # Town library: lessons recorded by predecessors, surfaced when the agent is
+    # by a library. Horizontal/cultural inheritance — the heuristic brain ignores
+    # it (offline outcomes unchanged); an LLM brain can act on it.
+    knowledge: list[str] = field(default_factory=list)
+
     # Drives layer: whether the body is capable of reproducing right now, and
     # the instinctual 0..1 strength of the urge to seek a mate.
     can_reproduce: bool = False

@@ -72,6 +72,7 @@ def make_simulation(
     economy: bool = False,
     memory: bool = False,
     memory_path: str = ":memory:",
+    library: bool = False,
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -129,6 +130,11 @@ def make_simulation(
         from .memory_backend import TownMemory
         town_memory = TownMemory(agents, path=memory_path)
 
+    town_library = None
+    if library:
+        from .library import TownLibrary
+        town_library = TownLibrary()
+
     legislature = Legislature(gov_cfg)
     policy = PolicyEngine(gov_cfg)
     return Simulation(
@@ -143,4 +149,5 @@ def make_simulation(
         development=bool(founding),
         economy=bool(economy),
         memory=town_memory,
+        library=town_library,
     )

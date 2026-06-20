@@ -225,6 +225,7 @@ class LLMBrain(AgentBrain):
             "town_norms": obs.norms or "(none enacted)",
             "shared_granary_food": obs.granary_food,
             "your_memories": obs.memory[-8:] or ["(no relevant memories)"],
+            "library_knowledge": obs.knowledge or "(no books within reach)",
             "recent_events": obs.recent_events[-6:],
         }
         return (

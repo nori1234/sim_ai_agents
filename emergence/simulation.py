@@ -99,6 +99,10 @@ class Simulation:
     environment: object = None
     # Optional long-term memory backend (memory_backend.TownMemory); opt-in.
     memory: object = None
+    # Optional town library (library.TownLibrary): books that outlive their
+    # authors — horizontal/cultural inheritance. Opt-in; None leaves the
+    # baseline byte-identical (the heuristic brain ignores the knowledge view).
+    library: object = None
     # Public-works civic loop (council-funded construction); opt-in.
     public_works: bool = False
     treasury: int = 0
@@ -171,6 +175,8 @@ class Simulation:
             brain = self.brains[agent.id]
             action = brain.decide(agent, obs)
             self._apply(agent, action)
+            if self.library is not None:
+                self._library_study(agent)
             self._tick_upkeep(agent)
         # Resolve any proposals that reached quorum this tick.
         electorate = len(self._eligible_voters())
@@ -240,6 +246,15 @@ class Simulation:
             memory_view = self.memory.recall(agent.id, self._memory_query(agent, here, others))
         else:
             memory_view = list(agent.memory)
+        # By a library, surface predecessors' recorded lessons (cultural
+        # inheritance). Ignored by the heuristic brain, so outcomes are unchanged.
+        knowledge_view: list = []
+        if self.library is not None and (
+            (here is not None and here["type"] == "library")
+            or any(f["type"] == "library" and f["distance"] <= 3 for f in nearby)
+        ):
+            knowledge_view = self.library.read(
+                self._memory_query(agent, here, others), k=3)
         return Observation(
             day=self.world.day,
             tick=self.world.tick,
@@ -252,6 +267,7 @@ class Simulation:
             granary_food=self.world.granary_food,
             recent_events=recent,
             memory=memory_view,
+            knowledge=knowledge_view,
             can_reproduce=is_fertile(agent, self.drives, self.world.day),
             mating_urge=mating_urge(agent, self.drives),
             esteem_urge=esteem_urge(agent, self.status),
@@ -334,6 +350,31 @@ class Simulation:
             parts.append(here["type"])
         parts += [o["name"] for o in others[:3]]
         return " ".join(parts)
+
+    def _library_study(self, agent: Agent) -> None:
+        """While standing in a library, an agent both records and *studies*:
+        it writes a lesson from its experience to the town shelf (a book outlives
+        its author), and internalises one predecessor's lesson it doesn't yet
+        carry into its own evolving memory. Purely additive: it touches no
+        agent/world state a decision reads, so on/off runs stay identical."""
+        f = self.world.facility_at(agent.pos)
+        if f is None or f.ftype is not FacilityType.LIBRARY:
+            return
+        # Publish a lesson from lived experience — not something merely re-read,
+        # so the shelf keeps accumulating first-hand knowledge.
+        firsthand = [m for m in agent.memory
+                     if not m.startswith("I read in the library:")]
+        lesson = (firsthand[-1] if firsthand
+                  else f"A {agent.profession}'s craft sustains the town.")
+        self.library.write(self.world.day, agent.id, agent.name, lesson)
+        # Study: internalise one relevant book the agent hasn't read yet (compare
+        # the stored form so a book is taken in once, not re-read every visit).
+        held = set(agent.memory)
+        for book in self.library.read(self._memory_query(agent, None, []), k=5):
+            entry = f"I read in the library: {book}"
+            if entry not in held:
+                agent.remember(entry)
+                break
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
@@ -502,6 +543,14 @@ class Simulation:
         if victim is None and facility is not None \
                 and facility.ftype == FacilityType.GRANARY:
             self.world.granary_food = max(0, self.world.granary_food - 5)
+        # Burning a library destroys the public record — but not what people have
+        # already learned (that lives on in their own memory). Knowledge persists
+        # only while its substrate survives.
+        if victim is None and facility is not None and self.library is not None \
+                and facility.ftype == FacilityType.LIBRARY and len(self.library):
+            lost = self.library.burn()
+            self.world.log("library_burned", offender=agent.id,
+                           facility=facility.name, books_lost=lost, pos=facility.pos)
         if victim is not None and victim.energy <= 0 and victim.alive:
             victim.die(self.world.day, "killed in violence")
             self.metrics.deaths += 1
@@ -1526,9 +1575,26 @@ class Simulation:
         self.brains[child.id] = self._make_newborn_brain(child, persona_key)
         if self.memory is not None:
             self.memory.register(child)
+        # Vertical cultural inheritance: the elders pass on a lesson, which the
+        # child will revise through its own life. Only the *core* lesson carries
+        # over, so oral tradition doesn't nest ("taught me: taught me: ...").
+        if self.library is not None:
+            for p in (parent_a, parent_b):
+                firsthand = [m for m in p.memory
+                             if not m.startswith("I read in the library:")]
+                if firsthand:
+                    child.remember(f"My elder {p.name} taught me: "
+                                   f"{self._core_lesson(firsthand[-1])}")
         self.metrics.births += 1
         self.world.log("birth", child=child.id, parents=f"{parent_a.id}+{parent_b.id}",
                        persona=persona_key)
+
+    @staticmethod
+    def _core_lesson(text: str) -> str:
+        """Strip a prior "… taught me: " wrapper so transmitted lessons keep their
+        substance instead of nesting over generations."""
+        marker = "taught me: "
+        return text.split(marker)[-1] if marker in text else text
 
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
