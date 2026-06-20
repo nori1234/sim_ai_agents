@@ -60,5 +60,14 @@ class TownLibrary:
         )
         return [f'{b["author"]} (day {b["day"]}): {b["text"]}' for b in ranked[:k]]
 
+    def burn(self) -> int:
+        """A fire destroys the public shelf. Knowledge is not unconditionally
+        permanent — it survives only while its substrate does. (What people have
+        already studied lives on in their own memory; only the record is lost.)
+        Returns the number of books destroyed."""
+        n = len(self.books)
+        self.books = []
+        return n
+
     def __len__(self) -> int:
         return len(self.books)

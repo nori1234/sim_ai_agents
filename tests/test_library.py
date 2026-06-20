@@ -42,6 +42,13 @@ class TestTownLibrary(unittest.TestCase):
     def test_empty_read(self):
         self.assertEqual(TownLibrary().read("anything"), [])
 
+    def test_burn_clears_the_shelf(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "build a granary before the frost")
+        lib.write(2, "a2", "Bao", "the market rewards patience")
+        self.assertEqual(lib.burn(), 2)
+        self.assertEqual(len(lib), 0)
+
 
 class TestLibraryWiring(unittest.TestCase):
     def _metrics(self, **kw):
@@ -76,6 +83,23 @@ class TestKnowledgeFlows(unittest.TestCase):
         sim._library_study(agent)
         self.assertTrue(any(m.startswith("I read in the library:") for m in agent.memory),
                         "studying should internalise a predecessor's lesson")
+
+    def test_arson_burns_the_library_but_not_what_people_learned(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1),
+                              library=True)
+        lib_f = next(f for f in sim.world.facilities
+                     if f.ftype is FacilityType.LIBRARY)
+        sim.library.write(1, "x", "Old Mira", "build a granary before the frost")
+        reader = sim.agents[0]
+        reader.remember("I read in the library: a lesson I now carry")
+        before = len(reader.memory)
+        arsonist = sim.agents[1]
+        arsonist.x, arsonist.y = lib_f.x, lib_f.y
+        sim._strike(arsonist, facility=lib_f)          # set the library alight
+        self.assertEqual(len(sim.library), 0, "the public shelf should burn")
+        self.assertTrue(any(e["kind"] == "library_burned" for e in sim.world.events))
+        self.assertEqual(len(reader.memory), before,
+                         "what a person already learned is not lost to the fire")
 
     def test_parent_passes_a_lesson_to_child_without_nesting(self):
         sim = make_simulation("guardian", config=SimulationConfig(seed=1),

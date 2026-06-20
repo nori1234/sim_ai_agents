@@ -543,6 +543,14 @@ class Simulation:
         if victim is None and facility is not None \
                 and facility.ftype == FacilityType.GRANARY:
             self.world.granary_food = max(0, self.world.granary_food - 5)
+        # Burning a library destroys the public record — but not what people have
+        # already learned (that lives on in their own memory). Knowledge persists
+        # only while its substrate survives.
+        if victim is None and facility is not None and self.library is not None \
+                and facility.ftype == FacilityType.LIBRARY and len(self.library):
+            lost = self.library.burn()
+            self.world.log("library_burned", offender=agent.id,
+                           facility=facility.name, books_lost=lost, pos=facility.pos)
         if victim is not None and victim.energy <= 0 and victim.alive:
             victim.die(self.world.day, "killed in violence")
             self.metrics.deaths += 1
