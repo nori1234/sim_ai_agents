@@ -352,15 +352,29 @@ class Simulation:
         return " ".join(parts)
 
     def _library_study(self, agent: Agent) -> None:
-        """While standing in a library, record a lesson from one's experience to
-        the town shelf (a book outlives its author). Purely additive: it touches
-        no agent/world state a decision reads, so on/off runs stay identical."""
+        """While standing in a library, an agent both records and *studies*:
+        it writes a lesson from its experience to the town shelf (a book outlives
+        its author), and internalises one predecessor's lesson it doesn't yet
+        carry into its own evolving memory. Purely additive: it touches no
+        agent/world state a decision reads, so on/off runs stay identical."""
         f = self.world.facility_at(agent.pos)
         if f is None or f.ftype is not FacilityType.LIBRARY:
             return
-        lesson = (agent.memory[-1] if agent.memory
+        # Publish a lesson from lived experience — not something merely re-read,
+        # so the shelf keeps accumulating first-hand knowledge.
+        firsthand = [m for m in agent.memory
+                     if not m.startswith("I read in the library:")]
+        lesson = (firsthand[-1] if firsthand
                   else f"A {agent.profession}'s craft sustains the town.")
         self.library.write(self.world.day, agent.id, agent.name, lesson)
+        # Study: internalise one relevant book the agent hasn't read yet (compare
+        # the stored form so a book is taken in once, not re-read every visit).
+        held = set(agent.memory)
+        for book in self.library.read(self._memory_query(agent, None, []), k=5):
+            entry = f"I read in the library: {book}"
+            if entry not in held:
+                agent.remember(entry)
+                break
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
@@ -1553,9 +1567,26 @@ class Simulation:
         self.brains[child.id] = self._make_newborn_brain(child, persona_key)
         if self.memory is not None:
             self.memory.register(child)
+        # Vertical cultural inheritance: the elders pass on a lesson, which the
+        # child will revise through its own life. Only the *core* lesson carries
+        # over, so oral tradition doesn't nest ("taught me: taught me: ...").
+        if self.library is not None:
+            for p in (parent_a, parent_b):
+                firsthand = [m for m in p.memory
+                             if not m.startswith("I read in the library:")]
+                if firsthand:
+                    child.remember(f"My elder {p.name} taught me: "
+                                   f"{self._core_lesson(firsthand[-1])}")
         self.metrics.births += 1
         self.world.log("birth", child=child.id, parents=f"{parent_a.id}+{parent_b.id}",
                        persona=persona_key)
+
+    @staticmethod
+    def _core_lesson(text: str) -> str:
+        """Strip a prior "… taught me: " wrapper so transmitted lessons keep their
+        substance instead of nesting over generations."""
+        marker = "taught me: "
+        return text.split(marker)[-1] if marker in text else text
 
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
