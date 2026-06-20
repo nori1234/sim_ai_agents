@@ -56,8 +56,11 @@ produce visibly different societies, reproducibly.*
         ▲
   HTTP adapter (emergence/server.py) ← stdlib http.server; thin, swappable for ASGI
         ▲
-  Web UI (next)                      ← live town + story feed + possess view
+  Web UI (emergence/web/observatory.html) ← rich-2D town + chronicle + possess view
 ```
+
+Run the observatory: `python -m emergence.server` → open `http://127.0.0.1:8800`.
+The UI is a single self-contained HTML (no build, no dependencies) served at `/`.
 
 The split is deliberate: `EmergenceAPI` is the product logic (unit-tested
 without sockets); `server.py` is a thin transport. Hosting later (auth,
@@ -109,7 +112,7 @@ authz, per-tenant isolation, and runaway-sim limits.
 2. **Web UI** — a live town canvas (agents coloured by persona, click to
    possess), an event **story feed**, and a **possess panel** (needs bars,
    wealth, relationships, memories). Single self-contained HTML served at `/`;
-   no build step, no dependencies; polls `step`. ✅
+   no build step, no dependencies. ✅
 3. **Narrative engine** — a curated chronicle + per-citizen life stories
    (`emergence/chronicle.py`), the immersion lead. ✅
 4. **Brain selector** — `heuristic` / `local` / `api` per world, LLM brains
@@ -128,5 +131,10 @@ authz, per-tenant isolation, and runaway-sim limits.
 7. **Streaming** — `GET /worlds/{id}/stream` pushes one Server-Sent-Events
    frame per simulated day; the UI's Play uses `EventSource` for live playback
    (matters most for LLM worlds, where a day takes seconds). ✅
-8. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
+8. **Rich-2D town** — the town becomes the hero pane: "peg" citizens (round
+   head + persona-coloured trapezoid body) walking on emoji facility landmarks,
+   movement tweened between days, and crime/death events flashing at their
+   spot. Plain canvas 2D (no WebGL/deps) — enough for ≤40 figures. The chronicle
+   and possessed life read on the right. ✅
+9. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.
