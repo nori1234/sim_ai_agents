@@ -1,0 +1,63 @@
+"""The town library: cultural inheritance that outlives its authors.
+
+Guards two things: (1) the stdlib book store behaves (write/dedup/persist/
+relevance), and (2) wiring it into a sim is purely additive — a heuristic run
+with the library on is byte-identical to one with it off (the brain ignores the
+knowledge view), so the offline baseline is untouched.
+"""
+
+import unittest
+
+from emergence.library import TownLibrary
+from emergence.scenario import make_simulation
+from emergence.simulation import SimulationConfig
+
+
+class TestTownLibrary(unittest.TestCase):
+    def test_write_persist_dedup(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "winter starves the careless; stockpile food")
+        lib.write(2, "a2", "Bao", "winter starves the careless; stockpile food")  # dup
+        lib.write(3, "a3", "Caro", "the market rewards the patient trader")
+        self.assertEqual(len(lib), 2, "identical lessons should de-duplicate")
+
+    def test_book_outlives_its_author(self):
+        # A book is a world artifact, not tied to the author's life — it stays on
+        # the shelf and readable after the author is gone.
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "build a granary before the frost")
+        got = lib.read("granary frost winter", k=3)
+        self.assertTrue(got and "Aria" in got[0])
+
+    def test_read_ranks_by_relevance(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "the mine yields ore for tools")
+        lib.write(2, "a2", "Bao", "guard the granary against thieves in winter")
+        top = lib.read("winter granary thieves", k=1)
+        self.assertEqual(len(top), 1)
+        self.assertIn("Bao", top[0])
+
+    def test_empty_read(self):
+        self.assertEqual(TownLibrary().read("anything"), [])
+
+
+class TestLibraryWiring(unittest.TestCase):
+    def _metrics(self, **kw):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=42), **kw)
+        sim.run()
+        return sim
+
+    def test_offline_baseline_is_byte_identical_with_library_on(self):
+        off = self._metrics(library=False).metrics.as_dict()
+        on_sim = self._metrics(library=True)
+        on = on_sim.metrics.as_dict()
+        self.assertEqual(off, on, "library must not perturb the heuristic baseline")
+        # And the shelf actually filled during the run (agents visited the library).
+        self.assertGreater(len(on_sim.library), 0, "expected some books to be written")
+
+    def test_no_library_means_no_store(self):
+        self.assertIsNone(make_simulation("guardian").library)
+
+
+if __name__ == "__main__":
+    unittest.main()

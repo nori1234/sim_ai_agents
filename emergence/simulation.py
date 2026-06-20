@@ -99,6 +99,10 @@ class Simulation:
     environment: object = None
     # Optional long-term memory backend (memory_backend.TownMemory); opt-in.
     memory: object = None
+    # Optional town library (library.TownLibrary): books that outlive their
+    # authors — horizontal/cultural inheritance. Opt-in; None leaves the
+    # baseline byte-identical (the heuristic brain ignores the knowledge view).
+    library: object = None
     # Public-works civic loop (council-funded construction); opt-in.
     public_works: bool = False
     treasury: int = 0
@@ -171,6 +175,8 @@ class Simulation:
             brain = self.brains[agent.id]
             action = brain.decide(agent, obs)
             self._apply(agent, action)
+            if self.library is not None:
+                self._library_study(agent)
             self._tick_upkeep(agent)
         # Resolve any proposals that reached quorum this tick.
         electorate = len(self._eligible_voters())
@@ -240,6 +246,15 @@ class Simulation:
             memory_view = self.memory.recall(agent.id, self._memory_query(agent, here, others))
         else:
             memory_view = list(agent.memory)
+        # By a library, surface predecessors' recorded lessons (cultural
+        # inheritance). Ignored by the heuristic brain, so outcomes are unchanged.
+        knowledge_view: list = []
+        if self.library is not None and (
+            (here is not None and here["type"] == "library")
+            or any(f["type"] == "library" and f["distance"] <= 3 for f in nearby)
+        ):
+            knowledge_view = self.library.read(
+                self._memory_query(agent, here, others), k=3)
         return Observation(
             day=self.world.day,
             tick=self.world.tick,
@@ -252,6 +267,7 @@ class Simulation:
             granary_food=self.world.granary_food,
             recent_events=recent,
             memory=memory_view,
+            knowledge=knowledge_view,
             can_reproduce=is_fertile(agent, self.drives, self.world.day),
             mating_urge=mating_urge(agent, self.drives),
             esteem_urge=esteem_urge(agent, self.status),
@@ -334,6 +350,17 @@ class Simulation:
             parts.append(here["type"])
         parts += [o["name"] for o in others[:3]]
         return " ".join(parts)
+
+    def _library_study(self, agent: Agent) -> None:
+        """While standing in a library, record a lesson from one's experience to
+        the town shelf (a book outlives its author). Purely additive: it touches
+        no agent/world state a decision reads, so on/off runs stay identical."""
+        f = self.world.facility_at(agent.pos)
+        if f is None or f.ftype is not FacilityType.LIBRARY:
+            return
+        lesson = (agent.memory[-1] if agent.memory
+                  else f"A {agent.profession}'s craft sustains the town.")
+        self.library.write(self.world.day, agent.id, agent.name, lesson)
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
