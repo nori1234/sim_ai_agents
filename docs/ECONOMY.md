@@ -21,11 +21,22 @@ designed and built together.
 
 Net: money is a hoardable token; the town is ~10 interchangeable agents.
 
-## The loop we want to *emerge*
+## The core structure: produce because others need it
+
+The thing that should emerge is simple to state:
+
+> **You make something *because someone else needs it*. That is what lets you
+> sell it, and that is what turns labour into money.**
+
+So the world should hold **different producers** — a smith who forges tools, a
+farmer who grows bread — each making what they're good at, *for others*. And
+**services are labour too**: an inn's rest, a doctor's healing — someone *works*
+to provide them, so they cost money like any other good. Money is wanted because
+it is the claim on **everyone else's work**.
 
 ```
-specialised work produces a surplus → sell it for money → buy what you DON'T
-produce (and the needs you can't cheaply meet yourself)
+specialised work produces what OTHERS need → sell it for money → buy what you
+DON'T produce (goods) and the services/needs you can't cheaply meet yourself
         ↑                                                        ↓
    division of labour  ←————  money gains real demand  ←——  food / rest / healing
                                                               / status are buyable
@@ -42,8 +53,8 @@ turn and must travel to a farm to gather. An agent doing high-value work (a smit
 turning materials into tools worth more than a meal) is **better off buying food
 than spending turns farming** — classic comparative advantage. So it specialises,
 sells its surplus, and buys the rest. `--environment` (depletion, winter)
-sharpens this: when free gathering fails, the market — stocked by farmers'
-surplus — still sells, at an emergent price.
+sharpens this but is **not required** (see Decisions): when free gathering fails,
+the market — stocked by farmers' surplus — still sells, at an emergent price.
 
 ## Design principles (keep the engine's stance)
 
@@ -51,8 +62,12 @@ surplus — still sells, at an emergent price.
    food here") and let brains choose. Prices are **not** a formula — they already
    emerge from accepted `OFFER`/`ACCEPT` swaps (`market.py`, `--economy`).
 2. **Money is not privileged** (per `PRINCIPLED_MIGRATION.md`). Consumption is
-   just `money → good → use`, built from existing primitives.
-3. **Determinism.** The `--compare` baseline stays byte-identical. Everything
+   just `money → good/service → use`, built from existing primitives.
+3. **Institutions emerge, they are not hardcoded.** Firms and the state (below)
+   are *emergent* the same way money, police and law are — we add the physics
+   (employ, pay, levy) and let them form, not a built-in "company" or "tax
+   office".
+4. **Determinism.** The `--compare` baseline stays byte-identical. Everything
    here is **opt-in** (rides on `--economy`); `test_baseline_contract.py` is
    untouched. New signals ride on `Observation`; heuristic branches are gated.
 
@@ -69,15 +84,16 @@ The smallest change that makes the whole wheel turn once.
   through the existing `eat`. Supply = farmers' surplus offered for money; price
   emerges from swaps.
 - **Brains choose buy-vs-make.** When busy / far from a farm / the farm is
-  depleted, buying beats gathering. Heuristic: an opt-in branch; LLM: free choice
-  via the affordance + price in `Observation`.
+  depleted, buying beats gathering. Heuristic: one simple opt-in rule (below);
+  LLM: free choice via the affordance + price in `Observation`.
 - **Observable emergence:** a smith stops farming, earns, and buys lunch; a
   farmer prospers by selling surplus → division of labour + money demand appear
   together.
 
-### Phase 2 — depth of demand
-- Doctor **healing as a paid service** (`money → energy`).
-- An inn / better rest (`money → recovery efficiency`).
+### Phase 2 — services as labour, and depth of demand
+Services are someone's *work*, so they are bought like goods:
+- Doctor **healing as a paid service** (`money → energy`, the doctor earns).
+- An **inn / better rest** for pay (`money → recovery efficiency`).
 - **Conspicuous consumption**: spend on a feast / patronage / commissioning →
   `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).
 
@@ -86,21 +102,48 @@ The smallest change that makes the whole wheel turn once.
   distinct from the library; etc. Each is a data edit in `affordances.py`
   (role + afforded actions), behaviour left to brains/council.
 
-## Determinism guardrails
+### Phase 4 — higher-order institutions (should emerge, not be hardcoded)
+Once goods, services and a labour market exist, larger actors can form:
 
-- All new logic lives under `--economy` (or a new `--market`); the default is
-  unchanged.
-- The four-society contract numbers stay fixed; add new tests for the new layer
-  rather than perturbing the baseline (mirror `test_library.py`'s "on == off"
-  guard where it applies).
+- **Firms / proprietors (事業主).** An agent with capital **hires** others' labour
+  (pays a wage to have them gather/craft for it) and keeps the margin — a private
+  organiser of production, distinct from the lone worker. Emerges from an
+  *employ/pay* primitive, not a built-in "company".
+- **The state (国家): taxation + labour levy.** The engine already has the seeds —
+  `treasury`, a daily **civic levy** (tax), `--publicworks` construction, and an
+  elected `mayor`/council. Extend toward the fuller picture: the state (or a
+  dominant faction) **extracts taxes and labour** — a corvée / conscription that
+  commands citizens' *turns*, not just their coin — to fund public works, war, or
+  itself. Who is taxed, how hard, and whether it's legitimate or extractive
+  becomes persona-/governance-differentiated (a Guardian commons vs a Predator
+  shakedown).
+
+These are large; they get their own issues once the MVP loop is proven.
+
+## Decisions (resolved)
+
+1. **Money demand must stand on `--economy` alone.** Tune the MVP so the
+   *job-productivity differential* is the primary driver: a specialist's per-turn
+   earnings comfortably exceed a meal's price, so "work + buy food" beats farming
+   even when food is abundant. `--environment` is an **amplifier**, not a
+   dependency — keeping the MVP self-contained and testable in isolation.
+2. **Heuristic stays minimal; rich economic play is the LLM's.** The heuristic
+   gets one deterministic rule — *if hungry, not near a farm, and money ≥ meal
+   price, buy; if you hold a surplus, sell it.* Arbitrage, stockpiling and price
+   discovery beyond that are left to LLM brains (surfaced via affordances +
+   prices in `Observation`). The heuristic exists for determinism + a free tier,
+   not to be a clever trader.
+3. **Tools are an exchange good in the MVP, not yet capital.** A smith makes
+   tools and sells them; tools do **not** yet boost others' productivity. The
+   capital-goods feedback (holding a tool makes you gather faster → investment,
+   accumulation, inequality) is a named **Phase 2+** step, kept out of the MVP to
+   bound scope and protect balance/determinism.
+4. **No new flag — extend `--economy`.** Prices already emerge there; the labour/
+   consumption layer rides on the same opt-in.
 
 ## Open questions (decide as we build)
 
-- Strength of the opportunity-cost lever without `--environment` — does free
-  gathering still dominate when food is abundant? (May make the MVP recommend
-  `--economy --environment` together.)
-- How much should the heuristic brain participate vs. leaving rich economic play
-  to LLM brains? (Keep heuristic minimal; it exists to keep determinism + a free
-  tier, not to be a good trader.)
-- Whether "tools" should feed back into productivity (a smith's tools make others
-  gather faster) — a natural but larger capital-goods step; likely Phase 2+.
+- Exact productivity/price numbers so Decision&nbsp;1 holds (specialist wage ≫
+  meal price) without making farming pointless for everyone.
+- How firms (Phase 4) avoid degenerating into one agent owning everything — does
+  competition for labour / wages emerge to balance it?
