@@ -43,6 +43,18 @@ _CAUSE_JA = {
     "violence": "暴力", "killed in violence": "暴力により死亡",
     "starvation": "餓死",
 }
+# Readable consequence of a law's machine effects (the "so what" of a bill).
+_EFFECT = {
+    "crime_deterrence": ("tougher policing", "取り締まり強化"),
+    "food_redistribution": ("food for the needy", "困窮者への食料分配"),
+    "tax": ("a wealth tax", "富裕税"),
+    "punishment": ("fines for offenders", "違反者への罰金"),
+}
+
+
+def _effect_name(k, lang):
+    en, ja = _EFFECT.get(k, (k, k))
+    return ja if lang == "ja" else en
 
 
 def _L(lang, en, ja):
@@ -101,6 +113,7 @@ def chronicle(sim, lang: str = "en") -> list[dict]:
         by_day[e.get("day", 0)].append(e)
 
     out = []
+    announced: set[str] = set()   # a law effect is news the first day it bites
     for day in sorted(by_day):
         evs = by_day[day]
         beats: list[str] = []
@@ -118,14 +131,15 @@ def chronicle(sim, lang: str = "en") -> list[dict]:
             beats.append(_L(lang, f"⚔ unrest: {bits}", f"⚔ 騒乱: {bits}"))
         passed = sum(1 for e in evs if e["kind"] == "proposal_resolved" and e.get("status") == "passed")
         laws = [e["effects"] for e in evs if e["kind"] == "law_enacted" and e.get("effects")]
-        if passed or laws:
-            effects = ", ".join(sorted({x for eff in laws for x in eff.split(", ")}))
-            if lang == "ja":
-                tail = f"（効力: {effects}）" if effects else ""
-                beats.append(f"🏛 議会が{passed}件の法案を可決{tail}")
-            else:
-                tail = f" — enacting {effects}" if effects else ""
-                beats.append(f"🏛 the council passed {passed} bill(s){tail}")
+        # Only surface legislation that *did* something — a law with real effects,
+        # phrased as its consequence. Bare "N bills passed" with no teeth is
+        # procedural noise, so it is dropped (it answered "so what?" with nothing).
+        eff_keys = sorted({x for eff in laws for x in eff.split(", ")} - announced)
+        if eff_keys:
+            announced.update(eff_keys)
+            effects = ", ".join(_effect_name(k, lang) for k in eff_keys)
+            beats.append(_L(lang, f"🏛 a law took effect — {effects}",
+                            f"🏛 法が発効 — {effects}"))
         births = sum(1 for e in evs if e["kind"] == "birth")
         if births:
             beats.append(_L(lang, f"👶 {births} child(ren) born", f"👶 {births}人の子が誕生"))
