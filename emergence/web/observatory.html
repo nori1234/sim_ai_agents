@@ -48,6 +48,14 @@
   .fate { margin-top:.9rem; padding:.5rem .7rem; background:var(--panel); border-radius:8px; }
   .muted { color:var(--dim); }
   .hidden { display:none; }
+  /* Final report (shown when a run finishes) */
+  .report { border:1px solid var(--line); border-radius:10px; padding:.7rem .9rem;
+            margin:0 0 1.1rem; background:linear-gradient(180deg,#161b22,#10151c); }
+  .report .rhead { font-weight:700; margin-bottom:.5rem; }
+  .report .rgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+                   gap:.2rem .9rem; font-size:14px; }
+  .report .rverdict { margin-top:.6rem; padding-top:.5rem; border-top:1px solid var(--line);
+                      color:var(--philosopher); font-weight:700; }
 </style>
 </head>
 <body>
@@ -109,6 +117,16 @@ const PROF = { farmer:"🌾", builder:"🔨", teacher:"📚", merchant:"🪙", d
   guard:"🛡️", miner:"⛏️", librarian:"📖", smith:"⚒️", "council clerk":"⚖️", child:"🧸",
   mayor:"🎖️", priest:"⛪", banker:"🏦" };
 const FLASH = { violence:"⚔️", theft:"🥷", arson:"🔥", death:"💀" };
+// Facility names per language (so a tile is identifiable even if the emoji icon
+// doesn't render on a given system).
+const FACNAME = {
+  farm:{en:"farm",ja:"農場"}, forest:{en:"forest",ja:"森"}, mine:{en:"mine",ja:"鉱山"},
+  workshop:{en:"workshop",ja:"工房"}, market:{en:"market",ja:"市場"}, bank:{en:"bank",ja:"銀行"},
+  granary:{en:"granary",ja:"倉庫"}, library:{en:"library",ja:"図書館"}, plaza:{en:"plaza",ja:"広場"},
+  house:{en:"house",ja:"家"}, town_hall:{en:"town hall",ja:"役所"}, hospital:{en:"hospital",ja:"病院"},
+  police_station:{en:"police",ja:"警察署"}, prison:{en:"prison",ja:"刑務所"},
+  temple:{en:"temple",ja:"寺院"}, monument:{en:"monument",ja:"記念碑"} };
+const facName = type => (FACNAME[type]||{})[lang] || type;
 const $ = s => document.querySelector(s);
 
 // --- i18n -----------------------------------------------------------------
@@ -130,6 +148,10 @@ const I18N = {
     day:"Day {n}", deceased:"(deceased)", uneventful:"An uneventful life.",
     allies:"Allies", foes:"Foes", marks:"Marks",
     noLLM:"This world has no LLM brain — pick Local LLM / Hosted API to narrate.",
+    report_title:"Final report — day {n}", r_survivors:"Survivors", r_crimes:"Crimes",
+    r_arrests:"Arrests", r_fines:"Fines", r_laws:"Laws in force", r_births:"Births",
+    r_works:"Works created", r_trades:"Trades", r_gangs:"Gangs", r_rebellions:"Rebellions",
+    r_faiths:"Faiths", r_verdict:"Verdict",
   },
   ja: {
     title_plain:"創発世界 — 観察所", title:"🌍 創発世界 観察所",
@@ -148,6 +170,10 @@ const I18N = {
     day:"{n}日目", deceased:"（故人）", uneventful:"平穏な一生。",
     allies:"盟友", foes:"敵", marks:"刻まれたもの",
     noLLM:"この世界にはLLM脳がありません — ローカルLLM／ホストAPIを選ぶと物語化できます。",
+    report_title:"最終レポート — {n}日目", r_survivors:"生存", r_crimes:"犯罪",
+    r_arrests:"逮捕", r_fines:"罰金", r_laws:"発効中の法", r_births:"出生",
+    r_works:"創作物", r_trades:"取引", r_gangs:"ギャング", r_rebellions:"反乱",
+    r_faiths:"信仰", r_verdict:"判定",
   },
 };
 let lang = localStorage.getItem("lang") || "ja";
@@ -197,6 +223,11 @@ function drawFacility(f){
   const t=cell*0.46; roundRect(x-t,y-t,t*2,t*2,cell*0.16); ctx.fill(); ctx.stroke();
   ctx.font=`${Math.round(s)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(FAC[f.type]||"🏢", x, y+1);
+  // A small name label so you can always tell which facility is which (and
+  // where an event happened) — independent of whether the emoji renders.
+  if(cell>=16){ ctx.font=`${Math.max(8,Math.round(cell*0.26))}px system-ui`;
+    ctx.fillStyle="rgba(230,237,243,.72)"; ctx.textBaseline="top";
+    ctx.fillText(facName(f.type), x, y+cell*0.30); }
   ctx.restore();
 }
 
@@ -311,6 +342,28 @@ function applyState(st){
 
 // --- the story (read on the right) ---------------------------------------
 let narrative = null;   // cached LLM prose for the current chronicle, if any
+// A final report once the run ends: how the 15 days turned out.
+function reportCard(st){
+  if(!st || !st.finished) return "";
+  const m = st.metrics || {}, rows = [];
+  const add=(k,v)=>rows.push(`<div><span class="muted">${esc(t(k))}</span> <b>${esc(v)}</b></div>`);
+  add("r_survivors", `${m.survivors}/${m.population}`);
+  if(m.crimes_total){ const cb=m.crimes_by_type||{};
+    const parts=Object.entries(cb).map(([k,v])=>`${v} ${k}`).join(", ");
+    add("r_crimes", parts?`${m.crimes_total} (${parts})`:m.crimes_total); }
+  if(m.arrests) add("r_arrests", m.arrests);
+  if(m.fines_collected) add("r_fines", m.fines_collected);
+  if(m.laws_enacted) add("r_laws", m.laws_enacted);
+  if(m.births) add("r_births", m.births);
+  if(m.works_created) add("r_works", m.works_created);
+  if(m.trades) add("r_trades", m.trades);
+  if(m.gangs_formed) add("r_gangs", m.gangs_formed);
+  if(m.rebellions) add("r_rebellions", m.rebellions);
+  if(m.religions_founded) add("r_faiths", m.religions_founded);
+  return `<div class="report"><div class="rhead">${esc(fmt("report_title",{n:st.day}))}</div>`
+       + `<div class="rgrid">${rows.join("")}</div>`
+       + `<div class="rverdict">${esc(t("r_verdict"))}: ${esc(st.verdict||"")}</div></div>`;
+}
 async function loadChronicle(){
   if(!world)return; const c=await api("GET",`/api/worlds/${world.id}/chronicle?lang=${lang}`);
   const days = c.days.map(d=>
@@ -318,8 +371,8 @@ async function loadChronicle(){
   ).join("") || `<div class="muted">${esc(t("quiet"))}</div>`;
   const prose = narrative
     ? `<div class="fate" style="white-space:pre-wrap;margin:0 0 1rem">${esc(narrative)}</div>` : "";
-  const pane=$("#chronicle"); pane.innerHTML=`<div class="reading">${prose}${days}</div>`;
-  pane.scrollTop=pane.scrollHeight;
+  const pane=$("#chronicle"); pane.innerHTML=`<div class="reading">${reportCard(lastState)}${prose}${days}</div>`;
+  pane.scrollTop = lastState && lastState.finished ? 0 : pane.scrollHeight;
 }
 async function narrateChronicle(){
   if(!world)return;
