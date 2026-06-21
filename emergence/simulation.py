@@ -41,6 +41,9 @@ from .world import (
 ENERGY_DECAY_PER_TICK = 5.0
 EAT_FOOD_USED = 2
 EAT_ENERGY_PER_FOOD = 16.0
+# Principled fiscality (economy layer): how much money the state grants each poor
+# citizen per welfare day, drawn from the treasury it actually holds.
+FISCAL_WELFARE = 3
 REST_ENERGY = 8.0
 SHELTER_REST_ENERGY = 16.0  # at a house or hospital
 ACTION_ENERGY_COST = {
@@ -1433,8 +1436,11 @@ class Simulation:
         # A real, agent-driven cost for crime: detainment drains the offender,
         # a fine is levied, and (if one exists) they are hauled to a prison.
         fine = min(target.money, self.policy.config.fine_amount)
-        target.money -= fine
-        self.world.granary_food += fine // 2
+        if self.economy:
+            self.treasury += target.take("money", fine)   # fine → the state (conserved)
+        else:
+            target.money -= fine
+            self.world.granary_food += fine // 2
         target.energy -= ARREST_ENERGY_PENALTY
         target.times_arrested += 1
         target.last_crime_day = None      # justice served; no longer wanted
@@ -1472,9 +1478,15 @@ class Simulation:
             nearest_police = self.world.nearest(victim.pos, FacilityType.POLICE_STATION)
             if nearest_police and chebyshev(victim.pos, nearest_police.pos) <= self.policy.config.police_range:
                 fine = min(offender.money, self.policy.config.fine_amount)
-                offender.money -= fine
-                victim.money += fine // 2
-                self.world.granary_food += 1
+                if self.economy:
+                    paid = offender.take("money", fine)      # conserved:
+                    half = paid // 2
+                    victim.add("money", half)                # compensation to the victim
+                    self.treasury += paid - half             # the rest to the state
+                else:
+                    offender.money -= fine
+                    victim.money += fine // 2
+                    self.world.granary_food += 1
                 self.world.log("fine", offender=offender.id, amount=fine)
                 self.metrics.fines_collected += 1
 
@@ -1721,23 +1733,42 @@ class Simulation:
         return min(1.0, 0.6 * guard_term + 0.4 * station_term)
 
     def _apply_daily_policy(self) -> None:
-        """Run once per day: tax, food redistribution."""
+        """Run once per day: tax, food redistribution. With ``--economy`` these
+        obey conservation — money moves to/from the treasury rather than vanishing
+        or being conjured (the principled form: tax = a coerced take into the
+        state, welfare = a grant of money the state actually holds). Offline keeps
+        the legacy behaviour, so the four-society baseline is byte-identical."""
         living = [a for a in self.agents if a.alive]
         if not living:
             return
         if self.policy.has_tax():
-            # Take a fraction from the richest agents; give to the commons.
-            living_sorted = sorted(living, key=lambda a: a.money, reverse=True)
-            top = living_sorted[: max(1, len(living_sorted) // 3)]
+            top = sorted(living, key=lambda a: a.money, reverse=True)[: max(1, len(living) // 3)]
             for a in top:
                 tribute = int(a.money * self.policy.config.tax_rate)
-                a.money -= tribute
-                self.world.granary_food += tribute // 2  # converts to shared food
+                if self.economy:
+                    paid = a.take("money", tribute)          # coerced take → state
+                    self.treasury += paid                    # conserved
+                    if paid:
+                        self.world.log("tax", payer=a.id, amount=paid)
+                else:
+                    a.money -= tribute
+                    self.world.granary_food += tribute // 2  # legacy: money→food magic
             self.metrics.tax_days += 1
         if self.policy.has_food_redistribution():
-            # Top-up the granary with a small daily grant and notify agents.
-            grant = max(2, len(living))
-            self.world.granary_food += grant
+            if self.economy:
+                # Welfare: grant money the state actually holds to the poorest
+                # (who then buy food at the market) — conserved, not conjured.
+                poor = sorted(living, key=lambda a: a.money)[: max(1, len(living) // 3)]
+                for a in poor:
+                    pay = min(self.treasury, FISCAL_WELFARE)
+                    if pay <= 0:
+                        break
+                    self.treasury -= pay
+                    a.add("money", pay)
+                    self.world.log("welfare", payee=a.id, amount=pay)
+            else:
+                grant = max(2, len(living))
+                self.world.granary_food += grant             # legacy: food from nothing
 
     def _maybe_elect_mayor(self) -> None:
         interval = self.policy.config.election_interval
