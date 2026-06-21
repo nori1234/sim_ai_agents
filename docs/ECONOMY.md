@@ -58,16 +58,27 @@ the market — stocked by farmers' surplus — still sells, at an emergent price
 
 ## Design principles (keep the engine's stance)
 
-1. **Emergence-first.** Don't script a "shop". Add **affordances** ("you can buy
+1. **The engine provides the alphabet; the LLM writes the sentences.** The engine
+   owns exactly two things — the **primitive verbs** (the instruction set:
+   `take/give/use/strike/say/bond/make/move`, per `VERB_PRIMITIVES.md`) and the
+   **enumerated menu of motives & affordances** (needs/drives, and what is
+   possible *here*: buyable, sellable, hireable, taxable). It **never** scripts
+   which motive wins or which act to take — that freedom is the LLM's and is
+   non-negotiable. New economic acts are **interpretations of the primitives**,
+   not new bespoke verbs: a purchase = `give(money)` + `take(good)`; employment =
+   a `bond` + a wage `give`; tax = a coerced `give` (no consent) — the same
+   interpretation layer that already reads "theft = take-without-consent" and
+   "arson = strike-a-building".
+2. **Emergence-first.** Don't script a "shop". Add **affordances** ("you can buy
    food here") and let brains choose. Prices are **not** a formula — they already
    emerge from accepted `OFFER`/`ACCEPT` swaps (`market.py`, `--economy`).
-2. **Money is not privileged** (per `PRINCIPLED_MIGRATION.md`). Consumption is
+3. **Money is not privileged** (per `PRINCIPLED_MIGRATION.md`). Consumption is
    just `money → good/service → use`, built from existing primitives.
-3. **Institutions emerge, they are not hardcoded.** Firms and the state (below)
+4. **Institutions emerge, they are not hardcoded.** Firms and the state (below)
    are *emergent* the same way money, police and law are — we add the physics
    (employ, pay, levy) and let them form, not a built-in "company" or "tax
    office".
-4. **Determinism.** The `--compare` baseline stays byte-identical. Everything
+5. **Determinism.** The `--compare` baseline stays byte-identical. Everything
    here is **opt-in** (rides on `--economy`); `test_baseline_contract.py` is
    untouched. New signals ride on `Observation`; heuristic branches are gated.
 
