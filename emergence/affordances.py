@@ -65,3 +65,34 @@ def affordances_at(facility) -> list[str]:
 
 def role_of(profession: str) -> str:
     return PROFESSION_ROLES.get(profession, "make your own way in the town")
+
+
+# Production specialisation (economy layer). Each profession produces ONE good
+# well and is inefficient at off-specialty self-supply — so self-sufficiency
+# wastes turns and buying from a specialist is the sensible path. This is what
+# gives food/materials a *structural* demand (and a producer its buyers).
+# Survival is not locked: off-specialty gathering is a low-yield fallback (never
+# zero), not an inability.
+GATHER_SPECIALTY: dict[str, str] = {
+    "farmer": "food",
+    "miner": "materials",
+}
+_SPECIALIST_BONUS = 2.0
+_OFF_SPECIALTY = 0.5
+_SPECIALISED_RESOURCES = {"food", "materials"}
+
+
+def gather_specialty(profession: str) -> str | None:
+    """The resource a profession produces well (or None for a generalist)."""
+    return GATHER_SPECIALTY.get(profession)
+
+
+def gather_multiplier(profession: str, resource: str) -> float:
+    """How well a profession gathers a resource (economy layer only). Specialists
+    are productive; off-specialty self-supply of a specialised good is inefficient
+    so trade has a reason. Unspecialised goods stay at 1.0."""
+    if GATHER_SPECIALTY.get(profession) == resource:
+        return _SPECIALIST_BONUS
+    if resource in _SPECIALISED_RESOURCES:
+        return _OFF_SPECIALTY
+    return 1.0

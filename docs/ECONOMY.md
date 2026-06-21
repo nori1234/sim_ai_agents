@@ -48,13 +48,22 @@ buys what you lack (#20).
 
 ## Why money gains demand (the mechanism)
 
-Not "because we say so" — from **opportunity cost**. An agent has one action per
-turn and must travel to a farm to gather. An agent doing high-value work (a smith
-turning materials into tools worth more than a meal) is **better off buying food
-than spending turns farming** — classic comparative advantage. So it specialises,
-sells its surplus, and buys the rest. `--environment` (depletion, winter)
-sharpens this but is **not required** (see Decisions): when free gathering fails,
-the market — stocked by farmers' surplus — still sells, at an emergent price.
+The root cause of "money has no demand" is the **free, universal subsistence
+escape hatch**: if anyone can gather food cheaply, nobody buys, so producers have
+no buyers and no reason to make a surplus. The fix is **specialisation of
+supply** — each profession is good at producing *one* thing and **poor at the
+rest** (a farmer's food, a miner's materials), so self-sufficiency is inefficient
+*for everyone*. That makes the sensible path: specialise, sell your good, and buy
+what you lack — which gives food/materials a **structural** demand, and gives the
+farmer a buyer (hence a motive to produce).
+
+Survival is **not** locked: an off-specialty agent can still gather, just
+inefficiently (a fallback, never zero), so no one starves merely to create
+demand. `--environment` (depletion, winter) sharpens scarcity further but is **not
+required**. The LLM realises this as comparative advantage (it values its time);
+the heuristic realises a minimal proxy (buy food when it's a poor food-gatherer
+and an affordable offer exists, else gather).
+
 
 ## Design principles (keep the engine's stance)
 
@@ -141,11 +150,15 @@ These are large; they get their own issues once the MVP loop is proven.
 
 ## Decisions (resolved)
 
-1. **Money demand must stand on `--economy` alone.** Tune the MVP so the
-   *job-productivity differential* is the primary driver: a specialist's per-turn
-   earnings comfortably exceed a meal's price, so "work + buy food" beats farming
-   even when food is abundant. `--environment` is an **amplifier**, not a
-   dependency — keeping the MVP self-contained and testable in isolation.
+1. **Demand comes from specialisation of supply, on `--economy` alone.** Each
+   profession produces its own good well and is **inefficient at off-specialty
+   self-supply** (a non-farmer gathers food poorly), so buying from a specialist
+   is the sensible path — giving food/materials a *structural* demand and giving
+   producers buyers (hence a motive to make surplus). Survival is preserved:
+   off-specialty gathering is a low-yield fallback, never zero, so no one starves
+   to create demand. `--environment` amplifies but is not required. (This
+   replaces the earlier "comparative advantage alone" framing, which left the
+   free-gathering escape hatch open and so produced no real demand.)
 2. **Heuristic stays minimal; rich economic play is the LLM's.** The heuristic
    gets one deterministic rule — *if hungry, not near a farm, and money ≥ meal
    price, buy; if you hold a surplus, sell it.* Arbitrage, stockpiling and price
