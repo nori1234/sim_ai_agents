@@ -1062,8 +1062,9 @@ class Simulation:
                 or chebyshev(agent.pos, buyer.pos) > 2:
             return
         price = min(buyer.money, self.society.drug_price)
-        buyer.money -= price
-        agent.money += price
+        # The payment moves through the take/add primitive (conserved), like any
+        # other exchange — the "deal_drug" log below is what reads it as illicit.
+        agent.add("money", buyer.take("money", price))
         # The buyer is hooked: the dose hits and addiction climbs.
         self._dose(buyer)
         self.metrics.drug_deals += 1
@@ -1678,9 +1679,9 @@ class Simulation:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:
                 if a.alive:
-                    paid = min(a.money, PW.CIVIC_LEVY_PER_AGENT)
-                    a.money -= paid
-                    self.treasury += paid
+                    # A coerced take into the state's treasury (conserved), the
+                    # same primitive as the wealth tax — not a direct money edit.
+                    self.treasury += a.take("money", PW.CIVIC_LEVY_PER_AGENT)
         self._apply_daily_policy()
         self._maybe_elect_mayor()
         if self.environment is not None:
