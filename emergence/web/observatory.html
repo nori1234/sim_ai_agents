@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,7 +8,7 @@
   :root { --bg:#0e1116; --panel:#161b22; --line:#272e38; --ink:#e6edf3; --dim:#8b98a5;
           --guardian:#4aa3ff; --philosopher:#f0b429; --idealist:#3fb950; --predator:#f85149; }
   * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+  body { margin:0; font:15px/1.6 system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
          background:var(--bg); color:var(--ink); }
   header { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;
            padding:.6rem .9rem; background:var(--panel); border-bottom:1px solid var(--line); }
@@ -18,6 +18,7 @@
   input[type=number] { width:5rem; } button { cursor:pointer; }
   button:hover { border-color:#3d4350; } button.primary { background:#1f6feb; border-color:#1f6feb; }
   #status { margin-left:auto; color:var(--dim); font-size:13px; }
+  #lang { color:var(--dim); }
   /* The town is the hero; the chronicle / possessed life read on the right. */
   main { display:grid; grid-template-columns: 1.55fr 1fr; gap:1px; background:var(--line);
          height: calc(100vh - 52px); }
@@ -51,47 +52,51 @@
 </head>
 <body>
 <header>
-  <h1>🌍 Emergence&nbsp;Observatory</h1>
+  <h1 id="title">🌍 Emergence&nbsp;Observatory</h1>
   <select id="persona" title="AI personality">
-    <option value="claude">Guardian (Claude)</option>
-    <option value="gemini">Philosopher (Gemini)</option>
-    <option value="gpt">Idealist (GPT)</option>
-    <option value="grok">Predator (Grok)</option>
+    <option value="claude" data-i18n="p_guardian">Guardian (Claude)</option>
+    <option value="gemini" data-i18n="p_philosopher">Philosopher (Gemini)</option>
+    <option value="gpt" data-i18n="p_idealist">Idealist (GPT)</option>
+    <option value="grok" data-i18n="p_predator">Predator (Grok)</option>
   </select>
-  <label>seed <input id="seed" type="number" value="42" /></label>
+  <label><span data-i18n="seed">seed</span> <input id="seed" type="number" value="42" /></label>
   <select id="brain" title="who does the thinking">
-    <option value="heuristic">Heuristic (free)</option>
-    <option value="local">Local LLM</option>
-    <option value="api">Hosted API</option>
+    <option value="heuristic" data-i18n="b_heuristic">Heuristic (free)</option>
+    <option value="local" data-i18n="b_local">Local LLM</option>
+    <option value="api" data-i18n="b_api">Hosted API</option>
   </select>
-  <label title="inner lives"><input id="rich" type="checkbox" checked /> rich</label>
-  <button class="primary" id="create">New world</button>
-  <button id="step1">+1 day</button>
-  <button id="step5">+5 days</button>
-  <button id="play">▶ Play</button>
+  <label title="inner lives"><input id="rich" type="checkbox" checked /> <span data-i18n="rich">rich</span></label>
+  <button class="primary" id="create" data-i18n="create">New world</button>
+  <button id="step1" data-i18n="step1">+1 day</button>
+  <button id="step5" data-i18n="step5">+5 days</button>
+  <button id="play"></button>
+  <select id="lang" title="language">
+    <option value="ja">日本語</option>
+    <option value="en">English</option>
+  </select>
   <span id="status"></span>
 </header>
 <main>
   <div class="side">
     <div id="stage"><canvas id="town"></canvas></div>
-    <div class="hint">Click a citizen to possess them and read their life.</div>
+    <div class="hint" data-i18n="hint">Click a citizen to possess them and read their life.</div>
     <div class="legend">
-      <span><i class="dot" style="background:var(--guardian)"></i>Guardian</span>
-      <span><i class="dot" style="background:var(--philosopher)"></i>Philosopher</span>
-      <span><i class="dot" style="background:var(--idealist)"></i>Idealist</span>
-      <span><i class="dot" style="background:var(--predator)"></i>Predator</span>
+      <span><i class="dot" style="background:var(--guardian)"></i><span data-i18n="l_guardian">Guardian</span></span>
+      <span><i class="dot" style="background:var(--philosopher)"></i><span data-i18n="l_philosopher">Philosopher</span></span>
+      <span><i class="dot" style="background:var(--idealist)"></i><span data-i18n="l_idealist">Idealist</span></span>
+      <span><i class="dot" style="background:var(--predator)"></i><span data-i18n="l_predator">Predator</span></span>
     </div>
     <div id="roster"></div>
   </div>
   <div class="read">
     <div class="tabs">
-      <button data-tab="chronicle" class="active">📜 Chronicle</button>
-      <button data-tab="citizen">👤 Citizen</button>
+      <button data-tab="chronicle" class="active" data-i18n="tab_chronicle">📜 Chronicle</button>
+      <button data-tab="citizen" data-i18n="tab_citizen">👤 Citizen</button>
       <button id="narrate" title="have the world's LLM write the chronicle as prose"
-              style="margin-left:auto;color:var(--ink)">✨ Narrate</button>
+              style="margin-left:auto;color:var(--ink)" data-i18n="narrate">✨ Narrate</button>
     </div>
-    <div id="chronicle" class="scroll"><div class="reading muted">Create a world to begin its chronicle.</div></div>
-    <div id="citizen" class="scroll hidden"><div class="reading muted">Click a citizen in the town to possess them.</div></div>
+    <div id="chronicle" class="scroll"><div class="reading muted" data-i18n="emptyChronicle">Create a world to begin its chronicle.</div></div>
+    <div id="citizen" class="scroll hidden"><div class="reading muted" data-i18n="emptyCitizen">Click a citizen in the town to possess them.</div></div>
   </div>
 </main>
 <script>
@@ -105,6 +110,60 @@ const PROF = { farmer:"🌾", builder:"🔨", teacher:"📚", merchant:"🪙", d
   mayor:"🎖️", priest:"⛪", banker:"🏦" };
 const FLASH = { violence:"⚔️", theft:"🥷", arson:"🔥", death:"💀" };
 const $ = s => document.querySelector(s);
+
+// --- i18n -----------------------------------------------------------------
+const I18N = {
+  en: {
+    title_plain:"Emergence World — Observatory", title:"🌍 Emergence Observatory",
+    p_guardian:"Guardian (Claude)", p_philosopher:"Philosopher (Gemini)",
+    p_idealist:"Idealist (GPT)", p_predator:"Predator (Grok)",
+    seed:"seed", b_heuristic:"Heuristic (free)", b_local:"Local LLM", b_api:"Hosted API",
+    rich:"rich", create:"New world", step1:"+1 day", step5:"+5 days",
+    play:"▶ Play", pause:"⏸ Pause", narrate:"✨ Narrate",
+    hint:"Click a citizen to possess them and read their life.",
+    l_guardian:"Guardian", l_philosopher:"Philosopher", l_idealist:"Idealist", l_predator:"Predator",
+    tab_chronicle:"📜 Chronicle", tab_citizen:"👤 Citizen",
+    emptyChronicle:"Create a world to begin its chronicle.",
+    emptyCitizen:"Click a citizen in the town to possess them.",
+    running:"running…", quiet:"Quiet so far — step the world forward.",
+    status:"Day {d}/{D} · {a}/{p} alive · {b} · {v}",
+    day:"Day {n}", deceased:"(deceased)", uneventful:"An uneventful life.",
+    allies:"Allies", foes:"Foes", marks:"Marks",
+    noLLM:"This world has no LLM brain — pick Local LLM / Hosted API to narrate.",
+  },
+  ja: {
+    title_plain:"創発世界 — 観察所", title:"🌍 創発世界 観察所",
+    p_guardian:"守護者 (Claude)", p_philosopher:"哲学者 (Gemini)",
+    p_idealist:"理想家 (GPT)", p_predator:"捕食者 (Grok)",
+    seed:"シード", b_heuristic:"ヒューリスティック（無料）", b_local:"ローカルLLM", b_api:"ホストAPI",
+    rich:"内面", create:"新しい世界", step1:"＋1日", step5:"＋5日",
+    play:"▶ 再生", pause:"⏸ 一時停止", narrate:"✨ 物語化",
+    hint:"住人をクリックすると憑依して、その人生を読めます。",
+    l_guardian:"守護者", l_philosopher:"哲学者", l_idealist:"理想家", l_predator:"捕食者",
+    tab_chronicle:"📜 年代記", tab_citizen:"👤 住人",
+    emptyChronicle:"世界を作ると年代記が始まります。",
+    emptyCitizen:"街の住人をクリックして憑依してください。",
+    running:"進行中…", quiet:"まだ静かです — 世界を先に進めてください。",
+    status:"{d}/{D}日目 · 生存 {a}/{p} · {b} · {v}",
+    day:"{n}日目", deceased:"（故人）", uneventful:"平穏な一生。",
+    allies:"盟友", foes:"敵", marks:"刻まれたもの",
+    noLLM:"この世界にはLLM脳がありません — ローカルLLM／ホストAPIを選ぶと物語化できます。",
+  },
+};
+let lang = localStorage.getItem("lang") || "ja";
+function t(k){ const L=I18N[lang]||I18N.en; return (k in L)?L[k]:(I18N.en[k]??k); }
+function fmt(k, map){ return t(k).replace(/\{(\w+)\}/g, (_,n)=> (n in map)? map[n] : `{${n}}`); }
+let lastState = null;
+function applyI18n(){
+  document.documentElement.lang = lang;
+  document.title = t("title_plain");
+  document.getElementById("title").textContent = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  $("#play").textContent = playing ? t("pause") : t("play");
+  $("#lang").value = lang;
+  if(lastState) renderStatus(lastState);
+  if(world){ loadChronicle(); if(selected) possess(selected); }
+}
 
 let world=null, agents=[], facilities=[], selected=null, playing=false, es=null;
 const disp = new Map();      // id -> {x,y} smoothly-tweened display position (grid coords)
@@ -234,14 +293,18 @@ function roster(){
   document.querySelectorAll("#roster [data-id]").forEach(el=>el.onclick=()=>possess(el.dataset.id));
 }
 
+function renderStatus(st){
+  const v = st.finished ? st.verdict : t("running");
+  $("#status").textContent = fmt("status", {d:st.day, D:st.config.days,
+    a:st.living, p:st.population, b:st.brain, v});
+}
 function applyState(st){
   world={id:st.world_id||world.id,width:st.width,height:st.height};
-  agents=st.agents; facilities=st.facilities;
+  agents=st.agents; facilities=st.facilities; lastState=st;
   // prune display state for agents that no longer exist
   for(const id of [...disp.keys()]) if(!agents.some(a=>a.id===id)) disp.delete(id);
   flashEvents(st.new_events);
-  const v = st.finished ? st.verdict : "running…";
-  $("#status").textContent=`Day ${st.day}/${st.config.days} · ${st.living}/${st.population} alive · ${st.brain} · ${v}`;
+  renderStatus(st);
   roster(); kick(); draw();
   if(st.finished&&playing) stopPlay();
 }
@@ -251,8 +314,8 @@ let narrative = null;   // cached LLM prose for the current chronicle, if any
 async function loadChronicle(){
   if(!world)return; const c=await api("GET",`/api/worlds/${world.id}/chronicle`);
   const days = c.days.map(d=>
-    `<div class="day">Day ${d.day}</div>`+d.beats.map(b=>`<div class="beat">${esc(b)}</div>`).join("")
-  ).join("") || `<div class="muted">Quiet so far — step the world forward.</div>`;
+    `<div class="day">${fmt("day",{n:d.day})}</div>`+d.beats.map(b=>`<div class="beat">${esc(b)}</div>`).join("")
+  ).join("") || `<div class="muted">${esc(t("quiet"))}</div>`;
   const prose = narrative
     ? `<div class="fate" style="white-space:pre-wrap;margin:0 0 1rem">${esc(narrative)}</div>` : "";
   const pane=$("#chronicle"); pane.innerHTML=`<div class="reading">${prose}${days}</div>`;
@@ -265,21 +328,21 @@ async function narrateChronicle(){
     const c=await api("GET",`/api/worlds/${world.id}/chronicle?narrate=1`);
     narrative = c.narrative;   // null on a heuristic world (no LLM)
     await loadChronicle(); showTab("chronicle");
-    if(!narrative) alert("This world has no LLM brain — pick Local LLM / Hosted API to narrate.");
-  } finally { btn.disabled=false; btn.textContent="✨ Narrate"; }
+    if(!narrative) alert(t("noLLM"));
+  } finally { btn.disabled=false; btn.textContent=t("narrate"); }
 }
 async function possess(aid){
   selected=aid; showTab("citizen"); draw();
   const s=await api("GET",`/api/worlds/${world.id}/agents/${aid}/story`);
-  const beats=(s.beats||[]).map(b=>`<div class="beat">${esc(b)}</div>`).join("")||`<div class="muted">An uneventful life.</div>`;
-  const tags=t=>t&&t.length?t.map(x=>`<span class="tag">${esc(x)}</span>`).join(""):"";
+  const beats=(s.beats||[]).map(b=>`<div class="beat">${esc(b)}</div>`).join("")||`<div class="muted">${esc(t("uneventful"))}</div>`;
+  const tags=t2=>t2&&t2.length?t2.map(x=>`<span class="tag">${esc(x)}</span>`).join(""):"";
   $("#citizen").innerHTML=`<div class="reading">
-    <h2 class="name">${esc(s.name)} ${s.alive?"":"<span class='muted'>(deceased)</span>"}</h2>
+    <h2 class="name">${esc(s.name)} ${s.alive?"":`<span class='muted'>${esc(t("deceased"))}</span>`}</h2>
     <div class="subtitle">${esc(s.subtitle)}</div>
     ${beats}
-    ${s.allies&&s.allies.length?`<p><b>Allies:</b> ${tags(s.allies)}</p>`:""}
-    ${s.foes&&s.foes.length?`<p><b>Foes:</b> ${tags(s.foes)}</p>`:""}
-    ${s.beliefs&&s.beliefs.length?`<p><b>Marks:</b> ${tags(s.beliefs)}</p>`:""}
+    ${s.allies&&s.allies.length?`<p><b>${esc(t("allies"))}:</b> ${tags(s.allies)}</p>`:""}
+    ${s.foes&&s.foes.length?`<p><b>${esc(t("foes"))}:</b> ${tags(s.foes)}</p>`:""}
+    ${s.beliefs&&s.beliefs.length?`<p><b>${esc(t("marks"))}:</b> ${tags(s.beliefs)}</p>`:""}
     <div class="fate">${esc(s.fate)}</div>
   </div>`;
 }
@@ -298,7 +361,7 @@ async function createWorld(){
   const st=await api("POST","/api/worlds",body);
   world={id:st.world_id,width:st.width,height:st.height}; selected=null; narrative=null;
   disp.clear(); flashes=[];
-  $("#citizen").innerHTML=`<div class="reading muted">Click a citizen in the town to possess them.</div>`;
+  $("#citizen").innerHTML=`<div class="reading muted">${esc(t("emptyCitizen"))}</div>`;
   applyState(st); await loadChronicle(); showTab("chronicle");
 }
 async function step(days){
@@ -308,14 +371,14 @@ async function step(days){
 }
 function togglePlay(){ playing?stopPlay():startPlay(); }
 function startPlay(){
-  if(!world)return; playing=true; $("#play").textContent="⏸ Pause"; narrative=null;
+  if(!world)return; playing=true; $("#play").textContent=t("pause"); narrative=null;
   // Live SSE playback: one frame per simulated day, pushed by the server.
   es=new EventSource(`/api/worlds/${world.id}/stream?days=30`);
   es.onmessage=ev=>{ const st=JSON.parse(ev.data); applyState(st);
     loadChronicle(); if(st.finished) stopPlay(); };
   es.onerror=()=>stopPlay();
 }
-function stopPlay(){ playing=false; $("#play").textContent="▶ Play";
+function stopPlay(){ playing=false; $("#play").textContent=t("play");
   if(es){es.close();es=null;} }
 
 $("#create").onclick=()=>createWorld().catch(e=>alert(e.message));
@@ -323,8 +386,9 @@ $("#step1").onclick=()=>step(1).catch(e=>alert(e.message));
 $("#step5").onclick=()=>step(5).catch(e=>alert(e.message));
 $("#play").onclick=togglePlay;
 $("#narrate").onclick=()=>narrateChronicle().catch(e=>alert(e.message));
+$("#lang").onchange=e=>{ lang=e.target.value; localStorage.setItem("lang",lang); applyI18n(); };
 window.addEventListener("resize",fit);
-fit(); createWorld().catch(()=>{});
+applyI18n(); fit(); createWorld().catch(()=>{});
 </script>
 </body>
 </html>
