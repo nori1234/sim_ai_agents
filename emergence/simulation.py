@@ -290,6 +290,7 @@ class Simulation:
             norms=({"crime": True,
                     "enforcement": round(self._enforcement_expectation(), 2)}
                    if self.policy.has_crime_norm() else {}),
+            laws=self._published_laws(),
             environment=self.environment.snapshot() if self.environment is not None else {},
             role=role_of(agent.profession),
             affordances=affordances_at(here_f),
@@ -1718,6 +1719,25 @@ class Simulation:
                 f"frauds={summary['frauds']} fines={summary['fines']} "
                 f"laws={summary['active_laws']} gov={gov_tag}{mayor_tag}{births_tag}"
             )
+
+    def _published_laws(self) -> list:
+        """Every enacted law, published as text for the brain to act on — so an
+        LLM agent can read, obey, or enforce even legislation the engine has no
+        built-in mechanism for. De-duplicated by text (re-passing the same bill
+        is not new news), most recent first, capped to keep the view lean. The
+        heuristic brain ignores this, so offline outcomes are unchanged."""
+        out: list = []
+        seen: set[str] = set()
+        for law in reversed(self.policy.laws):
+            if law.text in seen:
+                continue
+            seen.add(law.text)
+            out.append({"text": law.text,
+                        "effects": [e.value for e in law.effects],
+                        "day": law.enacted_day})
+            if len(out) >= 8:
+                break
+        return out
 
     def _enforcement_expectation(self) -> float:
         """How credibly crime is punished, in 0..1 — derived from real world

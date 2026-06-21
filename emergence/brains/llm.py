@@ -93,6 +93,11 @@ def _build_system_prompt(persona: Optional[Persona]) -> str:
         "world and Japanese history — surplus enables storage and specialization, "
         "trade and population call for governance and law, security and surplus "
         "free people for knowledge and culture. Build what the town is ready for.\n\n"
+        "The town's enacted LAWS are shown to you, but the engine does not force "
+        "them: a law has force only if citizens choose to honour it, and only if "
+        "someone chooses to ENFORCE it through their own actions (e.g. a guard "
+        "arrests a violator). You may obey a law, ignore it, or enforce it on "
+        "others — in character.\n\n"
         + _ACTION_MENU
     )
     if persona is not None:
@@ -223,6 +228,7 @@ class LLMBrain(AgentBrain):
             "other_agents": obs.others[:8],
             "open_proposals": obs.open_proposals,
             "town_norms": obs.norms or "(none enacted)",
+            "laws_in_force": obs.laws or "(none enacted)",
             "shared_granary_food": obs.granary_food,
             "your_memories": obs.memory[-8:] or ["(no relevant memories)"],
             "library_knowledge": obs.knowledge or "(no books within reach)",

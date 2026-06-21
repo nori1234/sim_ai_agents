@@ -66,6 +66,14 @@ class Observation:
     #   {"crime": bool, "enforcement": float 0..1}
     norms: dict = field(default_factory=dict)
 
+    # Every law the town has actually enacted, published as text so an LLM agent
+    # can read, comply with, or *enforce* even legislation the engine has no
+    # built-in mechanism for. A law's force is emergent agent behaviour, not
+    # engine code — so a novel law works iff citizens choose to honour/enforce it.
+    # The heuristic brain ignores this (offline outcomes unchanged).
+    #   [{"text": str, "effects": [str], "day": int}]
+    laws: list = field(default_factory=list)
+
     # Public-works loop: whether it's active and the state treasury (for proposing
     # council-funded construction).
     public_works: dict = field(default_factory=dict)
