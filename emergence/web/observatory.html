@@ -149,7 +149,7 @@ const I18N = {
     allies:"Allies", foes:"Foes", marks:"Marks",
     noLLM:"This world has no LLM brain — pick Local LLM / Hosted API to narrate.",
     report_title:"Final report — day {n}", r_survivors:"Survivors", r_crimes:"Crimes",
-    r_arrests:"Arrests", r_fines:"Fines", r_laws:"Laws in force", r_births:"Births",
+    r_arrests:"Arrests", r_fines:"Fines", r_laws:"Bills passed", r_births:"Births",
     r_works:"Works created", r_trades:"Trades", r_gangs:"Gangs", r_rebellions:"Rebellions",
     r_faiths:"Faiths", r_verdict:"Verdict",
   },
@@ -171,7 +171,7 @@ const I18N = {
     allies:"盟友", foes:"敵", marks:"刻まれたもの",
     noLLM:"この世界にはLLM脳がありません — ローカルLLM／ホストAPIを選ぶと物語化できます。",
     report_title:"最終レポート — {n}日目", r_survivors:"生存", r_crimes:"犯罪",
-    r_arrests:"逮捕", r_fines:"罰金", r_laws:"発効中の法", r_births:"出生",
+    r_arrests:"逮捕", r_fines:"罰金", r_laws:"可決法案", r_births:"出生",
     r_works:"創作物", r_trades:"取引", r_gangs:"ギャング", r_rebellions:"反乱",
     r_faiths:"信仰", r_verdict:"判定",
   },
@@ -353,7 +353,7 @@ function reportCard(st){
     add("r_crimes", parts?`${m.crimes_total} (${parts})`:m.crimes_total); }
   if(m.arrests) add("r_arrests", m.arrests);
   if(m.fines_collected) add("r_fines", m.fines_collected);
-  if(m.laws_enacted) add("r_laws", m.laws_enacted);
+  if(m.proposals_total) add("r_laws", `${m.proposals_passed}/${m.proposals_total}`);
   if(m.births) add("r_births", m.births);
   if(m.works_created) add("r_works", m.works_created);
   if(m.trades) add("r_trades", m.trades);
