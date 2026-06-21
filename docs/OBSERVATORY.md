@@ -3,8 +3,26 @@
 The commercial direction for Emergence World: an **observatory** where you watch
 an AI society emerge from above and can **possess any citizen** to live their
 story from the inside. Watching (the god view) and immersion (a single life) in
-one product — leaning on the engine's unique asset: *different AI personalities
-produce visibly different societies, reproducibly.*
+one product.
+
+**What it actually is.** A **single LLM**, individuated into distinct citizens by
+**external scaffolding** — a per-agent character (its prompt/persona) and an
+external, per-agent **memory** (its lived history) — let loose in the engine's
+world (its physics, affordances and motives) so that a **society emerges** from
+their interaction, reproducibly. The appeal is not "different models"; it is *one*
+model becoming *many* individuals through what we bolt onto it, and the society
+that grows out of them.
+
+> **Note on "the four societies".** The four personas (Guardian/Philosopher/
+> Idealist/Predator) are a **legacy of the original experiment**, which compared
+> AI *models*. They are **not** the product's concept. They survive only as (a)
+> the **free/heuristic tier's** caricatures and (b) a **reproducible reference
+> benchmark** (`test_baseline_contract.py`). Real diversity in an LLM world should
+> come from each agent's own character + memory, not from being one of four
+> archetypes. *State today:* per-agent **memory** is already external and
+> individual; per-agent **character** is still drawn from the four presets
+> (`llm.py: _build_system_prompt`) — generating a distinct character per citizen
+> is the next step (the implementation of this concept).
 
 ## Decisions so far
 
@@ -26,9 +44,9 @@ produce visibly different societies, reproducibly.*
   the offline `HeuristicBrain` (free, deterministic) and bring-your-own-key are
   the default; hosted inference is an opt-in we add later behind quotas.
 - **The brain, and what the product *is*.** The soul is **LLM-driven
-  emergence** — that is what "AI societies that differ by model" requires, and
-  what makes the story real. So the product is **LLM-forward**, with three brain
-  modes selectable per world:
+  emergence** — one model individuated by per-agent character + memory into many
+  citizens, whose interaction grows a society. So the product is **LLM-forward**,
+  with three brain modes selectable per world:
   - `heuristic` — free, instant, deterministic; the **test + demo/preview tier**
     (caricatured personas, *not* real AI — never sold as the AI).
   - `local` — a local LLM (Llama via Ollama); the **main** mode: private,
