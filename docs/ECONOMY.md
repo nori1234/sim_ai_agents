@@ -72,13 +72,21 @@ the market — stocked by farmers' surplus — still sells, at an emergent price
 2. **Emergence-first.** Don't script a "shop". Add **affordances** ("you can buy
    food here") and let brains choose. Prices are **not** a formula — they already
    emerge from accepted `OFFER`/`ACCEPT` swaps (`market.py`, `--economy`).
-3. **Money is not privileged** (per `PRINCIPLED_MIGRATION.md`). Consumption is
+3. **Value is subjective and the LLM's; price is the public, emergent number.**
+   An agent's *value* for a good forms from its own motives/needs (a starving
+   agent prizes food) — the engine must **not** precompute or hand over a "value"
+   number, because judging worth is the LLM's freedom (principle&nbsp;1). *Price*
+   is only the emergent meeting-point where many private values settle into a
+   trade ratio — a convenient public signal, not a truth. So surface the raw
+   **motives** + the emergent **price**, and let the agent weigh its own value
+   against the price.
+4. **Money is not privileged** (per `PRINCIPLED_MIGRATION.md`). Consumption is
    just `money → good/service → use`, built from existing primitives.
-4. **Institutions emerge, they are not hardcoded.** Firms and the state (below)
+5. **Institutions emerge, they are not hardcoded.** Firms and the state (below)
    are *emergent* the same way money, police and law are — we add the physics
    (employ, pay, levy) and let them form, not a built-in "company" or "tax
    office".
-5. **Determinism.** The `--compare` baseline stays byte-identical. Everything
+6. **Determinism.** The `--compare` baseline stays byte-identical. Everything
    here is **opt-in** (rides on `--economy`); `test_baseline_contract.py` is
    untouched. New signals ride on `Observation`; heuristic branches are gated.
 
