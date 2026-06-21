@@ -102,6 +102,9 @@ def _beat(e: dict, nm, lang: str) -> str | None:
     if k == "public_works":
         return _L(lang, f"🏗 the council built a {_facility_type(e.get('type'), 'en')}",
                   f"🏗 議会が{_facility_type(e.get('type'), 'ja')}を建設")
+    if k == "bribe":
+        return _L(lang, f"🤝 {nm(e['briber'])} bribed {nm(e['guard'])} (a guard)",
+                  f"🤝 {nm(e['briber'])} が衛兵 {nm(e['guard'])} に賄賂を渡した")
     return None
 
 

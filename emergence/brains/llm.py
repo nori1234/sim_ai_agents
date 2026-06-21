@@ -97,7 +97,11 @@ def _build_system_prompt(persona: Optional[Persona]) -> str:
         "them: a law has force only if citizens choose to honour it, and only if "
         "someone chooses to ENFORCE it through their own actions (e.g. a guard "
         "arrests a violator). You may obey a law, ignore it, or enforce it on "
-        "others — in character.\n\n"
+        "others — in character. Enforcement is a choice, so corruption is "
+        "possible: a guard may look the other way, enforce only against rivals "
+        "and spare allies or kin, or accept a BRIBE; and a wanted offender may "
+        "offer one (give money to a nearby guard) to escape arrest. Whether you "
+        "stay honest or corrupt is your character's call.\n\n"
         + _ACTION_MENU
     )
     if persona is not None:

@@ -430,6 +430,15 @@ class Simulation:
                     f"Day {self.world.day}: {ev.actor.name} gave me {qty} {resource}.")
                 self.world.log("transfer", sender=ev.actor.id, receiver=ev.other.id,
                                resource=resource, amount=qty)
+            # A wanted offender slipping money to a guard reads as a bribe. We only
+            # *name* it — the corruption is the guard's own later choice not to
+            # arrest. Purely additive (a log + a new metric), so the heuristic
+            # baseline, which never does this, stays byte-identical.
+            if (ev.other.profession == "guard" and ev.items.get("money")
+                    and self._is_wanted(ev.actor)):
+                self.metrics.bribes += 1
+                self.world.log("bribe", briber=ev.actor.id, guard=ev.other.id,
+                               amount=ev.items["money"])
         elif ev.kind == "strike" and ev.other is not None:
             # Force against a person is the crime of violence.
             self._register_crime(ev.actor, "violence", ev.other)
