@@ -58,6 +58,11 @@ def _clamp(value, lo, hi, default):
     return max(lo, min(hi, v))
 
 
+def _lang(value) -> str:
+    """Clamp a language code to a supported one (default English)."""
+    return "ja" if str(value).lower() == "ja" else "en"
+
+
 class EmergenceAPI:
     """In-memory registry of running worlds plus the verbs to drive them."""
 
@@ -198,35 +203,36 @@ class EmergenceAPI:
         return {"size": len(t), "transcript": t}
 
     # -- running --------------------------------------------------------
-    def step(self, world_id: str, days=1) -> dict:
+    def step(self, world_id: str, days=1, lang="en") -> dict:
         sim = self._get(world_id)
         days = _clamp(days, 1, MAX_STEP_DAYS, 1)
         before = len(sim.world.events)
         for _ in range(days):
             if not sim.step_day():
                 break
-        state = self._state(sim)
+        state = self._state(sim, _lang(lang))
         state["new_events"] = sim.world.events[before:]
         return state
 
-    def stream_days(self, world_id: str, days=1):
+    def stream_days(self, world_id: str, days=1, lang="en"):
         """Yield one state per day as the world advances — the basis for live
         (SSE) playback. Deterministic: same step_day() as run(), one day at a
         time. Stops early when the world finishes."""
         sim = self._get(world_id)
         days = _clamp(days, 1, MAX_STEP_DAYS, 1)
+        lang = _lang(lang)
         for _ in range(days):
             before = len(sim.world.events)
             alive = sim.step_day()
-            state = self._state(sim)
+            state = self._state(sim, lang)
             state["new_events"] = sim.world.events[before:]
             yield state
             if not alive:
                 break
 
     # -- reading --------------------------------------------------------
-    def world_state(self, world_id: str) -> dict:
-        return self._state(self._get(world_id))
+    def world_state(self, world_id: str, lang="en") -> dict:
+        return self._state(self._get(world_id), _lang(lang))
 
     def events(self, world_id: str, since=0, limit=200) -> dict:
         sim = self._get(world_id)
@@ -259,34 +265,37 @@ class EmergenceAPI:
         }
 
     # -- narrative (the story-led experience) ---------------------------
-    def chronicle(self, world_id: str, narrate_prose=False) -> dict:
+    def chronicle(self, world_id: str, narrate_prose=False, lang="en") -> dict:
         """The curated, day-by-day story of the town. With ``narrate_prose`` and
         an LLM brain, also return flowing prose — recorded into the world's
-        transcript, so the narration is as reproducible as the run."""
+        transcript, so the narration is as reproducible as the run. ``lang``
+        ("en"/"ja") localises the curated story and the verdict."""
+        lang = _lang(lang)
         sim = self._get(world_id)
-        text = chronicle_text(sim)
+        text = chronicle_text(sim, lang=lang)
         out = {
             "finished": getattr(sim, "_finished", False),
-            "verdict": one_line_verdict(sim) if getattr(sim, "_finished", False) else None,
-            "days": chronicle(sim),
+            "verdict": one_line_verdict(sim, lang) if getattr(sim, "_finished", False) else None,
+            "days": chronicle(sim, lang),
             "text": text,
             "narrative": None,
         }
         if narrate_prose:
-            out["narrative"] = narrate(text, getattr(sim, "_llm_client", None))
+            out["narrative"] = narrate(text, getattr(sim, "_llm_client", None), lang)
         return out
 
-    def agent_story(self, world_id: str, agent_id: str) -> dict:
-        """One citizen's life as a readable story."""
+    def agent_story(self, world_id: str, agent_id: str, lang="en") -> dict:
+        """One citizen's life as a readable story (``lang`` localises it)."""
+        lang = _lang(lang)
         sim = self._get(world_id)
         if sim._by_id.get(agent_id) is None:
             raise APIError(f"no such citizen {agent_id!r}", 404)
-        story = life_story(sim, agent_id)
-        story["text"] = life_story_text(sim, agent_id)
+        story = life_story(sim, agent_id, lang)
+        story["text"] = life_story_text(sim, agent_id, lang)
         return story
 
     # -- serialization --------------------------------------------------
-    def _state(self, sim) -> dict:
+    def _state(self, sim, lang="en") -> dict:
         return {
             "day": sim.world.day,
             "tick": sim.world.tick,
@@ -308,7 +317,7 @@ class EmergenceAPI:
             ],
             "granary_food": sim.world.granary_food,
             "metrics": sim.metrics.as_dict(),
-            "verdict": one_line_verdict(sim),
+            "verdict": one_line_verdict(sim, lang),
             "event_count": len(sim.world.events),
         }
 

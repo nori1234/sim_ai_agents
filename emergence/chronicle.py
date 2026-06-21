@@ -5,9 +5,10 @@ person wants to read: a **chronicle** of the town's days (the legislative spam
 summarised, the dramatic beats surfaced) and a **life story** for any citizen
 (their role versus what they actually did, their ties, their faith, their fate).
 
-Pure stdlib and deterministic — the same run always tells the same story. A
-future layer can hand these beats to an LLM to render flowing prose; this is the
-grounded, free foundation it would build on.
+Pure stdlib and deterministic — the same run always tells the same story. Each
+renderer takes a ``lang`` ("en"/"ja"); English is the default and is byte-for-byte
+unchanged, so existing behaviour and tests are unaffected. A future layer can
+hand these beats to an LLM to render flowing prose in either language.
 """
 
 from __future__ import annotations
@@ -23,25 +24,76 @@ _HEADLINE = {
 _ACTOR_FIELDS = ("offender", "victim", "leader", "prophet", "agent", "by",
                  "instigator", "author", "convert", "guard", "sender", "receiver")
 
+# Japanese glosses for engine-generated tokens (professions, facility types,
+# death causes). Fall back to the raw token when unmapped.
+_PROF_JA = {
+    "farmer": "農夫", "builder": "大工", "teacher": "教師", "merchant": "商人",
+    "doctor": "医者", "guard": "衛兵", "miner": "鉱夫", "librarian": "司書",
+    "smith": "鍛冶", "council clerk": "書記", "child": "子供", "mayor": "市長",
+    "priest": "司祭", "banker": "銀行家",
+}
+_FAC_JA = {
+    "farm": "農場", "forest": "森", "mine": "鉱山", "workshop": "工房",
+    "market": "市場", "bank": "銀行", "granary": "倉庫", "library": "図書館",
+    "plaza": "広場", "house": "家", "town_hall": "役所", "hospital": "病院",
+    "police_station": "警察署", "prison": "刑務所", "temple": "寺院",
+    "monument": "記念碑",
+}
+_CAUSE_JA = {
+    "violence": "暴力", "killed in violence": "暴力により死亡",
+    "starvation": "餓死",
+}
+
+
+def _L(lang, en, ja):
+    return ja if lang == "ja" else en
+
+
+def _prof(p, lang):
+    return _PROF_JA.get(p, p) if lang == "ja" else p
+
+
+def _cause(c, lang):
+    return _CAUSE_JA.get(c, c) if lang == "ja" else (c or "?")
+
+
+def _facility_type(t, lang):
+    t = t or "facility"
+    return _FAC_JA.get(t, t) if lang == "ja" else t.replace("_", " ")
+
 
 def _names(sim) -> dict:
     return {a.id: a.name for a in sim.agents}
 
 
-def _beat(e: dict, nm) -> str | None:
+def _beat(e: dict, nm, lang: str) -> str | None:
     """Render one headline event as a sentence (or None to skip)."""
     k = e["kind"]
-    if k == "death":            return f"💀 {nm(e['agent'])} died — {e.get('cause','?')}"
-    if k == "gang_formed":      return f"🩸 {nm(e['leader'])} founded the {e['gang']}"
-    if k == "religion_founded": return f"🛐 {nm(e['prophet'])} founded the faith {e['faith']}"
-    if k == "conversion":       return f"🛐 {nm(e['convert'])} joined {e['faith']}"
-    if k == "rebellion":        return f"🚩 {nm(e['instigator'])} led a rebellion"
-    if k == "monument":         return f"🏛 {nm(e['by'])} raised {e['name']}"
-    if k == "public_works":     return f"🏗 the council built a {e.get('type','facility').replace('_',' ')}"
+    if k == "death":
+        return _L(lang, f"💀 {nm(e['agent'])} died — {e.get('cause','?')}",
+                  f"💀 {nm(e['agent'])} が死亡 — {_cause(e.get('cause'), lang)}")
+    if k == "gang_formed":
+        return _L(lang, f"🩸 {nm(e['leader'])} founded the {e['gang']}",
+                  f"🩸 {nm(e['leader'])} が{e['gang']}を結成")
+    if k == "religion_founded":
+        return _L(lang, f"🛐 {nm(e['prophet'])} founded the faith {e['faith']}",
+                  f"🛐 {nm(e['prophet'])} が信仰「{e['faith']}」を創始")
+    if k == "conversion":
+        return _L(lang, f"🛐 {nm(e['convert'])} joined {e['faith']}",
+                  f"🛐 {nm(e['convert'])} が{e['faith']}に入信")
+    if k == "rebellion":
+        return _L(lang, f"🚩 {nm(e['instigator'])} led a rebellion",
+                  f"🚩 {nm(e['instigator'])} が反乱を主導")
+    if k == "monument":
+        return _L(lang, f"🏛 {nm(e['by'])} raised {e['name']}",
+                  f"🏛 {nm(e['by'])} が{e['name']}を建立")
+    if k == "public_works":
+        return _L(lang, f"🏗 the council built a {_facility_type(e.get('type'), 'en')}",
+                  f"🏗 議会が{_facility_type(e.get('type'), 'ja')}を建設")
     return None
 
 
-def chronicle(sim) -> list[dict]:
+def chronicle(sim, lang: str = "en") -> list[dict]:
     """A curated, day-by-day story: ``[{"day": int, "beats": [str]}]``."""
     nm = (lambda i, m=_names(sim): m.get(i, i))
     by_day: dict[int, list[dict]] = defaultdict(list)
@@ -54,43 +106,52 @@ def chronicle(sim) -> list[dict]:
         beats: list[str] = []
         # Headline drama, in order.
         for e in evs:
-            line = _beat(e, nm)
+            line = _beat(e, nm, lang)
             if line:
                 beats.append(line)
         # Summarise the noisy machinery rather than listing each item.
         crimes = Counter(e["kind"] for e in evs if e["kind"] in ("violence", "theft", "arson"))
         if crimes:
-            bits = ", ".join(f"{n} {k}" for k, n in crimes.items())
-            beats.append(f"⚔ unrest: {bits}")
+            _CR = {"violence": ("violence", "暴力"), "theft": ("theft", "窃盗"),
+                   "arson": ("arson", "放火")}
+            bits = ", ".join(f"{n} {_L(lang, *_CR[k])}" for k, n in crimes.items())
+            beats.append(_L(lang, f"⚔ unrest: {bits}", f"⚔ 騒乱: {bits}"))
         passed = sum(1 for e in evs if e["kind"] == "proposal_resolved" and e.get("status") == "passed")
         laws = [e["effects"] for e in evs if e["kind"] == "law_enacted" and e.get("effects")]
         if passed or laws:
             effects = ", ".join(sorted({x for eff in laws for x in eff.split(", ")}))
-            tail = f" — enacting {effects}" if effects else ""
-            beats.append(f"🏛 the council passed {passed} bill(s){tail}")
+            if lang == "ja":
+                tail = f"（効力: {effects}）" if effects else ""
+                beats.append(f"🏛 議会が{passed}件の法案を可決{tail}")
+            else:
+                tail = f" — enacting {effects}" if effects else ""
+                beats.append(f"🏛 the council passed {passed} bill(s){tail}")
         births = sum(1 for e in evs if e["kind"] == "birth")
         if births:
-            beats.append(f"👶 {births} child(ren) born")
+            beats.append(_L(lang, f"👶 {births} child(ren) born", f"👶 {births}人の子が誕生"))
         if beats:
             out.append({"day": day, "beats": beats})
     return out
 
 
-def chronicle_text(sim, title: str = "Town Chronicle") -> str:
+def chronicle_text(sim, title: str | None = None, lang: str = "en") -> str:
+    if title is None:
+        title = _L(lang, "Town Chronicle", "町の年代記")
     lines = [f"# {title}", ""]
-    for entry in chronicle(sim):
-        lines.append(f"**Day {entry['day']}**")
+    for entry in chronicle(sim, lang):
+        lines.append(_L(lang, f"**Day {entry['day']}**", f"**{entry['day']}日目**"))
         lines += [f"- {b}" for b in entry["beats"]]
         lines.append("")
     return "\n".join(lines).strip()
 
 
-def life_story(sim, agent_id: str) -> dict:
+def life_story(sim, agent_id: str, lang: str = "en") -> dict:
     """One citizen's life: their role vs their deeds, ties, beliefs, and fate."""
     a = sim._by_id.get(agent_id)
     if a is None:
         raise KeyError(agent_id)
     nm = (lambda i, m=_names(sim): m.get(i, i))
+    dd = (lambda d: _L(lang, f"D{d}", f"{d}日目"))
 
     # The acts of this life, in order — narrated from the citizen's vantage.
     beats: list[str] = []
@@ -99,53 +160,72 @@ def life_story(sim, agent_id: str) -> dict:
             continue
         k, d = e["kind"], e.get("day", 0)
         if k == "gang_formed":
-            beats.append(f"D{d}: founded the {e['gang']}")
+            beats.append(_L(lang, f"{dd(d)}: founded the {e['gang']}",
+                            f"{dd(d)}: {e['gang']}を結成した"))
         elif k == "religion_founded":
-            beats.append(f"D{d}: founded the faith {e['faith']} — a prophet now")
+            beats.append(_L(lang, f"{dd(d)}: founded the faith {e['faith']} — a prophet now",
+                            f"{dd(d)}: 信仰「{e['faith']}」を創始 — 預言者となった"))
         elif k == "conversion" and e.get("convert") == agent_id:
-            beats.append(f"D{d}: converted to {e['faith']}")
+            beats.append(_L(lang, f"{dd(d)}: converted to {e['faith']}",
+                            f"{dd(d)}: {e['faith']}に改宗した"))
         elif k == "violence" and e.get("offender") == agent_id:
-            beats.append(f"D{d}: attacked {nm(e['victim'])}")
+            beats.append(_L(lang, f"{dd(d)}: attacked {nm(e['victim'])}",
+                            f"{dd(d)}: {nm(e['victim'])}を襲った"))
         elif k == "violence" and e.get("victim") == agent_id:
-            beats.append(f"D{d}: was attacked by {nm(e['offender'])}")
+            beats.append(_L(lang, f"{dd(d)}: was attacked by {nm(e['offender'])}",
+                            f"{dd(d)}: {nm(e['offender'])}に襲われた"))
         elif k == "theft" and e.get("offender") == agent_id:
-            beats.append(f"D{d}: stole from {nm(e['victim'])}")
+            beats.append(_L(lang, f"{dd(d)}: stole from {nm(e['victim'])}",
+                            f"{dd(d)}: {nm(e['victim'])}から盗んだ"))
         elif k == "arson" and e.get("offender") == agent_id:
-            beats.append(f"D{d}: set fire to {e.get('facility','a building')}")
+            beats.append(_L(lang, f"{dd(d)}: set fire to {e.get('facility','a building')}",
+                            f"{dd(d)}: {e.get('facility','建物')}に放火した"))
         elif k == "arrest" and e.get("offender") == agent_id:
-            beats.append(f"D{d}: was arrested by {nm(e['guard'])}")
+            beats.append(_L(lang, f"{dd(d)}: was arrested by {nm(e['guard'])}",
+                            f"{dd(d)}: {nm(e['guard'])}に逮捕された"))
         elif k == "arrest" and e.get("guard") == agent_id:
-            beats.append(f"D{d}: made an arrest — kept the peace")
+            beats.append(_L(lang, f"{dd(d)}: made an arrest — kept the peace",
+                            f"{dd(d)}: 逮捕を行い、治安を守った"))
         elif k == "monument" and e.get("by") == agent_id:
-            beats.append(f"D{d}: raised the monument {e['name']}")
+            beats.append(_L(lang, f"{dd(d)}: raised the monument {e['name']}",
+                            f"{dd(d)}: 記念碑「{e['name']}」を建立した"))
         elif k == "rebellion" and e.get("instigator") == agent_id:
-            beats.append(f"D{d}: led a rebellion against those in power")
+            beats.append(_L(lang, f"{dd(d)}: led a rebellion against those in power",
+                            f"{dd(d)}: 権力者に対し反乱を主導した"))
         elif k == "death" and e.get("agent") == agent_id:
-            beats.append(f"D{d}: died — {e.get('cause','?')}")
+            beats.append(_L(lang, f"{dd(d)}: died — {e.get('cause','?')}",
+                            f"{dd(d)}: 死亡 — {_cause(e.get('cause'), lang)}"))
         elif k == "birth" and e.get("child") == agent_id:
-            beats.append(f"D{d}: was born")
+            beats.append(_L(lang, f"{dd(d)}: was born", f"{dd(d)}: 生まれた"))
 
     ties = sorted(a.trust.items(), key=lambda kv: -kv[1])
     allies = [f"{nm(i)} ({t:+.1f})" for i, t in ties if t > 0.3][:3]
     foes = [f"{nm(i)} ({t:+.1f})" for i, t in ties if t < -0.3][:3]
     beliefs = []
     if a.faith:
-        beliefs.append("devout")
+        beliefs.append(_L(lang, "devout", "敬虔"))
     if a.gang_id:
-        beliefs.append("gang-sworn")
+        beliefs.append(_L(lang, "gang-sworn", "ギャングの一員"))
     if a.weapons:
-        beliefs.append(f"armed ({a.weapons})")
+        beliefs.append(_L(lang, f"armed ({a.weapons})", f"武装（{a.weapons}）"))
 
     if a.alive:
-        fate = f"Survived to the end, standing {a.reputation:.0f}."
+        fate = _L(lang, f"Survived to the end, standing {a.reputation:.0f}.",
+                  f"最後まで生き延びた。名声 {a.reputation:.0f}。")
     else:
-        fate = f"Died on day {a.day_of_death} — {a.cause_of_death}."
+        fate = _L(lang, f"Died on day {a.day_of_death} — {a.cause_of_death}.",
+                  f"{a.day_of_death}日目に死亡 — {_cause(a.cause_of_death, lang)}。")
+
+    subtitle = _L(
+        lang,
+        f"{a.profession} — {a.crimes_committed} crime(s), standing {a.reputation:.0f}",
+        f"{_prof(a.profession, lang)} — 犯罪{a.crimes_committed}件・名声{a.reputation:.0f}",
+    )
 
     return {
         "id": a.id,
         "name": a.name,
-        "subtitle": f"{a.profession} — {a.crimes_committed} crime(s), "
-                    f"standing {a.reputation:.0f}",
+        "subtitle": subtitle,
         "beats": beats,
         "allies": allies,
         "foes": foes,
@@ -155,30 +235,41 @@ def life_story(sim, agent_id: str) -> dict:
     }
 
 
-def life_story_text(sim, agent_id: str) -> str:
-    s = life_story(sim, agent_id)
+def life_story_text(sim, agent_id: str, lang: str = "en") -> str:
+    s = life_story(sim, agent_id, lang)
     lines = [f"# {s['name']}", f"*{s['subtitle']}*", ""]
-    lines += [f"- {b}" for b in s["beats"]] or ["- (an uneventful life)"]
+    lines += [f"- {b}" for b in s["beats"]] or [_L(lang, "- (an uneventful life)", "- （平穏な一生）")]
     lines.append("")
     if s["allies"]:
-        lines.append(f"**Allies:** {', '.join(s['allies'])}")
+        lines.append(_L(lang, f"**Allies:** {', '.join(s['allies'])}",
+                        f"**盟友:** {', '.join(s['allies'])}"))
     if s["foes"]:
-        lines.append(f"**Foes:** {', '.join(s['foes'])}")
+        lines.append(_L(lang, f"**Foes:** {', '.join(s['foes'])}",
+                        f"**敵:** {', '.join(s['foes'])}"))
     if s["beliefs"]:
-        lines.append(f"**Marks:** {', '.join(s['beliefs'])}")
-    lines.append(f"**Fate:** {s['fate']}")
+        lines.append(_L(lang, f"**Marks:** {', '.join(s['beliefs'])}",
+                        f"**刻まれたもの:** {', '.join(s['beliefs'])}"))
+    lines.append(_L(lang, f"**Fate:** {s['fate']}", f"**結末:** {s['fate']}"))
     return "\n".join(lines)
 
 
-_NARRATE_SYSTEM = (
-    "You are the chronicler of a small simulated town. Given a list of "
-    "day-by-day events, write a vivid but FAITHFUL short chronicle — a few "
-    "short paragraphs. Use only the events given; invent no new facts, and "
-    "keep the names exactly. Aim for the feel of a brief history, not a list."
-)
+_NARRATE_SYSTEM = {
+    "en": (
+        "You are the chronicler of a small simulated town. Given a list of "
+        "day-by-day events, write a vivid but FAITHFUL short chronicle — a few "
+        "short paragraphs. Use only the events given; invent no new facts, and "
+        "keep the names exactly. Aim for the feel of a brief history, not a list."
+    ),
+    "ja": (
+        "あなたは小さなシミュレーション都市の年代記編者です。日ごとの出来事の一覧を基に、"
+        "鮮やかでありながら**忠実**な短い年代記を、数段落の日本語で書いてください。与えられた"
+        "出来事だけを使い、新たな事実を創作せず、名前は正確に保つこと。箇条書きではなく、"
+        "短い歴史叙述の趣で。"
+    ),
+}
 
 
-def narrate(chronicle_md: str, client) -> str | None:
+def narrate(chronicle_md: str, client, lang: str = "en") -> str | None:
     """Turn the deterministic chronicle into flowing prose via an LLM client
     (``client(system, user) -> str``). This is where 'story' meets
     'reproducibility': the narration call goes through the *same* recording
@@ -188,8 +279,9 @@ def narrate(chronicle_md: str, client) -> str | None:
     fails — callers then fall back to the curated `chronicle_text`."""
     if client is None:
         return None
+    system = _NARRATE_SYSTEM.get(lang, _NARRATE_SYSTEM["en"])
     try:
-        prose = client(_NARRATE_SYSTEM, chronicle_md)
+        prose = client(system, chronicle_md)
     except Exception:
         return None
     prose = (prose or "").strip()

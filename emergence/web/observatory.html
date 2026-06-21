@@ -312,7 +312,7 @@ function applyState(st){
 // --- the story (read on the right) ---------------------------------------
 let narrative = null;   // cached LLM prose for the current chronicle, if any
 async function loadChronicle(){
-  if(!world)return; const c=await api("GET",`/api/worlds/${world.id}/chronicle`);
+  if(!world)return; const c=await api("GET",`/api/worlds/${world.id}/chronicle?lang=${lang}`);
   const days = c.days.map(d=>
     `<div class="day">${fmt("day",{n:d.day})}</div>`+d.beats.map(b=>`<div class="beat">${esc(b)}</div>`).join("")
   ).join("") || `<div class="muted">${esc(t("quiet"))}</div>`;
@@ -325,7 +325,7 @@ async function narrateChronicle(){
   if(!world)return;
   const btn=$("#narrate"); btn.disabled=true; btn.textContent="✨ …";
   try{
-    const c=await api("GET",`/api/worlds/${world.id}/chronicle?narrate=1`);
+    const c=await api("GET",`/api/worlds/${world.id}/chronicle?narrate=1&lang=${lang}`);
     narrative = c.narrative;   // null on a heuristic world (no LLM)
     await loadChronicle(); showTab("chronicle");
     if(!narrative) alert(t("noLLM"));
@@ -333,7 +333,7 @@ async function narrateChronicle(){
 }
 async function possess(aid){
   selected=aid; showTab("citizen"); draw();
-  const s=await api("GET",`/api/worlds/${world.id}/agents/${aid}/story`);
+  const s=await api("GET",`/api/worlds/${world.id}/agents/${aid}/story?lang=${lang}`);
   const beats=(s.beats||[]).map(b=>`<div class="beat">${esc(b)}</div>`).join("")||`<div class="muted">${esc(t("uneventful"))}</div>`;
   const tags=t2=>t2&&t2.length?t2.map(x=>`<span class="tag">${esc(x)}</span>`).join(""):"";
   $("#citizen").innerHTML=`<div class="reading">
@@ -365,7 +365,7 @@ async function createWorld(){
   applyState(st); await loadChronicle(); showTab("chronicle");
 }
 async function step(days){
-  if(!world)return; const st=await api("POST",`/api/worlds/${world.id}/step?days=${days}`);
+  if(!world)return; const st=await api("POST",`/api/worlds/${world.id}/step?days=${days}&lang=${lang}`);
   narrative=null;  // the prose described an earlier day; re-narrate on demand
   applyState(st); await loadChronicle(); if(selected) possess(selected);
 }
@@ -373,7 +373,7 @@ function togglePlay(){ playing?stopPlay():startPlay(); }
 function startPlay(){
   if(!world)return; playing=true; $("#play").textContent=t("pause"); narrative=null;
   // Live SSE playback: one frame per simulated day, pushed by the server.
-  es=new EventSource(`/api/worlds/${world.id}/stream?days=30`);
+  es=new EventSource(`/api/worlds/${world.id}/stream?days=30&lang=${lang}`);
   es.onmessage=ev=>{ const st=JSON.parse(ev.data); applyState(st);
     loadChronicle(); if(st.finished) stopPlay(); };
   es.onerror=()=>stopPlay();

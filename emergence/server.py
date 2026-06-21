@@ -46,6 +46,7 @@ def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
     if parts == ["api", "health"]:
         return 200, {"ok": True}
     # /api/worlds ...
+    lang = query.get("lang", ["en"])[0]
     if parts[:2] == ["api", "worlds"]:
         rest = parts[2:]
         if not rest:
@@ -58,27 +59,27 @@ def _route(method: str, path: str, query: dict, body: dict) -> tuple[int, dict]:
         elif len(rest) == 1:
             wid = rest[0]
             if method == "GET":
-                return 200, _API.world_state(wid)
+                return 200, _API.world_state(wid, lang=lang)
             if method == "DELETE":
                 return 200, _API.delete_world(wid)
         elif len(rest) == 2 and rest[1] == "step" and method == "POST":
             days = (query.get("days", [None])[0]
                     or (body or {}).get("days", 1))
-            return 200, _API.step(rest[0], days=days)
+            return 200, _API.step(rest[0], days=days, lang=lang)
         elif len(rest) == 2 and rest[1] == "events" and method == "GET":
             return 200, _API.events(rest[0],
                                     since=query.get("since", [0])[0],
                                     limit=query.get("limit", [200])[0])
         elif len(rest) == 2 and rest[1] == "chronicle" and method == "GET":
             narrate = query.get("narrate", ["0"])[0] in ("1", "true", "yes")
-            return 200, _API.chronicle(rest[0], narrate_prose=narrate)
+            return 200, _API.chronicle(rest[0], narrate_prose=narrate, lang=lang)
         elif len(rest) == 2 and rest[1] == "transcript" and method == "GET":
             return 200, _API.transcript(rest[0])
         elif len(rest) == 3 and rest[1] == "agents" and method == "GET":
             return 200, _API.agent_view(rest[0], rest[2])
         elif len(rest) == 4 and rest[1] == "agents" and rest[3] == "story" \
                 and method == "GET":
-            return 200, _API.agent_story(rest[0], rest[2])
+            return 200, _API.agent_story(rest[0], rest[2], lang=lang)
     raise APIError(f"no route for {method} {path}", 404)
 
 
@@ -143,6 +144,7 @@ class Handler(BaseHTTPRequestHandler):
         except APIError as e:
             return self._send(e.status, {"error": e.message})
         days = query.get("days", ["30"])[0]
+        lang = query.get("lang", ["en"])[0]
         # A finite stream: close when it ends so the client gets a clean EOF
         # (the UI's EventSource closes on the `finished` frame to avoid reconnect).
         self.close_connection = True
@@ -153,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         try:
-            for state in _API.stream_days(world_id, days=days):
+            for state in _API.stream_days(world_id, days=days, lang=lang):
                 frame = "data: " + json.dumps(state, ensure_ascii=False) + "\n\n"
                 self.wfile.write(frame.encode("utf-8"))
                 self.wfile.flush()
