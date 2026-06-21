@@ -50,13 +50,10 @@ def apply_transfer(
     amount = max(0, int(amount))
     if amount == 0:
         return (False, 0)
-    if resource == "money":
-        moved = min(sender.money, amount)
-        sender.money -= moved
-        receiver.money += moved
-    else:
-        moved = sender.take(resource, amount)
-        receiver.add(resource, moved)
+    # Money is inventory-backed, so it moves through the same take/add primitive
+    # as any other resource — no special case (conserved either way).
+    moved = sender.take(resource, amount)
+    receiver.add(resource, moved)
     return (moved > 0, moved)
 
 
