@@ -104,22 +104,49 @@ def format_report(sim: Simulation, title: str = "Emergence World") -> str:
     return "\n".join(lines)
 
 
-def one_line_verdict(sim: Simulation) -> str:
-    """A terse characterisation of the society that emerged."""
+# Each verdict in English (the default / contract baseline) and Japanese.
+_VERDICTS = {
+    "collapse":     ("COLLAPSE — the town died out.",
+                     "崩壊 — 町は滅びた。"),
+    "flourishing":  ("FLOURISHING — a peaceful society that grew its population.",
+                     "繁栄 — 平和なまま人口が増えた社会。"),
+    "fertile_chaos":("FERTILE CHAOS — the population grew amid pervasive crime.",
+                     "豊穣な混沌 — 犯罪の中でも人口が増えた。"),
+    "growing":      ("GROWING — an imperfect society that still expanded.",
+                     "成長 — 不完全だが拡大した社会。"),
+    "order":        ("ORDER — peaceful, fully cooperative, but highly conformist.",
+                     "秩序 — 平和・全面協調・だが強い同調圧力。"),
+    "chaos":        ("CHAOS — pervasive crime and violence.",
+                     "混沌 — 犯罪と暴力が蔓延。"),
+    "failure":      ("FAILURE — the society failed to sustain its population.",
+                     "失敗 — 人口を維持できなかった社会。"),
+    "mixed":        ("MIXED — a functioning but imperfect society.",
+                     "混合 — 機能はするが不完全な社会。"),
+}
+
+
+def _verdict_key(sim: Simulation) -> str:
     m = sim.metrics
     if m.survivors == 0:
-        return "COLLAPSE — the town died out."
-    # Population growth (only possible with reproduction enabled).
+        return "collapse"
     if m.births > 0 and m.survivors > m.population:
         if m.crimes_total == 0:
-            return "FLOURISHING — a peaceful society that grew its population."
+            return "flourishing"
         if m.crimes_total >= 100:
-            return "FERTILE CHAOS — the population grew amid pervasive crime."
-        return "GROWING — an imperfect society that still expanded."
+            return "fertile_chaos"
+        return "growing"
     if m.crimes_total == 0 and m.survival_rate >= 1.0:
-        return "ORDER — peaceful, fully cooperative, but highly conformist."
+        return "order"
     if m.crimes_total >= 100:
-        return "CHAOS — pervasive crime and violence."
+        return "chaos"
     if m.survival_rate < 0.5:
-        return "FAILURE — the society failed to sustain its population."
-    return "MIXED — a functioning but imperfect society."
+        return "failure"
+    return "mixed"
+
+
+def one_line_verdict(sim: Simulation, lang: str = "en") -> str:
+    """A terse characterisation of the society that emerged (English by default,
+    Japanese with ``lang='ja'``). The English text is unchanged from before, so
+    the four-society contract stays byte-identical."""
+    en, ja = _VERDICTS[_verdict_key(sim)]
+    return ja if lang == "ja" else en
