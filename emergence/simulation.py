@@ -10,7 +10,7 @@ from .actions import Action, ActionType, Event
 from .agent import Agent, MAX_ENERGY
 from .brains.base import AgentBrain
 from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
-from .affordances import affordances_at, role_of
+from .affordances import affordances_at, gather_multiplier, gather_specialty, role_of
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
 from .psyche import PsycheConfig, actualization_pull, fear_level
@@ -300,7 +300,10 @@ class Simulation:
                          if self.economy else []),
             economy=({"enabled": True, "tradable": list(MK.TRADABLE),
                       "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
-                      "price_food_in_money": self.emergent_price("food", "money")}
+                      "price_food_in_money": self.emergent_price("food", "money"),
+                      # A capability hint (what you produce well), not a valuation
+                      # — the agent judges worth itself, weighing it against price.
+                      "your_specialty": gather_specialty(agent.profession)}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -610,6 +613,12 @@ class Simulation:
         by the environment), which flows into the gatherer. No counterparty, so
         nothing is interpreted as an institution."""
         resource, amount = f.gather_yield()  # type: ignore[misc]
+        # Economy layer: production is specialised. A specialist gathers its good
+        # well; off-specialty self-supply is inefficient (a low-yield fallback,
+        # never zero) — which is what gives food/materials a real demand. Gated by
+        # the economy flag, so the offline baseline is byte-identical.
+        if self.economy and amount:
+            amount = max(1, round(amount * gather_multiplier(agent.profession, resource)))
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
         agent.add(resource, amount)

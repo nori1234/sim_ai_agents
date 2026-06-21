@@ -11,6 +11,7 @@ from __future__ import annotations
 import random
 
 from ..actions import Action, ActionType
+from ..affordances import gather_multiplier
 from ..agent import Agent, MAX_ENERGY
 from ..observation import Observation
 from ..personas import Persona, get_persona
@@ -314,9 +315,34 @@ class HeuristicBrain(AgentBrain):
         return best if best.get("reputation", 0) >= 3 else None
 
     # -- survival -------------------------------------------------------
+    def _buy_food_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Economy layer, one rule: a poor food-gatherer with money buys food
+        instead of farming it, when an affordable offer exists. Survival-first is
+        preserved — if nothing is for sale, the caller falls back to gathering.
+        Gated on economy.enabled, so the offline baseline is byte-identical."""
+        if not obs.economy.get("enabled"):
+            return None
+        if gather_multiplier(agent.profession, "food") >= 1.0:
+            return None  # a food specialist just farms
+        for off in obs.open_offers:
+            if off.get("maker") == agent.id:
+                continue
+            give_i = off["give"].split(" ", 1)[1]
+            if give_i != "food":
+                continue
+            want_q, want_i = off["want"].split(" ", 1)
+            if want_i == "money" and agent.money >= int(want_q):
+                return Action(ActionType.ACCEPT, {"offer_id": off["id"]},
+                              rationale="buy food rather than farm it")
+        return None
+
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
             return None
+        # A poor food-gatherer buys rather than farms, when it can afford to.
+        buy = self._buy_food_action(agent, obs)
+        if buy is not None:
+            return buy
         if agent.energy <= LOW_ENERGY:
             if agent.food() > 0:
                 return Action(ActionType.EAT, rationale="restore energy")
