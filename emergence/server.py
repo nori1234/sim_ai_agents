@@ -185,4 +185,10 @@ def run_server(host: str = "127.0.0.1", port: int = 8800) -> None:
 
 
 if __name__ == "__main__":
-    run_server()
+    # Honour HOST/PORT from the environment so the same image runs locally and
+    # in a container (where it must bind 0.0.0.0). Defaults are unchanged, so a
+    # bare ``python -m emergence.server`` still serves on 127.0.0.1:8800.
+    import os
+
+    run_server(host=os.environ.get("HOST", "127.0.0.1"),
+               port=int(os.environ.get("PORT", "8800")))
