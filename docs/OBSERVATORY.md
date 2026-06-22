@@ -150,9 +150,15 @@ authz, per-tenant isolation, and runaway-sim limits.
    frame per simulated day; the UI's Play uses `EventSource` for live playback
    (matters most for LLM worlds, where a day takes seconds). ✅
 8. **Rich-2D town** — the town becomes the hero pane: "peg" citizens (round
-   head + persona-coloured trapezoid body) walking on emoji facility landmarks,
-   movement tweened between days, and crime/death events flashing at their
-   spot. Plain canvas 2D (no WebGL/deps) — enough for ≤40 figures. The chronicle
-   and possessed life read on the right. ✅
+   head + persona-coloured trapezoid body) walking on grounded facility
+   landmarks, movement tweened between days, and crime/death events flashing at
+   their spot. The land is **procedurally dressed** (all in-code, no image
+   assets, so the file stays dependency-free): a seeded terrain of
+   grass/forest/water/sand/rock + worn paths, a **seasonal palette**, a slow
+   **day/night** sky, and **weather** particles (rain/snow) driven by the
+   `--environment` layer (surfaced via the state's `environment` snapshot). Plain
+   canvas 2D (no WebGL/deps) — enough for ≤40 figures. The chronicle and
+   possessed life read on the right. ✅ (Toward a richer, "Steam-grade" look —
+   next: better sprites, juice/particles, camera, audio; see #42.)
 9. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
    swap the stdlib transport for ASGI.
