@@ -114,10 +114,7 @@
 <div id="tip" class="tip hidden"></div>
 <script>
 const PC = { guardian:"#4aa3ff", philosopher:"#f0b429", idealist:"#3fb950", predator:"#f85149" };
-// Facilities are landmarks — drawn LARGER than the little people standing on them.
-const FAC = { farm:"🌾", forest:"🌲", mine:"⛏️", workshop:"🔧", market:"🏪", bank:"🏦",
-  granary:"🏚️", library:"📖", plaza:"⛲", house:"🏠", town_hall:"🏛️", hospital:"🏥",
-  police_station:"🚓", prison:"⛓️", temple:"⛪", monument:"🗿" };
+// Facility landmarks are drawn as vector art (see ART / drawFacility), no emoji.
 const PROF = { farmer:"🌾", builder:"🔨", teacher:"📚", merchant:"🪙", doctor:"➕",
   guard:"🛡️", miner:"⛏️", librarian:"📖", smith:"⚒️", "council clerk":"⚖️", child:"🧸",
   mayor:"🎖️", priest:"⛪", banker:"🏦" };
@@ -396,33 +393,115 @@ function drawVignette(){
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 }
 
-function drawFacility(f){
-  const x=gx(f.x), y=gy(f.y), s=cell*0.92;
-  ctx.save();
-  // a grounding shadow, then a raised stone plinth with a soft top-light so the
-  // landmark sits on the land rather than floating as a glyph
-  const t=cell*0.46;
-  ctx.fillStyle="rgba(0,0,0,.30)";
-  ctx.beginPath(); ctx.ellipse(x, y+t*0.72, t*0.95, t*0.42, 0, 0, 7); ctx.fill();
-  const pg=ctx.createLinearGradient(0,y-t,0,y+t);
-  pg.addColorStop(0,"rgba(255,255,255,.14)"); pg.addColorStop(1,"rgba(0,0,0,.18)");
-  ctx.fillStyle=pg; ctx.strokeStyle="rgba(255,255,255,.10)";
-  roundRect(x-t,y-t,t*2,t*2,cell*0.18); ctx.fill(); ctx.stroke();
-  // warm lit windows after dusk (not on open-land sites) — the town glows at night
-  const nf=nightFactor();
-  if(nf>0.05 && !["forest","farm","mine","plaza"].includes(f.type)){
-    ctx.fillStyle=`rgba(255,198,96,${(0.20+0.55*nf).toFixed(3)})`;
-    const ww=t*0.24, wy=y+t*0.12;
-    ctx.fillRect(x-t*0.44, wy, ww, ww*0.85);
-    ctx.fillRect(x+t*0.20, wy, ww, ww*0.85);
+// --- vector facility art (no emoji): each landmark is drawn from shapes -------
+// A small palette + silhouette per facility type, so the town reads as built
+// places. Open-land sites (farm/forest/mine/plaza) draw natural features.
+const ART = {
+  house:    {wall:"#caa37a", roof:"#8c5a3b", style:"gable",   emblem:null},
+  workshop: {wall:"#b59171", roof:"#5a6470", style:"gable",   emblem:"gear",  acc:"#cdd6e0"},
+  market:   {wall:"#cdb38b", roof:"#c2643f", style:"awning",  emblem:null},
+  bank:     {wall:"#dad3c3", roof:"#7a7f88", style:"columns", emblem:"coin",  acc:"#e8c84a"},
+  town_hall:{wall:"#d7d2c4", roof:"#8a6a48", style:"columns", emblem:"flag",  acc:"#4aa3ff"},
+  hospital: {wall:"#e7eaef", roof:"#cf4a4a", style:"flat",    emblem:"cross", acc:"#cf4a4a"},
+  police_station:{wall:"#9fb0c4", roof:"#3a4658", style:"flat", emblem:"shield", acc:"#1f6feb"},
+  prison:   {wall:"#8b8f96", roof:"#4a4f57", style:"flat",    emblem:"bars",  acc:"#2a2e35"},
+  temple:   {wall:"#d8c9a8", roof:"#9a3b3b", style:"gable",   emblem:"cross", acc:"#e8d8a8"},
+  library:  {wall:"#c2a36a", roof:"#6b4a8a", style:"gable",   emblem:"book",  acc:"#f0e6c8"},
+  granary:  {wall:"#caa86a", roof:"#7a5a3a", style:"silo",    emblem:null},
+  monument: {wall:"#cfc7b6", roof:null,      style:"obelisk", emblem:null},
+};
+function vEmblem(kind, cx, cy, r, col){
+  if(!kind) return; ctx.save(); ctx.fillStyle=col||"#fff"; ctx.strokeStyle=col||"#fff";
+  ctx.lineWidth=Math.max(1,r*0.22);
+  if(kind==="cross"){ const a=r*0.30; ctx.fillRect(cx-a,cy-r,a*2,r*2); ctx.fillRect(cx-r,cy-a,r*2,a*2); }
+  else if(kind==="coin"){ ctx.beginPath(); ctx.arc(cx,cy,r*0.85,0,7); ctx.fill();
+    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.beginPath(); ctx.arc(cx,cy,r*0.45,0,7); ctx.fill(); }
+  else if(kind==="book"){ ctx.fillRect(cx-r*0.82,cy-r*0.62,r*0.78,r*1.24); ctx.fillRect(cx+r*0.04,cy-r*0.62,r*0.78,r*1.24);
+    ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.beginPath(); ctx.moveTo(cx,cy-r*0.62); ctx.lineTo(cx,cy+r*0.62); ctx.stroke(); }
+  else if(kind==="shield"){ ctx.beginPath(); ctx.moveTo(cx,cy-r); ctx.lineTo(cx+r*0.82,cy-r*0.5);
+    ctx.lineTo(cx+r*0.82,cy+r*0.25); ctx.quadraticCurveTo(cx,cy+r*1.15,cx-r*0.82,cy+r*0.25);
+    ctx.lineTo(cx-r*0.82,cy-r*0.5); ctx.closePath(); ctx.fill(); }
+  else if(kind==="bars"){ for(let i=-1;i<=1;i++) ctx.fillRect(cx+i*r*0.55-r*0.09,cy-r,r*0.18,r*2); }
+  else if(kind==="gear"){ ctx.beginPath(); ctx.arc(cx,cy,r*0.62,0,7); ctx.lineWidth=Math.max(1,r*0.3); ctx.stroke();
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; ctx.fillRect(cx+Math.cos(a)*r*0.72-r*0.1, cy+Math.sin(a)*r*0.72-r*0.1, r*0.2,r*0.2); } }
+  else if(kind==="flag"){ ctx.fillStyle="#8b6b4a"; ctx.fillRect(cx-r*0.07,cy-r,r*0.14,r*2);
+    ctx.fillStyle=col||"#4aa3ff"; ctx.beginPath(); ctx.moveTo(cx,cy-r); ctx.lineTo(cx+r*0.95,cy-r*0.66); ctx.lineTo(cx,cy-r*0.32); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+function vBuilding(cx, baseY, w, wh, art, nf){
+  const left=cx-w/2, top=baseY-wh;
+  // walls with a soft vertical shade
+  const wg=ctx.createLinearGradient(0,top,0,baseY);
+  wg.addColorStop(0,shade(art.wall,1.12)); wg.addColorStop(1,shade(art.wall,0.82));
+  if(art.style==="silo"){                       // a rounded granary silo
+    ctx.fillStyle=wg; roundRect(left,top,w,wh,w*0.45); ctx.fill();
+    ctx.fillStyle=shade(art.roof,1.0); ctx.beginPath(); ctx.ellipse(cx,top,w*0.5,w*0.22,0,0,7); ctx.fill();
+    return;
   }
-  ctx.font=`${Math.round(s)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(FAC[f.type]||"🏢", x, y+1);
-  // A small name label so you can always tell which facility is which (and
-  // where an event happened) — independent of whether the emoji renders.
-  if(cell>=16){ ctx.font=`${Math.max(8,Math.round(cell*0.26))}px system-ui`;
-    ctx.fillStyle="rgba(230,237,243,.72)"; ctx.textBaseline="top";
-    ctx.fillText(facName(f.type), x, y+cell*0.30); }
+  if(art.style==="obelisk"){                     // a tapered stone monument
+    ctx.fillStyle=wg; ctx.beginPath();
+    ctx.moveTo(cx-w*0.22,baseY); ctx.lineTo(cx-w*0.12,top); ctx.lineTo(cx,top-wh*0.18);
+    ctx.lineTo(cx+w*0.12,top); ctx.lineTo(cx+w*0.22,baseY); ctx.closePath(); ctx.fill();
+    return;
+  }
+  ctx.fillStyle=wg; ctx.fillRect(left,top,w,wh);
+  ctx.strokeStyle="rgba(0,0,0,.18)"; ctx.lineWidth=1; ctx.strokeRect(left,top,w,wh);
+  // door
+  ctx.fillStyle="rgba(40,28,18,.7)";
+  ctx.fillRect(cx-w*0.12, baseY-wh*0.42, w*0.24, wh*0.42);
+  // windows (warm at night)
+  const lit=nf>0.05; const ww=w*0.16, wy=top+wh*0.22;
+  ctx.fillStyle = lit?`rgba(255,200,100,${(0.35+0.5*nf).toFixed(3)})`:"rgba(120,150,170,.5)";
+  ctx.fillRect(left+w*0.16, wy, ww, ww*1.1); ctx.fillRect(left+w*0.68-ww, wy, ww, ww*1.1);
+  // roof by style
+  const rh=wh*0.5;
+  if(art.style==="gable"){ ctx.fillStyle=art.roof; ctx.beginPath();
+    ctx.moveTo(left-w*0.08,top); ctx.lineTo(cx,top-rh); ctx.lineTo(left+w*1.08-w,top);
+    ctx.lineTo(left+w+w*0.08,top); ctx.lineTo(cx,top-rh); ctx.lineTo(left-w*0.08,top); ctx.closePath(); ctx.fill(); }
+  else if(art.style==="flat"){ ctx.fillStyle=art.roof; ctx.fillRect(left-w*0.06,top-wh*0.12,w*1.12,wh*0.14); }
+  else if(art.style==="awning"){ ctx.fillStyle=art.roof; ctx.fillRect(left-w*0.1,top-wh*0.16,w*1.2,wh*0.18);
+    ctx.fillStyle="rgba(255,255,255,.5)"; for(let i=0;i<4;i++) ctx.fillRect(left-w*0.1+i*w*0.3,top-wh*0.16,w*0.15,wh*0.18); }
+  else if(art.style==="columns"){ ctx.fillStyle=art.roof; ctx.beginPath();   // pediment
+    ctx.moveTo(left-w*0.12,top); ctx.lineTo(cx,top-rh*0.8); ctx.lineTo(left+w+w*0.12,top); ctx.closePath(); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.18)"; for(let i=0;i<4;i++) ctx.fillRect(left+w*0.1+i*w*0.24, top+wh*0.1, w*0.06, wh*0.85); }
+  // emblem on the wall
+  if(art.emblem) vEmblem(art.emblem, cx, top+wh*0.5, wh*0.2, art.acc);
+}
+function vFarm(cx,baseY,w){ ctx.save();
+  ctx.fillStyle="#6b4f2a"; roundRect(cx-w*0.5,baseY-w*0.5,w,w*0.7,w*0.06); ctx.fill();
+  ctx.strokeStyle="rgba(0,0,0,.18)"; ctx.lineWidth=Math.max(1,w*0.03);
+  for(let i=0;i<4;i++){ const yy=baseY-w*0.46+i*w*0.16; ctx.beginPath(); ctx.moveTo(cx-w*0.46,yy); ctx.lineTo(cx+w*0.46,yy); ctx.stroke(); }
+  ctx.fillStyle="#5fae46"; for(let i=0;i<8;i++){ const px=cx-w*0.4+(i%4)*w*0.27, py=baseY-w*0.4+Math.floor(i/4)*w*0.32;
+    ctx.beginPath(); ctx.arc(px,py,w*0.05,0,7); ctx.fill(); } ctx.restore(); }
+function vTree(x,by,s){ ctx.fillStyle="#6b4a2b"; ctx.fillRect(x-s*0.07,by-s*0.5,s*0.14,s*0.5);
+  ctx.fillStyle="#3f7d3a"; ctx.beginPath(); ctx.arc(x,by-s*0.6,s*0.32,0,7);
+  ctx.arc(x-s*0.22,by-s*0.45,s*0.24,0,7); ctx.arc(x+s*0.22,by-s*0.45,s*0.24,0,7); ctx.fill(); }
+function vForest(cx,baseY,w){ vTree(cx-w*0.22,baseY,w*0.8); vTree(cx+w*0.2,baseY-w*0.04,w*0.9); vTree(cx,baseY-w*0.18,w*0.7); }
+function vMine(cx,baseY,w){ ctx.fillStyle="#7b7f88"; ctx.beginPath();
+  ctx.moveTo(cx-w*0.5,baseY); ctx.quadraticCurveTo(cx,baseY-w*0.7,cx+w*0.5,baseY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#15171b"; ctx.beginPath(); ctx.moveTo(cx-w*0.16,baseY); ctx.lineTo(cx-w*0.16,baseY-w*0.28);
+  ctx.quadraticCurveTo(cx,baseY-w*0.42,cx+w*0.16,baseY-w*0.28); ctx.lineTo(cx+w*0.16,baseY); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#6b4a2b"; ctx.fillRect(cx-w*0.2,baseY-w*0.3,w*0.05,w*0.3); ctx.fillRect(cx+w*0.15,baseY-w*0.3,w*0.05,w*0.3); }
+function vPlaza(cx,baseY,w){ ctx.fillStyle="rgba(200,205,215,.5)"; ctx.beginPath(); ctx.arc(cx,baseY-w*0.18,w*0.5,0,7); ctx.fill();
+  ctx.fillStyle="#4a7fa8"; ctx.beginPath(); ctx.arc(cx,baseY-w*0.18,w*0.26,0,7); ctx.fill();
+  ctx.fillStyle="#cfe6f5"; ctx.beginPath(); ctx.arc(cx,baseY-w*0.18,w*0.1,0,7); ctx.fill(); }
+
+function drawFacility(f){
+  const x=gx(f.x), y=gy(f.y), t=cell*0.46, baseY=y+t*0.92;
+  ctx.save();
+  // grounding shadow
+  ctx.fillStyle="rgba(0,0,0,.30)";
+  ctx.beginPath(); ctx.ellipse(x, baseY+t*0.06, t*0.95, t*0.34, 0, 0, 7); ctx.fill();
+  const w=t*1.5, wh=t*1.25, nf=nightFactor();
+  if(f.type==="farm")        vFarm(x,baseY,w);
+  else if(f.type==="forest") vForest(x,baseY,w);
+  else if(f.type==="mine")   vMine(x,baseY,w);
+  else if(f.type==="plaza")  vPlaza(x,baseY,w);
+  else vBuilding(x, baseY, w, wh, ART[f.type]||ART.house, nf);
+  // a small name label so each landmark stays identifiable
+  if(cell>=16){ ctx.font=`${Math.max(8,Math.round(cell*0.24))}px system-ui`;
+    ctx.fillStyle="rgba(230,237,243,.74)"; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText(facName(f.type), x, baseY+t*0.12); }
   ctx.restore();
 }
 
