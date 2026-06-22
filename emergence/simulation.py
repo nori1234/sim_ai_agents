@@ -46,6 +46,13 @@ EAT_ENERGY_PER_FOOD = 16.0
 FISCAL_WELFARE = 3
 REST_ENERGY = 8.0
 SHELTER_REST_ENERGY = 16.0  # at a house or hospital
+# Healing as a paid service (economy layer): a depleted agent pays a nearby
+# doctor to restore energy. Money is conserved (it moves to the doctor, who
+# earns); the energy is produced like rest/food. A hospital boosts the care.
+# This gives money a survival-grade consumption demand — you can buy energy.
+HEAL_FEE = 4
+HEAL_ENERGY = 24.0
+HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the open)
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
     ActionType.WORK: 3.0,
@@ -307,7 +314,11 @@ class Simulation:
                       "price_food_in_money": self.emergent_price("food", "money"),
                       # A capability hint (what you produce well), not a valuation
                       # — the agent judges worth itself, weighing it against price.
-                      "your_specialty": gather_specialty(agent.profession)}
+                      "your_specialty": gather_specialty(agent.profession),
+                      # Healing is a buyable service: pay a nearby doctor (best at
+                      # a hospital) to restore energy. The going fee, surfaced so a
+                      # brain can weigh buying care against resting/eating.
+                      "care_fee": HEAL_FEE}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -697,6 +708,39 @@ class Simulation:
         gain = SHELTER_REST_ENERGY if (f and f.ftype in {
             FacilityType.HOUSE, FacilityType.HOSPITAL}) else REST_ENERGY
         agent.energy = min(MAX_ENERGY, agent.energy + gain)
+
+    def _do_treat(self, agent: Agent, action: Action) -> None:
+        """Buy healing as a service: pay a nearby doctor to restore energy.
+
+        Consumption built from primitives — money → the doctor (a conserved
+        transfer; the doctor *earns*), energy → the patient (produced, like rest
+        or a meal). Care is better at a hospital. Opt-in via the economy layer,
+        so the offline baseline is byte-identical."""
+        if not self.economy:
+            return
+        # The provider: a living doctor within reach (the patient initiates, but
+        # someone has to be there to be paid — a service is someone's labour).
+        doctor = self._by_id.get(action.params.get("doctor")) if action.params.get("doctor") \
+            else None
+        if doctor is None or not doctor.alive or doctor is agent \
+                or doctor.profession != "doctor" or chebyshev(agent.pos, doctor.pos) > 1:
+            doctor = min(
+                (o for o in self.agents
+                 if o.alive and o is not agent and o.profession == "doctor"
+                 and chebyshev(agent.pos, o.pos) <= 1),
+                key=lambda o: chebyshev(agent.pos, o.pos), default=None)
+        if doctor is None or agent.money < HEAL_FEE:
+            return
+        # Pay the doctor (money is inventory-backed, so this is conserved).
+        agent.take("money", HEAL_FEE)
+        doctor.add("money", HEAL_FEE)
+        f = self.world.facility_at(agent.pos)
+        gain = HEAL_ENERGY * (HOSPITAL_HEAL_BONUS
+                              if f and f.ftype is FacilityType.HOSPITAL else 1.0)
+        agent.energy = min(MAX_ENERGY, agent.energy + gain)
+        agent.adjust_trust(doctor.id, 0.03)
+        doctor.adjust_trust(agent.id, 0.03)
+        self.world.log("treat", patient=agent.id, doctor=doctor.id, fee=HEAL_FEE)
 
     def _do_work(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)

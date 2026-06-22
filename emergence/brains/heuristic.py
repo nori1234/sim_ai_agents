@@ -336,6 +336,25 @@ class HeuristicBrain(AgentBrain):
                               rationale="buy food rather than farm it")
         return None
 
+    def _buy_care_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Economy layer, one rule: when depleted with no food on hand but money
+        and a doctor within reach, buy healing rather than trek for food. This is
+        money's survival-grade demand — you can pay to restore energy. Gated on
+        economy.enabled, so the offline baseline is byte-identical."""
+        if not obs.economy.get("enabled"):
+            return None
+        if agent.food() > 0:
+            return None  # a free meal beats paying for care
+        fee = obs.economy.get("care_fee", 0)
+        if not fee or agent.money < fee:
+            return None
+        doctor = next((o for o in obs.others
+                       if o.get("profession") == "doctor" and o["distance"] <= 1), None)
+        if doctor is None:
+            return None
+        return Action(ActionType.TREAT, {"doctor": doctor["id"]},
+                      rationale="pay a doctor to restore energy")
+
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
             return None
@@ -343,6 +362,12 @@ class HeuristicBrain(AgentBrain):
         buy = self._buy_food_action(agent, obs)
         if buy is not None:
             return buy
+        # Depleted, no food, but a doctor is right here and money is in hand —
+        # pay for treatment instead of trekking to a farm.
+        if agent.energy <= LOW_ENERGY:
+            care = self._buy_care_action(agent, obs)
+            if care is not None:
+                return care
         if agent.energy <= LOW_ENERGY:
             if agent.food() > 0:
                 return Action(ActionType.EAT, rationale="restore energy")
