@@ -53,7 +53,6 @@ class ActionType(str, Enum):
     CRAFT = "craft"  # transform inputs into an output per a recipe
     LEND = "lend"  # extend credit: give a principal now against a promised repay
     REPAY = "repay"  # settle a loan you owe (builds trust; defaulting destroys it)
-    TREAT = "treat"  # pay a nearby doctor for care: money -> the doctor, energy -> you
 
 
     # -- physical primitives (the instruction set the macros lower to) --
@@ -101,7 +100,9 @@ class Action:
       DEAL_DRUG   -> {"target": agent_id}
       PREACH      -> {} (founds or spreads the agent's faith to those nearby)
       SPEAK/COLLAB-> {"text": str}
-      TREAT       -> {"doctor": agent_id (optional; default: nearest doctor in reach)}
+      OFFER       -> {"give_item": str, "give_qty": int, "want_item": str,
+                      "want_qty": int}  OR a service: {"service": str,
+                      "want_item": "money", "want_qty": int (0 = free)}
     """
 
     type: ActionType

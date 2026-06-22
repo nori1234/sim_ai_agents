@@ -325,7 +325,7 @@ class HeuristicBrain(AgentBrain):
         if gather_multiplier(agent.profession, "food") >= 1.0:
             return None  # a food specialist just farms
         for off in obs.open_offers:
-            if off.get("maker") == agent.id:
+            if off.get("maker") == agent.id or off.get("service"):
                 continue
             give_i = off["give"].split(" ", 1)[1]
             if give_i != "food":
@@ -337,23 +337,32 @@ class HeuristicBrain(AgentBrain):
         return None
 
     def _buy_care_action(self, agent: Agent, obs: Observation) -> Action | None:
-        """Economy layer, one rule: when depleted with no food on hand but money
-        and a doctor within reach, buy healing rather than trek for food. This is
-        money's survival-grade demand — you can pay to restore energy. Gated on
-        economy.enabled, so the offline baseline is byte-identical."""
+        """Economy layer, one rule: when depleted with no food on hand, accept the
+        cheapest affordable healing offer from a doctor within reach — buy care
+        rather than trek for food. The doctor *chose* to offer (and set the
+        price); this side just takes it up. Money's survival-grade demand. Gated
+        on economy.enabled, so the offline baseline is byte-identical."""
         if not obs.economy.get("enabled"):
             return None
         if agent.food() > 0:
             return None  # a free meal beats paying for care
-        fee = obs.economy.get("care_fee", 0)
-        if not fee or agent.money < fee:
+        reach = {o["id"]: o["distance"] for o in obs.others}
+        best = None
+        for off in obs.open_offers:
+            if off.get("service") != "healing" or off.get("maker") == agent.id:
+                continue
+            want_q, want_i = off["want"].split(" ", 1)
+            if want_i != "money":
+                continue
+            fee = int(want_q)
+            if agent.money < fee or reach.get(off["maker"], 99) > 2:
+                continue
+            if best is None or fee < best[0]:
+                best = (fee, off["id"])
+        if best is None:
             return None
-        doctor = next((o for o in obs.others
-                       if o.get("profession") == "doctor" and o["distance"] <= 1), None)
-        if doctor is None:
-            return None
-        return Action(ActionType.TREAT, {"doctor": doctor["id"]},
-                      rationale="pay a doctor to restore energy")
+        return Action(ActionType.ACCEPT, {"offer_id": best[1]},
+                      rationale="pay a doctor for care rather than trek for food")
 
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
@@ -507,6 +516,16 @@ class HeuristicBrain(AgentBrain):
         """Use the market primitives: craft a good, take a useful offer, or sell
         a surplus. The engine just clears swaps; prices form from these choices."""
         here = obs.here["type"] if obs.here else None
+        # A doctor offers care as a service, at a price its temperament picks:
+        # cooperative -> cheap (even charitable), grasping -> dear. Whether care
+        # is free or for profit is the provider's choice, not engine policy.
+        if agent.profession == "doctor" \
+                and not any(o.get("maker") == agent.id for o in obs.open_offers) \
+                and any(o["distance"] <= 6 for o in obs.others):
+            ask = max(0, round(6 * (1.0 - self.persona.cooperation)))
+            return Action(ActionType.OFFER,
+                          {"service": "healing", "want_item": "money", "want_qty": ask},
+                          rationale="offer care for a fee")
         # Repay a debt when able — honouring credit is what keeps it flowing.
         for d in obs.debts:
             owe_q, owe_i = d["owe"].split(" ", 1)
@@ -529,6 +548,8 @@ class HeuristicBrain(AgentBrain):
                                   rationale="lend to a neighbour")
         # Accept an open offer that gives me something I lack and can pay for.
         for off in obs.open_offers:
+            if off.get("service"):
+                continue  # services are taken up via the survival/care path
             give_i = off["give"].split(" ", 1)[1]
             want_q, want_i = off["want"].split(" ", 1)
             want_q = int(want_q)

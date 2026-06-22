@@ -46,13 +46,14 @@ EAT_ENERGY_PER_FOOD = 16.0
 FISCAL_WELFARE = 3
 REST_ENERGY = 8.0
 SHELTER_REST_ENERGY = 16.0  # at a house or hospital
-# Healing as a paid service (economy layer): a depleted agent pays a nearby
-# doctor to restore energy. Money is conserved (it moves to the doctor, who
-# earns); the energy is produced like rest/food. A hospital boosts the care.
-# This gives money a survival-grade consumption demand — you can buy energy.
-HEAL_FEE = 4
+# Healing as a chosen service (economy layer): a doctor offers care at a price
+# it picks (0 = charity); a patient accepts. Money is conserved (it moves to the
+# doctor, who earns); the energy is produced like rest/food. A hospital boosts
+# the care. This gives money a survival-grade demand — you can buy energy — while
+# whether care is free, fair, or extortionate stays the doctor's choice.
 HEAL_ENERGY = 24.0
 HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the open)
+SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
     ActionType.WORK: 3.0,
@@ -315,10 +316,11 @@ class Simulation:
                       # A capability hint (what you produce well), not a valuation
                       # — the agent judges worth itself, weighing it against price.
                       "your_specialty": gather_specialty(agent.profession),
-                      # Healing is a buyable service: pay a nearby doctor (best at
-                      # a hospital) to restore energy. The going fee, surfaced so a
-                      # brain can weigh buying care against resting/eating.
-                      "care_fee": HEAL_FEE}
+                      # Services on offer (e.g. a doctor's healing): provider-chosen
+                      # labour for a price, accepted like any offer. The going rate
+                      # emerges from accepted fees, surfaced so a brain can weigh it.
+                      "services": sorted(self._service_effects),
+                      "price_healing_in_money": self.emergent_price("healing", "money")}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -709,38 +711,20 @@ class Simulation:
             FacilityType.HOUSE, FacilityType.HOSPITAL}) else REST_ENERGY
         agent.energy = min(MAX_ENERGY, agent.energy + gain)
 
-    def _do_treat(self, agent: Agent, action: Action) -> None:
-        """Buy healing as a service: pay a nearby doctor to restore energy.
-
-        Consumption built from primitives — money → the doctor (a conserved
-        transfer; the doctor *earns*), energy → the patient (produced, like rest
-        or a meal). Care is better at a hospital. Opt-in via the economy layer,
-        so the offline baseline is byte-identical."""
-        if not self.economy:
-            return
-        # The provider: a living doctor within reach (the patient initiates, but
-        # someone has to be there to be paid — a service is someone's labour).
-        doctor = self._by_id.get(action.params.get("doctor")) if action.params.get("doctor") \
-            else None
-        if doctor is None or not doctor.alive or doctor is agent \
-                or doctor.profession != "doctor" or chebyshev(agent.pos, doctor.pos) > 1:
-            doctor = min(
-                (o for o in self.agents
-                 if o.alive and o is not agent and o.profession == "doctor"
-                 and chebyshev(agent.pos, o.pos) <= 1),
-                key=lambda o: chebyshev(agent.pos, o.pos), default=None)
-        if doctor is None or agent.money < HEAL_FEE:
-            return
-        # Pay the doctor (money is inventory-backed, so this is conserved).
-        agent.take("money", HEAL_FEE)
-        doctor.add("money", HEAL_FEE)
-        f = self.world.facility_at(agent.pos)
+    # The effect each service applies when its offer is accepted. A service is
+    # the provider's labour; the fee is settled by _do_accept (conserved), and
+    # the handler here applies the benefit to the taker. New services (a bank's
+    # deposit/loan, an inn's lodging) register an entry + a handler the same way.
+    def _serve_healing(self, provider: Agent, taker: Agent) -> None:
+        """Restore the taker's energy; care is more effective at a hospital."""
+        f = self.world.facility_at(taker.pos)
         gain = HEAL_ENERGY * (HOSPITAL_HEAL_BONUS
                               if f and f.ftype is FacilityType.HOSPITAL else 1.0)
-        agent.energy = min(MAX_ENERGY, agent.energy + gain)
-        agent.adjust_trust(doctor.id, 0.03)
-        doctor.adjust_trust(agent.id, 0.03)
-        self.world.log("treat", patient=agent.id, doctor=doctor.id, fee=HEAL_FEE)
+        taker.energy = min(MAX_ENERGY, taker.energy + gain)
+
+    @property
+    def _service_effects(self):
+        return {"healing": self._serve_healing}
 
     def _do_work(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
@@ -1297,17 +1281,35 @@ class Simulation:
         if not self.economy:
             return
         p = action.params
-        gi, wi = str(p.get("give_item", "")), str(p.get("want_item", ""))
-        gq, wq = int(p.get("give_qty", 0) or 0), int(p.get("want_qty", 0) or 0)
-        if gi not in MK.TRADABLE or wi not in MK.TRADABLE or gi == wi:
-            return
-        if gq <= 0 or wq <= 0 or MK.holdings(agent, gi) < gq:
-            return  # can't offer what you don't have
+        wi = str(p.get("want_item", ""))
+        wq = int(p.get("want_qty", 0) or 0)
+        service = p.get("service")
         # One open offer per maker keeps the book honest and bounded.
         if any(o.maker == agent.id for o in self.offers):
             return
         if len(self.offers) >= MK.MAX_OPEN_OFFERS:
             return
+        if service:
+            # A service offer: the maker offers to *perform* labour for a price it
+            # picks (wq >= 0; 0 = charity). It must be able to provide the service.
+            service = str(service)
+            if service not in self._service_effects or wi not in MK.TRADABLE \
+                    or wq < 0 or not MK.can_provide(service, agent.profession):
+                return
+            offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
+                             give_qty=0, want_item=wi, want_qty=wq,
+                             day=self.world.day, service=service)
+            self._next_offer_id += 1
+            self.offers.append(offer)
+            self.world.log("offer", id=offer.id, by=agent.id,
+                           service=service, want=f"{wq} {wi}")
+            return
+        gi = str(p.get("give_item", ""))
+        gq = int(p.get("give_qty", 0) or 0)
+        if gi not in MK.TRADABLE or wi not in MK.TRADABLE or gi == wi:
+            return
+        if gq <= 0 or wq <= 0 or MK.holdings(agent, gi) < gq:
+            return  # can't offer what you don't have
         offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item=gi,
                          give_qty=gq, want_item=wi, want_qty=wq, day=self.world.day)
         self._next_offer_id += 1
@@ -1327,9 +1329,29 @@ class Simulation:
         if maker is None or not maker.alive:
             self.offers.remove(offer)
             return
-        # Both sides must still hold the goods — conservation, no credit here.
+        # The taker must be able to pay the asking price (conservation, no credit).
         if MK.holdings(agent, offer.want_item) < offer.want_qty:
             return
+        if offer.service is not None:
+            # A service is local labour: the provider must be within reach, and
+            # then performs the service for the (possibly zero) fee it asked.
+            if chebyshev(agent.pos, maker.pos) > SERVICE_RANGE:
+                return
+            apply_transfer(agent, maker, offer.want_item, offer.want_qty)
+            self._service_effects[offer.service](maker, agent)
+            self.offers.remove(offer)
+            self.metrics.trades += 1
+            # The accepted fee IS the price of the service — emergent.
+            key = (offer.service, offer.want_item)
+            self._trade_ratios.setdefault(key, []).append(float(offer.want_qty))
+            self._trade_ratios[key] = self._trade_ratios[key][-10:]
+            maker.adjust_trust(agent.id, 0.05)
+            agent.adjust_trust(maker.id, 0.05)
+            self.world.log("service", offer=offer.id, provider=maker.id,
+                           taker=agent.id, service=offer.service,
+                           fee=f"{offer.want_qty} {offer.want_item}")
+            return
+        # Both sides must still hold the goods — conservation, no credit here.
         if MK.holdings(maker, offer.give_item) < offer.give_qty:
             self.offers.remove(offer)
             return

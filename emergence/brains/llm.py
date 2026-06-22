@@ -73,10 +73,11 @@ Choose ONE action. Common actions and their params:
   bond {"proposal_id": N, "support": true} or {"with": id}  (commit: a vote, or a pact of mutual allegiance)
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
+         or a SERVICE you perform: {"service": "healing", "want_item": "money", "want_qty": M}
+            (e.g. a doctor offers care for a fee it picks — M=0 is charity; whoever accepts is healed)
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
   lend   {"to": id, "item": "money", "qty": N, "repay": M, "due_in_days": D}  (credit; M>N = interest)
   repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)
-  treat  {"doctor": id}   (pay a nearby doctor to restore energy; money goes to the doctor — care is best at a hospital)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 
