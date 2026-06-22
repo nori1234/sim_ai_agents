@@ -120,7 +120,13 @@ The smallest change that makes the whole wheel turn once.
 
 ### Phase 2 — services as labour, and depth of demand
 Services are someone's *work*, so they are bought like goods:
-- Doctor **healing as a paid service** (`money → energy`, the doctor earns).
+- **[shipped]** Doctor **healing as a paid service** — `treat` pays a nearby
+  doctor (`money → the doctor`, who earns) to restore energy (`→ patient`,
+  produced like rest/food), more effectively at a hospital. This is money's
+  survival-grade demand: you can buy energy. Opt-in via `--economy`; the
+  heuristic's one rule is *depleted + no food + money + a doctor in reach →
+  buy care*, with richer judgement left to the LLM (the `care_fee` + the
+  affordance ride on `Observation`). Baseline byte-identical.
 - An **inn / better rest** for pay (`money → recovery efficiency`).
 - **Conspicuous consumption**: spend on a feast / patronage / commissioning →
   `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).

@@ -76,6 +76,7 @@ Choose ONE action. Common actions and their params:
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
   lend   {"to": id, "item": "money", "qty": N, "repay": M, "due_in_days": D}  (credit; M>N = interest)
   repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)
+  treat  {"doctor": id}   (pay a nearby doctor to restore energy; money goes to the doctor — care is best at a hospital)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 
