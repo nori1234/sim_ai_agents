@@ -116,7 +116,20 @@ const FAC = { farm:"🌾", forest:"🌲", mine:"⛏️", workshop:"🔧", market
 const PROF = { farmer:"🌾", builder:"🔨", teacher:"📚", merchant:"🪙", doctor:"➕",
   guard:"🛡️", miner:"⛏️", librarian:"📖", smith:"⚒️", "council clerk":"⚖️", child:"🧸",
   mayor:"🎖️", priest:"⛪", banker:"🏦" };
-const FLASH = { violence:"⚔️", theft:"🥷", arson:"🔥", death:"💀" };
+const FLASH = { violence:"⚔️", theft:"🥷", arson:"🔥", death:"💀",
+  trade:"🪙", service:"💚", birth:"✨", arrest:"🔗", praise:"👏" };
+// Per-event particle burst: colours + style. Anything not listed just floats
+// its emoji. Drawn as cheap procedural specks so the file stays asset-free.
+const BURST = {
+  violence:{n:14,col:["#fff","#f85149","#ffd0c0"],spd:3.2,life:600,grav:0.06,kind:"spark"},
+  arson:   {n:18,col:["#ff7b00","#ffd24a","#7a7a7a"],spd:2.2,life:900,grav:-0.05,kind:"ember"},
+  death:   {n:16,col:["#cdd6e0","#8b98a5"],spd:1.2,life:1100,grav:-0.04,kind:"soul"},
+  theft:   {n:10,col:["#b7a98f","#8b98a5"],spd:1.8,life:500,grav:0.05,kind:"dust"},
+  trade:   {n:10,col:["#ffd24a","#f0b429"],spd:1.8,life:700,grav:-0.07,kind:"coin"},
+  service: {n:10,col:["#3fb950","#9af0b0"],spd:1.4,life:700,grav:-0.06,kind:"plus"},
+  birth:   {n:14,col:["#fff","#ffe9a8","#9ad8ff"],spd:1.6,life:800,grav:-0.03,kind:"spark"},
+};
+const SHAKE = { violence:5, arson:6, death:4, rebellion:8 };  // screen-shake by event
 // Facility names per language (so a tile is identifiable even if the emoji icon
 // doesn't render on a given system).
 const FACNAME = {
@@ -194,6 +207,8 @@ function applyI18n(){
 let world=null, agents=[], facilities=[], selected=null, playing=false, es=null;
 const disp = new Map();      // id -> {x,y} smoothly-tweened display position (grid coords)
 let flashes = [];            // {x,y,emoji,t0} floating event markers (grid coords)
+let parts = [];              // {x,y,vx,vy,t0,life,col,kind} particle specks (pixel coords)
+let shake = 0;               // current screen-shake magnitude (decays each frame)
 let animing = false;
 
 async function api(method, path, body) {
@@ -317,6 +332,18 @@ function skyOverlay(){
   const f=(p-a[0])/((b[0]-a[0])||1), c0=a[1],c1=b[1], mix=(i)=>c0[i]+(c1[i]-c0[i])*f;
   return `rgba(${mix(0)|0},${mix(1)|0},${mix(2)|0},${mix(3).toFixed(3)})`;
 }
+// 0 = day, 1 = deep night — drives warm window glow on the buildings.
+function nightFactor(){
+  const p=(performance.now()%DAY_MS)/DAY_MS;
+  if(p<0.45) return 0;
+  if(p<0.70) return (p-0.45)/0.25;
+  if(p<0.92) return 1;
+  return Math.max(0, 1-(p-0.92)/0.08);
+}
+// lighten/darken a #rrggbb colour by factor k
+function shade(hex,k){ const n=parseInt(hex.slice(1),16);
+  const r=Math.min(255,((n>>16)&255)*k)|0, g=Math.min(255,((n>>8)&255)*k)|0, b=Math.min(255,(n&255)*k)|0;
+  return `rgb(${r},${g},${b})`; }
 // Weather particles (rain / snow), spawned to match the sim's condition.
 let wparts=[], wkind=null;
 function syncWeather(){
@@ -361,6 +388,14 @@ function drawFacility(f){
   pg.addColorStop(0,"rgba(255,255,255,.14)"); pg.addColorStop(1,"rgba(0,0,0,.18)");
   ctx.fillStyle=pg; ctx.strokeStyle="rgba(255,255,255,.10)";
   roundRect(x-t,y-t,t*2,t*2,cell*0.18); ctx.fill(); ctx.stroke();
+  // warm lit windows after dusk (not on open-land sites) — the town glows at night
+  const nf=nightFactor();
+  if(nf>0.05 && !["forest","farm","mine","plaza"].includes(f.type)){
+    ctx.fillStyle=`rgba(255,198,96,${(0.20+0.55*nf).toFixed(3)})`;
+    const ww=t*0.24, wy=y+t*0.12;
+    ctx.fillRect(x-t*0.44, wy, ww, ww*0.85);
+    ctx.fillRect(x+t*0.20, wy, ww, ww*0.85);
+  }
   ctx.font=`${Math.round(s)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(FAC[f.type]||"🏢", x, y+1);
   // A small name label so you can always tell which facility is which (and
@@ -373,28 +408,36 @@ function drawFacility(f){
 
 // A "Game of Life" peg figure: round head + trapezoid body, kept smaller than
 // the facilities it stands on (per the look the user signed off on).
-function drawPeg(x,y,persona,prof,alive,sel){
+function drawPeg(x,y,persona,prof,alive,sel,moving){
   const col=PC[persona]||"#9aa";
   const h=cell*0.62;                  // total figure height (< facility tile)
   const headR=h*0.22, bodyH=h*0.5, topW=h*0.22, botW=h*0.4;
-  const baseY=y+h*0.42;               // feet
-  const bodyTopY=baseY-bodyH;
-  const headCY=bodyTopY-headR*0.7;
+  const groundY=y+h*0.42;             // planted feet
+  const bob=(alive&&moving)?Math.abs(Math.sin(performance.now()/110+x))*cell*0.06:0;
+  const baseY=groundY-bob;            // the figure hops as it walks
+  const bodyTopY=baseY-bodyH, headCY=bodyTopY-headR*0.7;
   ctx.save();
   if(!alive) ctx.globalAlpha=0.45;
-  // shadow on the ground
+  // ground shadow (shrinks a touch on the up-beat of a step)
   ctx.fillStyle="rgba(0,0,0,.35)";
-  ctx.beginPath(); ctx.ellipse(x, baseY+headR*0.18, botW*0.62, headR*0.32, 0, 0, 7); ctx.fill();
-  if(sel){ ctx.strokeStyle="#fff"; ctx.lineWidth=Math.max(1.5,cell*0.05);
-    ctx.beginPath(); ctx.arc(x, headCY+bodyH*0.32, h*0.6, 0, 7); ctx.stroke(); }
-  // trapezoid body (persona colour)
-  ctx.fillStyle=alive?col:"#3a3f47";
+  ctx.beginPath(); ctx.ellipse(x, groundY+headR*0.18, botW*0.62*(1-bob/cell*0.6), headR*0.32, 0, 0, 7); ctx.fill();
+  // selection: a soft pulsing ring
+  if(sel){ const pulse=(0.55+0.45*Math.sin(performance.now()/240)).toFixed(2);
+    ctx.strokeStyle=`rgba(255,255,255,${pulse})`; ctx.lineWidth=Math.max(1.5,cell*0.06);
+    ctx.beginPath(); ctx.arc(x, headCY+bodyH*0.32, h*0.62, 0, 7); ctx.stroke(); }
+  // trapezoid body with a vertical shading gradient (persona colour)
+  const base=alive?col:"#3a3f47";
+  const bg=ctx.createLinearGradient(0,bodyTopY,0,baseY);
+  bg.addColorStop(0, shade(base,1.28)); bg.addColorStop(1, shade(base,0.68));
+  ctx.fillStyle=bg;
   ctx.beginPath();
   ctx.moveTo(x-topW, bodyTopY); ctx.lineTo(x+topW, bodyTopY);
   ctx.lineTo(x+botW, baseY);    ctx.lineTo(x-botW, baseY);
   ctx.closePath(); ctx.fill();
-  // head
-  ctx.fillStyle=alive?"#f1c9a5":"#5b626b";
+  // head with a small top-left highlight
+  const hg=ctx.createRadialGradient(x-headR*0.3,headCY-headR*0.3,headR*0.2, x,headCY,headR);
+  hg.addColorStop(0, alive?"#ffe2c4":"#6b727b"); hg.addColorStop(1, alive?"#e3ad84":"#5b626b");
+  ctx.fillStyle=hg;
   ctx.beginPath(); ctx.arc(x, headCY, headR, 0, 7); ctx.fill();
   ctx.restore();
   // profession emoji floating just above (only when cells are roomy enough)
@@ -409,19 +452,24 @@ function roundRect(x,y,w,h,r){ ctx.beginPath();
 function draw(){
   if(!world) return; geom(); buildTerrain();
   const W=canvas.clientWidth, H=canvas.clientHeight; ctx.clearRect(0,0,W,H);
+  ctx.save();
+  if(shake>0.2) ctx.translate((Math.random()*2-1)*shake, (Math.random()*2-1)*shake);
   drawTerrain();                                   // the land
   for(const f of facilities) drawFacility(f);      // landmarks
   // people, painted back-to-front so lower figures overlap correctly
   const order=agents.slice().sort((a,b)=>(disp.get(a.id)?.y??a.y)-(disp.get(b.id)?.y??b.y));
   for(const a of order){ const p=disp.get(a.id)||{x:a.x,y:a.y};
-    drawPeg(gx(p.x), gy(p.y), a.persona, a.profession, a.alive, a.id===selected); }
+    const moving=Math.abs(p.x-a.x)>0.02||Math.abs(p.y-a.y)>0.02;
+    drawPeg(gx(p.x), gy(p.y), a.persona, a.profession, a.alive, a.id===selected, moving); }
   // event flashes float up and fade
   const now=performance.now();
   for(const fl of flashes){ const t=(now-fl.t0)/900; if(t>=1) continue;
     ctx.save(); ctx.globalAlpha=1-t; ctx.font=`${Math.round(cell*0.9)}px system-ui`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillText(fl.emoji, gx(fl.x), gy(fl.y)-cell*0.6*t-cell*0.4); ctx.restore(); }
+  drawParticles();                                 // event bursts (sparks/coins/…)
   drawWeather();                                   // rain / snow
+  ctx.restore();
   ctx.fillStyle=skyOverlay(); ctx.fillRect(0,0,W,H);   // time-of-day tint
   drawVignette();
 }
@@ -434,19 +482,48 @@ function animate(){
     if(!p){ p={x:a.x,y:a.y}; disp.set(a.id,p); }
     p.x+=(a.x-p.x)*0.18; p.y+=(a.y-p.y)*0.18; }
   flashes=flashes.filter(f=>performance.now()-f.t0<900);
+  stepParticles();
+  shake*=0.86; if(shake<0.2) shake=0;
   draw();
   requestAnimationFrame(animate);
 }
 function kick(){ if(!animing){ animing=true; requestAnimationFrame(animate); } }
 
+// Particle bursts — cheap procedural specks spawned at an event's spot.
+function spawnBurst(px,py,kind){
+  const c=BURST[kind]; if(!c) return; const now=performance.now();
+  for(let i=0;i<c.n;i++){ const a=Math.random()*Math.PI*2, sp=c.spd*(0.4+Math.random()*0.8);
+    parts.push({x:px,y:py, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-(c.grav<0?c.spd*0.6:0),
+      t0:now, life:c.life*(0.7+Math.random()*0.5), grav:c.grav,
+      col:c.col[(Math.random()*c.col.length)|0], kind:c.kind}); }
+}
+function stepParticles(){ for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=p.grav; p.vx*=0.98; } }
+function drawParticles(){
+  const now=performance.now();
+  parts=parts.filter(p=>now-p.t0<p.life);
+  for(const p of parts){ const lifeF=1-(now-p.t0)/p.life;
+    ctx.save(); ctx.globalAlpha=Math.max(0,lifeF);
+    const sz=Math.max(1, cell*0.10*(p.kind==="soul"?1.4:1));
+    ctx.fillStyle=p.col;
+    if(p.kind==="spark"||p.kind==="ember"){ ctx.fillRect(p.x-sz*0.25,p.y-sz*0.25,sz*0.6,sz*0.6); }
+    else { ctx.beginPath(); ctx.arc(p.x,p.y,sz*0.55,0,7); ctx.fill(); }
+    ctx.restore(); }
+}
+
 function posOf(ev){
   if(Array.isArray(ev.pos)) return {x:ev.pos[0], y:ev.pos[1]};
-  const id=ev.victim||ev.agent||ev.offender||ev.actor;
+  const id=ev.victim||ev.taker||ev.child||ev.payee||ev.agent||ev.offender
+         ||ev.provider||ev.actor||ev.by||ev.maker||ev.target;
   const a=agents.find(x=>x.id===id); return a?{x:a.x,y:a.y}:null;
 }
 function flashEvents(list){
-  for(const ev of list||[]){ const emoji=FLASH[ev.kind]; if(!emoji) continue;
-    const p=posOf(ev); if(p) flashes.push({x:p.x,y:p.y,emoji,t0:performance.now()}); }
+  for(const ev of list||[]){
+    const p=posOf(ev); if(!p) continue;
+    const emoji=FLASH[ev.kind];
+    if(emoji) flashes.push({x:p.x,y:p.y,emoji,t0:performance.now()});
+    if(BURST[ev.kind]) spawnBurst(gx(p.x), gy(p.y), ev.kind);
+    if(SHAKE[ev.kind]) shake=Math.max(shake, SHAKE[ev.kind]);
+  }
 }
 
 canvas.addEventListener("click",ev=>{
