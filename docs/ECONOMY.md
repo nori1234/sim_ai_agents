@@ -99,6 +99,62 @@ and an affordable offer exists, else gather).
    here is **opt-in** (rides on `--economy`); `test_baseline_contract.py` is
    untouched. New signals ride on `Observation`; heuristic branches are gated.
 
+## Value, items, and services (the conceptual model)
+
+A question that keeps recurring — *"is a service an item?"* — has a precise
+answer that shapes how we model doctors, banks, inns and the rest. Economic
+history settles most of it.
+
+**Value is subjective; an item is only its container.** Per the marginalist /
+subjective-value tradition (Menger, Jevons — and principle&nbsp;3 above), value
+does not live *inside* a thing; it arises because *someone needs it* at the
+margin. A loaf is precious to the starving and worthless to the full. So value
+rides on **a satisfied need**, and an item is merely a *vessel* that can hold and
+move that value. A service satisfies a need just as a good does — in that sense a
+service and a good are the **same kind of thing**: vessels of subjective value.
+
+**The distinction that matters for the engine is not tangible vs intangible, but
+storable/transferable vs not** — i.e. *is the result a `claim`-item or an
+`effect`?*
+
+| kind | examples | engine form | where value sits |
+|---|---|---|---|
+| **item** | food, materials, tools, **money**, **deposit-receipt / loan (a claim)** | an inventory token (conserved; ownable, movable, re-sellable) | in the need it can later meet |
+| **effect-service** | healing, lodging, a feast → esteem | an instantaneous effect (energy / esteem); **not** storable or re-sellable | in the need satisfied *now* |
+
+So **money is just the most tradable item** (historically: cattle, grain, salt,
+shells, then metal — "money is the most salable good", Menger). It is not
+privileged (principle&nbsp;4); demand for it comes from specialisation
+(you can't cheaply self-produce every item) plus the fact that both items and
+effect-services are claimed with it.
+
+**Consumption services stay effects — don't reify them as fake items.** Healing
+(shipped, #53), an inn's rest, a feast's honour: you cannot resell the care you
+received. Modelling them as an applied *effect* is correct; the value is the need
+met, not a token.
+
+**Banking is the exception — and the most interesting case.** A bank's product
+*is* a transferable **claim**, i.e. an item:
+
+- a **deposit** = a claim-token on the bank (custody, maybe interest);
+- a **loan** = a claim held by the creditor (already modelled as `market.Loan`).
+
+This is not a modelling convenience — it is *how money was actually born*:
+goldsmith/​money-changer **deposit receipts** circulated as paper, became
+banknotes, then credit money (bills of exchange, the Templars' letters of
+credit, fractional reserve). If agents come to **trust and trade a bank's
+deposit-receipts**, that token becomes money **emergently** — exactly the
+project's stance that institutions emerge from primitives, and a flagship
+phenomenon only this kind of sim can show. The flip side is also emergent: a
+banker holding others' money *can* embezzle or face a run (ties to #38), because
+custody is a trusted promise, not an engine-guaranteed vault.
+
+**How this rides on one substrate.** The service-offer mechanism (#53) carries
+the **transaction** uniformly — a provider chooses to offer at a price it picks,
+a taker consents and pays (conserved), the price emerges from accepted fees. The
+only branch is the **result**: an effect fires (healing) *or* a new claim-item is
+issued (a deposit-receipt / a loan). One agreement substrate, two result kinds.
+
 ## Phased plan
 
 ### MVP — the thin vertical slice across #20 + #21 (do first)
