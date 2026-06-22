@@ -73,6 +73,7 @@ def make_simulation(
     memory: bool = False,
     memory_path: str = ":memory:",
     library: bool = False,
+    individuals: bool = False,
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -84,6 +85,13 @@ def make_simulation(
     ``brain_factory(agent, persona, rng) -> AgentBrain`` lets you swap in an
     :class:`LLMBrain`; by default every agent gets a persona-tuned
     :class:`HeuristicBrain`.
+
+    ``individuals`` (opt-in) turns each preset *culture* into a town of distinct
+    citizens: every agent's trait vector is sampled around the culture's centre,
+    and newborns inherit a blend of both parents + a small mutation (vertical /
+    genetic inheritance — see :mod:`emergence.personality` and issue #24). It
+    only applies to the default heuristic path (no ``brain_factory``); off, every
+    agent is the exact preset Persona and the baseline contract is unchanged.
     """
     config = config or SimulationConfig()
     if isinstance(governance, str):
@@ -105,12 +113,37 @@ def make_simulation(
     else:
         persona_keys = [persona_mix[i % len(persona_mix)] for i in range(n_agents)]
 
+    # Vertical/genetic inheritance (opt-in): a town of individuals around each
+    # culture, with newborns blending both parents. Lives outside the engine; we
+    # hand the engine only a newborn-brain factory that closes over the pool.
+    pool = None
+    newborn_factory = None
+    if individuals and brain_factory is None:
+        from .personality import TraitPool, DevelopingBrain, DEFAULT_WINDOW_DAYS
+        # A dedicated, seed-derived RNG so trait draws are reproducible and don't
+        # disturb the brain-RNG stream used by the default path.
+        trait_rng = random.Random((config.seed or 0) ^ 0x70017)
+        pool = TraitPool(trait_rng)
+        window = DEFAULT_WINDOW_DAYS
+
+        def newborn_factory(child, persona_key, sim_rng):
+            vec = pool.inherit(child.id, child.parent_ids, get_persona(persona_key))
+            return DevelopingBrain(
+                vec, random.Random(sim_rng.randint(0, 2**31)), window)
+
     brains: dict[str, AgentBrain] = {}
     for agent, key in zip(agents, persona_keys):
         persona = get_persona(key)
         agent.persona = persona.key
         if brain_factory is not None:
             brains[agent.id] = brain_factory(agent, persona, rng)
+        elif pool is not None:
+            # An individual sampled around this agent's culture; matures over a
+            # developmental window (founders start mature, so this is a no-op
+            # for them).
+            vec = pool.found(agent.id, persona)
+            brains[agent.id] = DevelopingBrain(
+                vec, random.Random(rng.randint(0, 2**31)), DEFAULT_WINDOW_DAYS)
         else:
             # Each brain gets its own derived RNG for reproducible variety.
             brains[agent.id] = HeuristicBrain(
@@ -150,4 +183,5 @@ def make_simulation(
         economy=bool(economy),
         memory=town_memory,
         library=town_library,
+        newborn_brain_factory=newborn_factory,
     )

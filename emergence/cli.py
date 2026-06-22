@@ -89,6 +89,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           economy=bool(getattr(args, "economy", False)),
                           memory=bool(getattr(args, "memory", False)),
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
+                          individuals=bool(getattr(args, "individuals", False)),
                           brain_factory=brain_factory)
     sim.run(verbose=args.verbose and not args.json)
     return sim
@@ -187,6 +188,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--economy", action="store_true",
                         help="enable economic-physics primitives: offer/accept swaps "
                              "(prices emerge) and craft recipes (経済の物理)")
+    parser.add_argument("--individuals", action="store_true",
+                        help="individuate each culture: per-agent trait vectors + "
+                             "genetic inheritance (children blend both parents) (個体化)")
     parser.add_argument("--maslow", action="store_true",
                         help="enable the full needs pyramid "
                              "(= --reproduction --status --psyche)")
