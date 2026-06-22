@@ -1,11 +1,16 @@
 name: pr-guard
 
-# Guard against a stale-base PR: a branch that forked before some commits that
-# are already on the base branch. Merging such a branch can silently *revert*
-# already-merged work (it happened once: a UI branch based on an older main
-# would have un-deleted a file and dropped a test). We catch it by requiring the
-# tip of the base branch to be an ancestor of the PR head — i.e. the PR must
-# include the latest base.
+# Two cheap sanity gates on every PR:
+#
+# 1. Stale base — a branch that forked before commits already on the base.
+#    Merging it can silently *revert* merged work (it happened once: a UI branch
+#    on an older main would have un-deleted a file and dropped a test). Catch it
+#    by requiring the base tip to be an ancestor of the PR head.
+#
+# 2. Empty diff — the PR changes nothing vs the base. This catches the *other*
+#    failure that bit us: a botched local rebase/cherry-pick that silently lost
+#    the commit and left the branch sitting exactly on main (so check #1 sees it
+#    as "up to date" and waves it through). No diff => something went wrong.
 on:
   pull_request:
 
@@ -34,3 +39,18 @@ jobs:
             echo "    git fetch origin $BASE && git rebase origin/$BASE && git push --force-with-lease"
             exit 1
           fi
+      - name: Reject an empty diff (lost commit / wrong branch)
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -e
+          git fetch --no-tags origin "$BASE"
+          if git diff --quiet "origin/$BASE...$HEAD_SHA"; then
+            echo "::error::This PR has no changes vs origin/$BASE."
+            echo "That usually means a commit was lost in a rebase/cherry-pick, or the"
+            echo "wrong branch was pushed. Re-check the branch (the work may be dangling"
+            echo "in 'git reflog') before merging."
+            exit 1
+          fi
+          echo "OK: the PR has a non-empty diff vs origin/$BASE."
