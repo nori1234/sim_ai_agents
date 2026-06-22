@@ -26,7 +26,11 @@
   #stage { position:relative; flex:1; min-height:0;
            background:
              radial-gradient(900px 600px at 50% 0%, #12202a 0%, #0d1620 55%, #0a121a 100%); }
-  #town { display:block; width:100%; height:100%; }
+  #town { display:block; width:100%; height:100%; cursor:grab; }
+  #town.dragging { cursor:grabbing; }
+  .tip { position:fixed; z-index:20; pointer-events:none; background:#0d1117ee;
+         border:1px solid var(--line); border-radius:6px; padding:.3rem .55rem;
+         font-size:12px; color:var(--ink); box-shadow:0 4px 14px rgba(0,0,0,.45); }
   .hint { padding:.4rem .7rem; color:var(--dim); font-size:12px; border-top:1px solid var(--line); }
   .legend { display:flex; gap:.7rem; font-size:11px; color:var(--dim); padding:.35rem .7rem; flex-wrap:wrap; }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:.2rem; vertical-align:middle; }
@@ -107,6 +111,7 @@
     <div id="citizen" class="scroll hidden"><div class="reading muted" data-i18n="emptyCitizen">Click a citizen in the town to possess them.</div></div>
   </div>
 </main>
+<div id="tip" class="tip hidden"></div>
 <script>
 const PC = { guardian:"#4aa3ff", philosopher:"#f0b429", idealist:"#3fb950", predator:"#f85149" };
 // Facilities are landmarks — drawn LARGER than the little people standing on them.
@@ -151,7 +156,7 @@ const I18N = {
     seed:"seed", b_heuristic:"Heuristic (free)", b_local:"Local LLM", b_api:"Hosted API",
     rich:"rich", create:"New world", step1:"+1 day", step5:"+5 days",
     play:"▶ Play", pause:"⏸ Pause", narrate:"✨ Narrate",
-    hint:"Click a citizen to possess them and read their life.",
+    hint:"Click a citizen to possess + follow · scroll to zoom · drag to pan · double-click to reset.",
     l_guardian:"Guardian", l_philosopher:"Philosopher", l_idealist:"Idealist", l_predator:"Predator",
     tab_chronicle:"📜 Chronicle", tab_citizen:"👤 Citizen",
     emptyChronicle:"Create a world to begin its chronicle.",
@@ -173,7 +178,7 @@ const I18N = {
     seed:"シード", b_heuristic:"ヒューリスティック（無料）", b_local:"ローカルLLM", b_api:"ホストAPI",
     rich:"内面", create:"新しい世界", step1:"＋1日", step5:"＋5日",
     play:"▶ 再生", pause:"⏸ 一時停止", narrate:"✨ 物語化",
-    hint:"住人をクリックすると憑依して、その人生を読めます。",
+    hint:"住人をクリックで憑依＋追従・ホイールでズーム・ドラッグで移動・ダブルクリックで戻す。",
     l_guardian:"守護者", l_philosopher:"哲学者", l_idealist:"理想家", l_predator:"捕食者",
     tab_chronicle:"📜 年代記", tab_citizen:"👤 住人",
     emptyChronicle:"世界を作ると年代記が始まります。",
@@ -219,16 +224,31 @@ function esc(s){const d=document.createElement("div");d.textContent=s==null?"":S
 
 // --- the town (the hero view) --------------------------------------------
 const canvas=$("#town"), ctx=canvas.getContext("2d");
-let cell=10, ox=0, oy=0;     // grid geometry, recomputed each draw
+let baseCell=10, cell=10;    // baseCell = fit-to-stage; cell = baseCell * zoom
+// Camera: zoom + pan (px,py are the on-screen origin of grid cell 0,0), with an
+// optional followed citizen the view keeps centred.
+const cam = { zoom:1, px:0, py:0, follow:null };
+const MAXZOOM=5;
 function fit(){ const r=$("#stage").getBoundingClientRect();
   const dpr=window.devicePixelRatio||1;
   canvas.width=r.width*dpr; canvas.height=r.height*dpr;
   canvas.style.width=r.width+"px"; canvas.style.height=r.height+"px";
-  ctx.setTransform(dpr,0,0,dpr,0,0); draw(); }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(world) recenter();   // keep zoom, re-centre for the new size
+  draw(); }
 function geom(){ const W=canvas.clientWidth, H=canvas.clientHeight;
-  cell=Math.min(W/world.width, H/world.height);
-  ox=(W-cell*world.width)/2; oy=(H-cell*world.height)/2; }
-const gx=x=>ox+(x+0.5)*cell, gy=y=>oy+(y+0.5)*cell;
+  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom; }
+const gx=x=>cam.px+(x+0.5)*cell, gy=y=>cam.py+(y+0.5)*cell;
+function recenter(){ const W=canvas.clientWidth, H=canvas.clientHeight;
+  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom;
+  cam.px=(W-cell*world.width)/2; cam.py=(H-cell*world.height)/2; }
+function resetView(){ cam.zoom=1; cam.follow=null; recenter(); }
+// Keep the followed citizen gently centred (called each animation frame).
+function followCam(){ if(!cam.follow) return;
+  const a=agents.find(x=>x.id===cam.follow); if(!a){ cam.follow=null; return; }
+  const p=disp.get(a.id)||a, W=canvas.clientWidth, H=canvas.clientHeight;
+  const tpx=W/2-(p.x+0.5)*cell, tpy=H/2-(p.y+0.5)*cell;
+  cam.px+=(tpx-cam.px)*0.12; cam.py+=(tpy-cam.py)*0.12; }
 
 // --- procedural world dressing: terrain, seasons, day/night, weather --------
 // Everything here is drawn from code (no image assets), so the observatory stays
@@ -481,6 +501,7 @@ function animate(){
   for(const a of agents){ let p=disp.get(a.id);
     if(!p){ p={x:a.x,y:a.y}; disp.set(a.id,p); }
     p.x+=(a.x-p.x)*0.18; p.y+=(a.y-p.y)*0.18; }
+  followCam();
   flashes=flashes.filter(f=>performance.now()-f.t0<900);
   stepParticles();
   shake*=0.86; if(shake<0.2) shake=0;
@@ -526,13 +547,42 @@ function flashEvents(list){
   }
 }
 
-canvas.addEventListener("click",ev=>{
-  if(!world||!agents.length) return; const r=canvas.getBoundingClientRect();
+// Drag to pan, wheel to zoom (toward the cursor), click a citizen to possess +
+// follow, double-click to reset the view. A small drag threshold separates a
+// click (possess) from a pan.
+let drag=null;   // {x,y,moved} while the mouse button is down
+function nearestAgent(ev){ const r=canvas.getBoundingClientRect();
   const px=ev.clientX-r.left, py=ev.clientY-r.top;
   let best=null,bd=1e9; for(const a of agents){ const p=disp.get(a.id)||a;
     const d=Math.hypot(gx(p.x)-px, gy(p.y)-py); if(d<bd){bd=d;best=a;} }
-  if(best && bd<cell*0.9) possess(best.id);
-});
+  return {best, bd}; }
+canvas.addEventListener("mousedown",ev=>{ if(!world) return;
+  drag={x:ev.clientX,y:ev.clientY,moved:0}; canvas.classList.add("dragging"); });
+window.addEventListener("mousemove",ev=>{
+  if(!drag) return;
+  const dx=ev.clientX-drag.x, dy=ev.clientY-drag.y;
+  cam.px+=dx; cam.py+=dy; drag.x=ev.clientX; drag.y=ev.clientY;
+  drag.moved+=Math.abs(dx)+Math.abs(dy); cam.follow=null; $("#tip").classList.add("hidden"); });
+window.addEventListener("mouseup",ev=>{
+  if(drag && drag.moved<5 && agents.length){      // a click, not a pan
+    const {best,bd}=nearestAgent(ev); if(best && bd<cell*0.9) possess(best.id); }
+  drag=null; canvas.classList.remove("dragging"); });
+canvas.addEventListener("wheel",ev=>{ if(!world) return; ev.preventDefault();
+  const r=canvas.getBoundingClientRect(), mx=ev.clientX-r.left, my=ev.clientY-r.top;
+  const z0=cam.zoom; cam.zoom=Math.max(1,Math.min(MAXZOOM, cam.zoom*(ev.deltaY<0?1.12:1/1.12)));
+  const k=cam.zoom/z0; cell=baseCell*cam.zoom;       // keep the point under the cursor fixed
+  cam.px=mx-(mx-cam.px)*k; cam.py=my-(my-cam.py)*k; cam.follow=null; }, {passive:false});
+canvas.addEventListener("dblclick",()=>{ if(world) resetView(); });
+canvas.addEventListener("mousemove",ev=>{       // hover tooltip (when not panning)
+  if(drag||!world||!agents.length){ return; }
+  const tip=$("#tip"), {best,bd}=nearestAgent(ev);
+  if(best && bd<cell*0.7){
+    tip.innerHTML=`<b>${esc(best.name)}</b> · ${esc(best.profession)}`
+      +`<br>⚡${Math.round(best.energy)} · 🪙${best.money}${best.alive?"":" · "+esc(t("deceased"))}`;
+    tip.style.left=(ev.clientX+12)+"px"; tip.style.top=(ev.clientY+12)+"px";
+    tip.classList.remove("hidden");
+  } else tip.classList.add("hidden"); });
+canvas.addEventListener("mouseleave",()=>$("#tip").classList.add("hidden"));
 
 function roster(){
   $("#roster").innerHTML = agents.map(a=>
@@ -609,7 +659,7 @@ async function narrateChronicle(){
   } finally { btn.disabled=false; btn.textContent=t("narrate"); }
 }
 async function possess(aid){
-  selected=aid; showTab("citizen"); draw();
+  selected=aid; cam.follow=aid; showTab("citizen"); draw();
   const s=await api("GET",`/api/worlds/${world.id}/agents/${aid}/story?lang=${lang}`);
   const beats=(s.beats||[]).map(b=>`<div class="beat">${esc(b)}</div>`).join("")||`<div class="muted">${esc(t("uneventful"))}</div>`;
   const tags=t2=>t2&&t2.length?t2.map(x=>`<span class="tag">${esc(x)}</span>`).join(""):"";
@@ -638,6 +688,7 @@ async function createWorld(){
               environment:true};   // seasons + weather drive the world's sky/look
   const st=await api("POST","/api/worlds",body);
   world={id:st.world_id,width:st.width,height:st.height}; selected=null; narrative=null;
+  resetView();
   disp.clear(); flashes=[];
   $("#citizen").innerHTML=`<div class="reading muted">${esc(t("emptyCitizen"))}</div>`;
   applyState(st); await loadChronicle(); showTab("chronicle");
