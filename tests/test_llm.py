@@ -4,6 +4,7 @@ import unittest
 from emergence.actions import ActionType
 from emergence.brains.llm import LLMBrain
 from emergence.brains.heuristic import HeuristicBrain
+from emergence.memory_backend import MEMORY_AGENT_AVAILABLE
 from emergence.scenario import make_simulation
 from emergence.simulation import SimulationConfig
 
@@ -35,6 +36,9 @@ class TestPromptGrounding(unittest.TestCase):
         agent = sim.agents[0]
         return sim, agent, sim._observe(agent)
 
+    @unittest.skipUnless(
+        MEMORY_AGENT_AVAILABLE, "optional memory-agent library not installed"
+    )
     def test_prompt_includes_memory_and_environment(self):
         sim, agent, obs = self._obs_brain(memory=True, environment=True)
         rec = _Recorder('{"action": "idle", "params": {}}')
