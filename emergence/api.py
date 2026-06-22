@@ -316,6 +316,8 @@ class EmergenceAPI:
                 for f in sim.world.facilities
             ],
             "granary_food": sim.world.granary_food,
+            "environment": (sim.environment.snapshot()
+                            if getattr(sim, "environment", None) is not None else None),
             "metrics": sim.metrics.as_dict(),
             "verdict": one_line_verdict(sim, lang),
             "event_count": len(sim.world.events),

@@ -215,12 +215,152 @@ function geom(){ const W=canvas.clientWidth, H=canvas.clientHeight;
   ox=(W-cell*world.width)/2; oy=(H-cell*world.height)/2; }
 const gx=x=>ox+(x+0.5)*cell, gy=y=>oy+(y+0.5)*cell;
 
+// --- procedural world dressing: terrain, seasons, day/night, weather --------
+// Everything here is drawn from code (no image assets), so the observatory stays
+// a single dependency-free file. Terrain is deterministic per world seed.
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+function makeNoise(seed){            // smooth value noise on a lattice
+  const r=mulberry32(seed), G=64, g=new Float32Array(G*G);
+  for(let i=0;i<g.length;i++) g[i]=r();
+  const at=(x,y)=>g[((y%G+G)%G)*G+((x%G+G)%G)];
+  const sm=t=>t*t*(3-2*t);
+  return (x,y)=>{ const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+    const a=at(xi,yi),b=at(xi+1,yi),c=at(xi,yi+1),d=at(xi+1,yi+1);
+    const u=sm(xf),v=sm(yf);
+    return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v; };
+}
+let terrain=null, terrainKey="";    // {type,shade} per cell + a path overlay
+function buildTerrain(){
+  if(!world) return;
+  const key=`${world.id}:${world.width}x${world.height}`;
+  if(key===terrainKey && terrain) return; terrainKey=key;
+  const seed=(lastState&&lastState.config&&lastState.config.seed)||42;
+  const elev=makeNoise(seed*2+1), moist=makeNoise(seed*7+3), fz=0.16;
+  const W=world.width, H=world.height, cells=[];
+  for(let y=0;y<H;y++){ const row=[];
+    for(let x=0;x<W;x++){
+      const e=elev(x*fz,y*fz), m=moist(x*fz+10,y*fz+10);
+      let type;
+      if(e<0.30) type="water";
+      else if(e<0.36) type="sand";
+      else if(e>0.74) type="rock";
+      else type=m>0.62?"forest":"grass";    // damp ground reads lusher
+      row.push({type, shade:(elev(x*0.9,y*0.9)-0.5)*0.10});
+    }
+    cells.push(row);
+  }
+  // Worn paths: trace from each facility toward the town centre so the place
+  // reads as lived-in. Cells along the way become packed dirt.
+  const path=new Set();
+  if(facilities.length){
+    const cx=facilities.reduce((s,f)=>s+f.x,0)/facilities.length;
+    const cy=facilities.reduce((s,f)=>s+f.y,0)/facilities.length;
+    for(const f of facilities){ let x=f.x,y=f.y;
+      for(let i=0;i<64 && (Math.abs(x-cx)>0.5||Math.abs(y-cy)>0.5);i++){
+        path.add(`${Math.round(x)},${Math.round(y)}`);
+        x+=Math.sign(cx-x)*Math.min(1,Math.abs(cx-x));
+        y+=Math.sign(cy-y)*Math.min(1,Math.abs(cy-y));
+      }
+    }
+  }
+  terrain={cells, path, W, H};
+}
+const SEASON_GROUND = {            // base grass tint per season (RGB)
+  spring:[86,140,70], summer:[74,128,58], autumn:[150,116,52], winter:[206,214,224],
+  _:[80,130,64] };
+function envSeason(){ return (lastState&&lastState.environment&&lastState.environment.season)||"_"; }
+function envWeather(){ return (lastState&&lastState.environment&&lastState.environment.weather)||null; }
+function tintCell(type, shade){
+  const s=envSeason(), grass=SEASON_GROUND[s]||SEASON_GROUND._;
+  let c;
+  if(type==="water")  c=[40,86,120];
+  else if(type==="sand") c=[166,150,104];
+  else if(type==="rock") c=[96,100,110];
+  else if(type==="forest") c=[grass[0]*0.7|0,grass[1]*0.78|0,grass[2]*0.66|0];
+  else c=grass.slice();
+  // winter dusts everything but water with snow
+  if(s==="winter" && type!=="water"){ c=[(c[0]+206)/2|0,(c[1]+214)/2|0,(c[2]+224)/2|0]; }
+  const k=1+shade; return `rgb(${Math.min(255,c[0]*k)|0},${Math.min(255,c[1]*k)|0},${Math.min(255,c[2]*k)|0})`;
+}
+function drawTerrain(){
+  if(!terrain) return; const o=cell*0.5;
+  for(let y=0;y<terrain.H;y++) for(let x=0;x<terrain.W;x++){
+    const t=terrain.cells[y][x];
+    ctx.fillStyle=tintCell(t.type,t.shade);
+    ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell+1);
+    if(terrain.path.has(`${x},${y}`) && t.type!=="water"){
+      ctx.fillStyle="rgba(120,98,66,.5)";
+      ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell+1);
+    }
+  }
+  // gentle water shimmer
+  const sh=(Math.sin(performance.now()/700)+1)/2;
+  for(let y=0;y<terrain.H;y++) for(let x=0;x<terrain.W;x++){
+    if(terrain.cells[y][x].type!=="water") continue;
+    ctx.fillStyle=`rgba(150,200,230,${0.05+0.05*((x+y+Math.floor(performance.now()/500))%3===0?sh:0)})`;
+    ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell*0.5);
+  }
+}
+// Day/night: a slow real-time clock gives the world a living sky. Returns the
+// darkness overlay colour + strength for the current moment.
+const DAY_MS=90000;            // a full dawn->night cycle
+function skyOverlay(){
+  const p=(performance.now()%DAY_MS)/DAY_MS;            // 0..1 over the cycle
+  // keyframes: 0 dawn, .25 noon, .5 dusk, .75 night
+  const stops=[[0.00,[255,180,120,0.18]],[0.18,[255,255,255,0.0]],
+               [0.50,[255,150,90,0.20]],[0.70,[20,28,70,0.42]],
+               [0.95,[10,16,46,0.5]],[1.0,[255,180,120,0.18]]];
+  let a=stops[0],b=stops[1];
+  for(let i=0;i<stops.length-1;i++){ if(p>=stops[i][0]&&p<=stops[i+1][0]){a=stops[i];b=stops[i+1];break;} }
+  const f=(p-a[0])/((b[0]-a[0])||1), c0=a[1],c1=b[1], mix=(i)=>c0[i]+(c1[i]-c0[i])*f;
+  return `rgba(${mix(0)|0},${mix(1)|0},${mix(2)|0},${mix(3).toFixed(3)})`;
+}
+// Weather particles (rain / snow), spawned to match the sim's condition.
+let wparts=[], wkind=null;
+function syncWeather(){
+  const cond=envWeather();
+  const kind = /rain|storm/.test(cond||"")?"rain" : /snow/.test(cond||"")?"snow" : null;
+  if(kind===wkind) return; wkind=kind; wparts=[];
+  const n = kind==="rain"?160 : kind==="snow"?110 : 0;
+  for(let i=0;i<n;i++) wparts.push({x:Math.random(),y:Math.random(),
+    v:0.4+Math.random()*0.6, w:Math.random()*2-1});
+}
+function drawWeather(){
+  if(!wkind||!wparts.length) return; const W=canvas.clientWidth,H=canvas.clientHeight;
+  const dt=1/60;
+  if(wkind==="rain"){ ctx.strokeStyle="rgba(170,200,235,.35)"; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(const p of wparts){ const px=p.x*W, py=p.y*H;
+      ctx.moveTo(px,py); ctx.lineTo(px+6, py+14);
+      p.y+=p.v*dt*2.4; p.x+=0.02*dt; if(p.y>1.02){p.y=-0.02;p.x=Math.random();} }
+    ctx.stroke();
+  } else { ctx.fillStyle="rgba(240,246,255,.85)";
+    for(const p of wparts){ const px=(p.x+Math.sin(performance.now()/900+p.w*6)*0.01)*W, py=p.y*H;
+      ctx.beginPath(); ctx.arc(px,py,cell*0.06+0.6,0,7); ctx.fill();
+      p.y+=p.v*dt*0.5; if(p.y>1.02){p.y=-0.02;p.x=Math.random();} }
+  }
+}
+function drawVignette(){
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  const g=ctx.createRadialGradient(W/2,H*0.46,Math.min(W,H)*0.30, W/2,H*0.5,Math.max(W,H)*0.75);
+  g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,.45)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+
 function drawFacility(f){
   const x=gx(f.x), y=gy(f.y), s=cell*0.92;
   ctx.save();
-  // a soft tile so a landmark reads as ground, not a floating glyph
-  ctx.fillStyle="rgba(255,255,255,.04)"; ctx.strokeStyle="rgba(255,255,255,.06)";
-  const t=cell*0.46; roundRect(x-t,y-t,t*2,t*2,cell*0.16); ctx.fill(); ctx.stroke();
+  // a grounding shadow, then a raised stone plinth with a soft top-light so the
+  // landmark sits on the land rather than floating as a glyph
+  const t=cell*0.46;
+  ctx.fillStyle="rgba(0,0,0,.30)";
+  ctx.beginPath(); ctx.ellipse(x, y+t*0.72, t*0.95, t*0.42, 0, 0, 7); ctx.fill();
+  const pg=ctx.createLinearGradient(0,y-t,0,y+t);
+  pg.addColorStop(0,"rgba(255,255,255,.14)"); pg.addColorStop(1,"rgba(0,0,0,.18)");
+  ctx.fillStyle=pg; ctx.strokeStyle="rgba(255,255,255,.10)";
+  roundRect(x-t,y-t,t*2,t*2,cell*0.18); ctx.fill(); ctx.stroke();
   ctx.font=`${Math.round(s)}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="middle";
   ctx.fillText(FAC[f.type]||"🏢", x, y+1);
   // A small name label so you can always tell which facility is which (and
@@ -267,9 +407,10 @@ function roundRect(x,y,w,h,r){ ctx.beginPath();
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
 function draw(){
-  if(!world) return; geom();
+  if(!world) return; geom(); buildTerrain();
   const W=canvas.clientWidth, H=canvas.clientHeight; ctx.clearRect(0,0,W,H);
-  for(const f of facilities) drawFacility(f);
+  drawTerrain();                                   // the land
+  for(const f of facilities) drawFacility(f);      // landmarks
   // people, painted back-to-front so lower figures overlap correctly
   const order=agents.slice().sort((a,b)=>(disp.get(a.id)?.y??a.y)-(disp.get(b.id)?.y??b.y));
   for(const a of order){ const p=disp.get(a.id)||{x:a.x,y:a.y};
@@ -280,21 +421,21 @@ function draw(){
     ctx.save(); ctx.globalAlpha=1-t; ctx.font=`${Math.round(cell*0.9)}px system-ui`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillText(fl.emoji, gx(fl.x), gy(fl.y)-cell*0.6*t-cell*0.4); ctx.restore(); }
+  drawWeather();                                   // rain / snow
+  ctx.fillStyle=skyOverlay(); ctx.fillRect(0,0,W,H);   // time-of-day tint
+  drawVignette();
 }
 
-function needsAnim(){
-  if(flashes.some(f=>performance.now()-f.t0<900)) return true;
-  for(const a of agents){ const p=disp.get(a.id); if(!p) return true;
-    if(Math.abs(p.x-a.x)>0.01||Math.abs(p.y-a.y)>0.01) return true; }
-  return false;
-}
+// A living world renders continuously (sky drifts, water shimmers, weather
+// falls), so the loop runs while a world exists rather than only on movement.
 function animate(){
+  if(!world){ animing=false; return; }
   for(const a of agents){ let p=disp.get(a.id);
     if(!p){ p={x:a.x,y:a.y}; disp.set(a.id,p); }
     p.x+=(a.x-p.x)*0.18; p.y+=(a.y-p.y)*0.18; }
   flashes=flashes.filter(f=>performance.now()-f.t0<900);
   draw();
-  if(needsAnim()) requestAnimationFrame(animate); else animing=false;
+  requestAnimationFrame(animate);
 }
 function kick(){ if(!animing){ animing=true; requestAnimationFrame(animate); } }
 
@@ -324,10 +465,15 @@ function roster(){
   document.querySelectorAll("#roster [data-id]").forEach(el=>el.onclick=()=>possess(el.dataset.id));
 }
 
+const WEATHER_ICON = { clear:"☀️", sunny:"☀️", cloudy:"☁️", overcast:"☁️",
+  rain:"🌧️", storm:"⛈️", snow:"❄️", fog:"🌫️", wind:"💨", windy:"💨" };
 function renderStatus(st){
   const v = st.finished ? st.verdict : t("running");
-  $("#status").textContent = fmt("status", {d:st.day, D:st.config.days,
+  let line = fmt("status", {d:st.day, D:st.config.days,
     a:st.living, p:st.population, b:st.brain, v});
+  if(st.environment){ const e=st.environment;
+    const wx=(WEATHER_ICON[e.weather]||""); line = `${wx} ${e.season} · ` + line; }
+  $("#status").textContent = line;
 }
 function applyState(st){
   world={id:st.world_id||world.id,width:st.width,height:st.height};
@@ -335,6 +481,7 @@ function applyState(st){
   // prune display state for agents that no longer exist
   for(const id of [...disp.keys()]) if(!agents.some(a=>a.id===id)) disp.delete(id);
   flashEvents(st.new_events);
+  syncWeather();
   renderStatus(st);
   roster(); kick(); draw();
   if(st.finished&&playing) stopPlay();
@@ -410,7 +557,8 @@ document.querySelectorAll(".tabs button[data-tab]").forEach(b=>b.onclick=()=>sho
 async function createWorld(){
   stopPlay();
   const body={persona:$("#persona").value,seed:+$("#seed").value,days:15,
-              rich:$("#rich").checked,brain:$("#brain").value};
+              rich:$("#rich").checked,brain:$("#brain").value,
+              environment:true};   // seasons + weather drive the world's sky/look
   const st=await api("POST","/api/worlds",body);
   world={id:st.world_id,width:st.width,height:st.height}; selected=null; narrative=null;
   disp.clear(); flashes=[];
