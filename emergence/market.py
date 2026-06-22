@@ -45,11 +45,43 @@ class Offer:
     want_item: str
     want_qty: int
     day: int
+    # When set, this is a SERVICE offer: the maker offers to *perform* a named
+    # service (labour) rather than hand over a good. give_item/give_qty are
+    # ignored; accepting pays want_qty (the maker's chosen price; 0 = charity)
+    # and triggers the service's effect. Price is emergent, free-vs-paid is the
+    # provider's choice.
+    service: str | None = None
 
     def as_dict(self) -> dict:
+        if self.service is not None:
+            return {"id": self.id, "maker": self.maker,
+                    "service": self.service,
+                    "want": f"{self.want_qty} {self.want_item}"}
         return {"id": self.id, "maker": self.maker,
                 "give": f"{self.give_qty} {self.give_item}",
                 "want": f"{self.want_qty} {self.want_item}"}
+
+
+# Services are *labour offered for (optional) pay*. A provider CHOOSES to post a
+# service offer at a price it picks (0 = charity); a taker accepts it (consent).
+# The price is emergent (the accepted ratio), and free / fair / gouging is the
+# provider's choice — like enforcement, not engine policy. Adding a service is a
+# data entry here plus an effect handler in the simulation; banks (deposit /
+# loan), inns (lodging) and the like slot in the same way.
+#   provider: a required profession, or None for "anyone capable".
+SERVICES: dict[str, dict] = {
+    "healing": {"provider": "doctor",
+                "desc": "restore a patient's energy (better at a hospital)"},
+}
+
+
+def can_provide(service: str, profession: str) -> bool:
+    """Whether an agent of ``profession`` is able to offer ``service``."""
+    spec = SERVICES.get(service)
+    if spec is None:
+        return False
+    return spec["provider"] is None or spec["provider"] == profession
+
 
 
 DEFAULT_LOAN_DUE_DAYS = 3

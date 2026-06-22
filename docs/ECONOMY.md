@@ -119,15 +119,30 @@ The smallest change that makes the whole wheel turn once.
   together.
 
 ### Phase 2 — services as labour, and depth of demand
-Services are someone's *work*, so they are bought like goods:
-- **[shipped]** Doctor **healing as a paid service** — `treat` pays a nearby
-  doctor (`money → the doctor`, who earns) to restore energy (`→ patient`,
-  produced like rest/food), more effectively at a hospital. This is money's
-  survival-grade demand: you can buy energy. Opt-in via `--economy`; the
-  heuristic's one rule is *depleted + no food + money + a doctor in reach →
-  buy care*, with richer judgement left to the LLM (the `care_fee` + the
-  affordance ride on `Observation`). Baseline byte-identical.
-- An **inn / better rest** for pay (`money → recovery efficiency`).
+Services are someone's *work*, so they are bought like goods — and, crucially,
+**whether a service is free, fair, or extortionate is the provider's choice**,
+not engine policy (the same stance as enforcement & corruption). So a service is
+a **provider-posted offer on the existing OFFER/ACCEPT order book**:
+
+> A provider *chooses* to post a service offer at a **price it picks** (0 =
+> charity); a taker *accepts* (consent + pays). The fee moves to the provider
+> (conserved); the service's **effect** is applied to the taker; the **price
+> emerges** from accepted fees. Adding a service is a data entry in
+> `market.SERVICES` + an effect handler in the simulation — **banks (deposit /
+> loan), inns (lodging) and the like slot in the same way.**
+
+- **[shipped]** Doctor **healing as a chosen service** — a doctor offers
+  `{"service": "healing", "want_item": "money", "want_qty": P}`; whoever accepts
+  pays `P` (→ the doctor, who earns; `P=0` is charity) and has their energy
+  restored (produced like rest/food), more effectively at a hospital. Services
+  are **local** (provider must be within reach). This is money's survival-grade
+  demand: you can buy energy. Heuristic: a doctor offers care priced by
+  temperament (cooperative → cheap/charitable, grasping → dear); a depleted,
+  food-less patient accepts the cheapest affordable offer in reach. Richer play
+  (haggling, refusing the poor, gouging the desperate) is the LLM's. Opt-in via
+  `--economy`; baseline byte-identical.
+- **Next services (same mechanism):** a **bank** (deposit for safe-keeping /
+  interest; lending as a posted service) and an **inn** (paid rest → recovery).
 - **Conspicuous consumption**: spend on a feast / patronage / commissioning →
   `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).
 

@@ -33,7 +33,7 @@ FACILITY_AFFORDANCES: dict[FacilityType, list[ActionType]] = {
     FacilityType.TOWN_HALL: [ActionType.PROPOSE, ActionType.VOTE],
     FacilityType.LIBRARY: [ActionType.COLLABORATE, ActionType.CREATE],
     FacilityType.POLICE_STATION: [ActionType.REPORT_CRIME, ActionType.ARREST],
-    FacilityType.HOSPITAL: [ActionType.REST, ActionType.TREAT],
+    FacilityType.HOSPITAL: [ActionType.REST],
     FacilityType.HOUSE: [ActionType.REST, ActionType.SLEEP],
     FacilityType.PLAZA: [ActionType.SPEAK, ActionType.BUILD, ActionType.CREATE],
     FacilityType.TEMPLE: [ActionType.WORSHIP, ActionType.PREACH],
