@@ -155,6 +155,27 @@ a taker consents and pays (conserved), the price emerges from accepted fees. The
 only branch is the **result**: an effect fires (healing) *or* a new claim-item is
 issued (a deposit-receipt / a loan). One agreement substrate, two result kinds.
 
+### What counts as an item — and the scope we model
+The test for "item" is **matter you can hold, own, move, and store** (a vessel of
+value). By that test most of the natural world *qualifies* — wood, ore and other
+**minerals**, stone, soil, water are all item-candidates. **Fire does not**: you
+cannot hold fire; it is a *process/effect* (in the engine, arson is a `strike` on
+a building, not a token). The holdable thing is the **fuel** (wood/charcoal — an
+item); the fire is the *effect* of `use`-ing it — the same side of the line as
+healing.
+
+But the engine deliberately keeps the **alphabet of items small** — today just
+`food`, `materials`, `tools`, `money` (+ `weapons`/`drugs` under `--society`).
+Crucially, **`materials` folds together what are really distinct resources**:
+forest→wood and mine→ore both yield the generic `materials`. Soil, stone, water
+and specific minerals are not modelled at all. This is for determinism,
+legibility and balance — every new item adds demand, recipes, prices and tuning.
+
+So: enriching the natural-resource set (distinct **wood / ore / minerals /
+stone / water**, with the recipes and professions they imply) is real and
+on-brand, but a **deliberate, opt-in expansion — tracked under #21**, not a free
+default. Fire and the like stay on the **effect/hazard** side, never items.
+
 ## Phased plan
 
 ### MVP — the thin vertical slice across #20 + #21 (do first)
