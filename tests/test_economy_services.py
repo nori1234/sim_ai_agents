@@ -43,6 +43,13 @@ class TestServiceRegistry(unittest.TestCase):
         self.assertFalse(can_provide("healing", "smith"))
         self.assertFalse(can_provide("nonesuch", "doctor"))
 
+    def test_registry_and_effects_stay_in_sync(self):
+        # Every declared service must have an effect handler, and vice versa —
+        # otherwise a service could be offered but do nothing (or be unofferable).
+        sim = _sim()
+        self.assertEqual(sorted(SERVICES), sorted(sim._service_effects),
+                         "market.SERVICES and simulation._service_effects drifted")
+
 
 class TestHealingService(unittest.TestCase):
     def _pair(self, sim, *, adjacent=True, on_hospital=False):
