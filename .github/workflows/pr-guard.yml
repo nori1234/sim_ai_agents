@@ -1,0 +1,36 @@
+name: pr-guard
+
+# Guard against a stale-base PR: a branch that forked before some commits that
+# are already on the base branch. Merging such a branch can silently *revert*
+# already-merged work (it happened once: a UI branch based on an older main
+# would have un-deleted a file and dropped a test). We catch it by requiring the
+# tip of the base branch to be an ancestor of the PR head — i.e. the PR must
+# include the latest base.
+on:
+  pull_request:
+
+jobs:
+  up-to-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require the branch to include the latest base
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -e
+          git fetch --no-tags origin "$BASE"
+          git fetch --no-tags origin "$HEAD_REF" || true
+          if git merge-base --is-ancestor "origin/$BASE" "$HEAD_SHA"; then
+            echo "OK: the branch includes the latest origin/$BASE."
+          else
+            behind=$(git rev-list --count "$HEAD_SHA..origin/$BASE")
+            echo "::error::Stale base — this branch is missing $behind commit(s) from origin/$BASE."
+            echo "Merging it could revert already-merged work. Rebase onto the latest base and force-push:"
+            echo "    git fetch origin $BASE && git rebase origin/$BASE && git push --force-with-lease"
+            exit 1
+          fi
