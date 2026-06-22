@@ -87,6 +87,7 @@ python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
 
 | 文書 | 内容 |
 |---|---|
+| [`docs/HANDOFF.md`](docs/HANDOFF.md) | **開発の引き継ぎ**：現状・規約・アーキ地図・バックログ・次の一手（最初に読む） |
 | [`docs/LAYERS.md`](docs/LAYERS.md) | opt-in レイヤーの全カタログ（欲求・裏社会・環境・経済・発展・公共事業・記憶・統治）と実例 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | ファイル構成・1ティックの流れ・実LLMの差し込み方・HTML可視化・ベンチマークの意義 |
 | [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 製品方向（観察所＋憑依）・リッチ2D Web UI・ローカルHTTP API |
