@@ -66,7 +66,8 @@ const FAC=[ [3,3,"town_hall"],[5,3,"library"],[7,4,"temple"],[4,6,"market"],[6,6
 const PERSONA=["#4aa3ff","#f0b429","#3fb950","#f85149"];
 // agents walk slow loops so the town feels alive
 const AG=[]; for(let i=0;i<10;i++){ const cx=3+Math.random()*9, cy=3+Math.random()*9;
-  AG.push({x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7, sp:0.15+Math.random()*0.2, r:1.2+Math.random()*1.6, hx:cx, hy:cy}); }
+  AG.push({x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7, sp:0.15+Math.random()*0.2,
+           r:1.2+Math.random()*1.6, hx:cx, hy:cy, e:55+Math.random()*45, rest:false}); }
 
 let terrain=null, seed=7;
 function buildTerrain(){ const elev=makeNoise(seed*2+1), moist=makeNoise(seed*7+3), fz=0.18, cells=[];
@@ -112,13 +113,23 @@ function tree(gx,gy){ const c=iso(gx,gy), z=Z(), s=TH*0.9*cam.zoom;
   ctx.fillStyle="#5a3f25"; ctx.fillRect(c.x-s*0.06,c.y-z-s*0.5,s*0.12,s*0.5);
   ctx.fillStyle="#3f7d3a"; ctx.beginPath(); ctx.arc(c.x,c.y-z-s*0.62,s*0.34,0,7);
   ctx.arc(c.x-s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.arc(c.x+s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.fill(); }
-function person(gx,gy,col){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom;
+function person(gx,gy,col,e,rest){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom;
+  ctx.save(); if(rest) ctx.globalAlpha=0.6;
   ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(c.x,c.y-z,s*0.22,s*0.1,0,0,7); ctx.fill();
   const by=c.y-z, h=s*0.9;
   ctx.fillStyle=shade(col,0.95); ctx.beginPath();
   ctx.moveTo(c.x-s*0.12,by-h*0.5); ctx.lineTo(c.x+s*0.12,by-h*0.5);
   ctx.lineTo(c.x+s*0.18,by); ctx.lineTo(c.x-s*0.18,by); ctx.closePath(); ctx.fill();
-  ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,by-h*0.62,s*0.16,0,7); ctx.fill(); }
+  ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,by-h*0.62,s*0.16,0,7); ctx.fill();
+  ctx.restore();
+  // energy bar above the head (green=full → red=spent), so the time↔energy loop is visible
+  if(e!=null){ const bw=s*0.6, bh=Math.max(1.5,s*0.09), bx=c.x-bw/2, byy=by-h*0.95;
+    const f=Math.max(0,Math.min(1,e/100)), g=(120*f)|0;
+    ctx.fillStyle="rgba(0,0,0,.5)"; ctx.fillRect(bx,byy,bw,bh);
+    ctx.fillStyle=`rgb(${(220*(1-f)+40)|0},${(120+g)|0},70)`; ctx.fillRect(bx,byy,bw*f,bh); }
+  if(rest){ ctx.fillStyle="#cfe0ff"; ctx.font=`${Math.round(s*0.5)}px system-ui`;
+    ctx.textAlign="center"; ctx.fillText("z", c.x+s*0.3, by-h*1.1); }
+}
 
 // Day/night, made obvious: a sky gradient + an arcing sun/moon + night darkening.
 // Phase p: 0 sunrise · 0.25 midday · 0.5 sunset · 0.75 midnight.
@@ -155,7 +166,7 @@ function draw(){
   for(const [x,y,type] of FAC) items.push({d:x+y, kind:"fac", x,y,type});
   for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(terrain.cells[y][x].t==="forest" && !facBy.has(x+","+y))
     items.push({d:x+y, kind:"tree", x,y});
-  for(const a of AG) items.push({d:a.x+a.y, kind:"ag", x:a.x, y:a.y, col:a.col});
+  for(const a of AG) items.push({d:a.x+a.y, kind:"ag", a});
   items.sort((p,q)=>p.d-q.d);
   const nf=nightF();
   for(const it of items){
@@ -165,7 +176,7 @@ function draw(){
       if(nf>0.05){ const c=iso(it.x,it.y); ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
         ctx.fillRect(c.x-TH*0.18*cam.zoom, c.y-h*0.55, TH*0.16*cam.zoom, TH*0.22*cam.zoom); }
     } else if(it.kind==="tree") tree(it.x,it.y);
-    else person(it.x,it.y,it.col);
+    else person(it.a.x,it.a.y,it.a.col,it.a.e,it.a.rest);
   }
   // 3) night darkening over the whole scene (the obvious "it got dark")
   if(nf>0.01){ ctx.fillStyle=`rgba(12,18,46,${(0.6*nf).toFixed(3)})`; ctx.fillRect(0,0,W2,H2); }
@@ -175,7 +186,15 @@ let last=performance.now(), frames=0, facc=0;
 function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
   if(timeAuto){ dayv=(dayv+dt/CYCLE)%1; const p=Math.round(dayv*100);
     $("s_day").value=p; $("v_day").textContent=p+"%"; }
-  for(const a of AG){ a.ang+=(Math.random()-0.5)*0.3; a.x+=Math.cos(a.ang)*a.sp*dt*3; a.y+=Math.sin(a.ang)*a.sp*dt*3;
+  const night = dayv>0.6 && dayv<0.95;     // the small hours
+  for(const a of AG){
+    // Time costs energy: moving drains it, resting (sleep) restores it. Tired —
+    // or night — sends an agent to rest; once rested it wakes and wanders again.
+    if(a.rest){ a.e=Math.min(100, a.e + dt*22); if(a.e>78 && !night) a.rest=false; }
+    else { a.e=Math.max(0, a.e - dt*(night?5:8));
+      if(a.e<20 || (night && a.e<55)) a.rest=true; }
+    if(a.rest) continue;                    // asleep / standing still
+    a.ang+=(Math.random()-0.5)*0.3; a.x+=Math.cos(a.ang)*a.sp*dt*3; a.y+=Math.sin(a.ang)*a.sp*dt*3;
     if(Math.hypot(a.x-a.hx,a.y-a.hy)>a.r) a.ang=Math.atan2(a.hy-a.y,a.hx-a.x);
     a.x=Math.max(1,Math.min(W-2,a.x)); a.y=Math.max(1,Math.min(H-2,a.y)); }
   draw();
