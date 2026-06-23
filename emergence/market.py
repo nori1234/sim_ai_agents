@@ -88,6 +88,22 @@ DEFAULT_LOAN_DUE_DAYS = 3
 
 
 @dataclass
+class Deposit:
+    """A deposit-receipt — a *claim*-item. The depositor handed `amount` of money
+    to the bank (an agent) for safe-keeping; the bank now owes it back on demand.
+    Custody is a trusted promise, not an engine-guaranteed vault — so if the
+    banker spends the coin, a withdrawal can come up short (a run / embezzlement
+    emerges). If receipts ever circulate in trade, the claim becomes money."""
+    id: int
+    bank: str        # agent id holding the funds
+    holder: str      # the depositor; the claim is theirs
+    amount: int
+
+    def as_dict(self) -> dict:
+        return {"id": self.id, "bank": self.bank, "amount": self.amount}
+
+
+@dataclass
 class Loan:
     """Credit as physics: a creditor hands over a principal now against a promise
     to return `repay` later. Trust is the only collateral — repaying builds it,
