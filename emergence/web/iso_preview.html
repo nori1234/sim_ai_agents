@@ -23,11 +23,22 @@
   button { font:inherit; color:var(--ink); background:#0d1117; border:1px solid var(--line);
            border-radius:6px; padding:.25rem .6rem; cursor:pointer; }
   .hint { position:fixed; top:8px; left:0; right:0; text-align:center; color:var(--dim); font-size:12px; pointer-events:none; }
+  #clock { position:fixed; top:8px; left:10px; background:var(--panel); border:1px solid var(--line);
+           border-radius:8px; padding:.25rem .55rem; font-variant-numeric:tabular-nums; font-weight:700;
+           backdrop-filter:blur(6px); }
+  #focuscard { position:fixed; top:8px; right:10px; min-width:9rem; background:var(--panel);
+           border:1px solid var(--line); border-radius:8px; padding:.4rem .6rem; font-size:13px;
+           backdrop-filter:blur(6px); }
+  #focuscard .sw { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-right:.3rem; }
+  #focuscard .bar { height:6px; border-radius:3px; background:#0d1117; margin-top:.3rem; overflow:hidden; }
+  #focuscard .bar > i { display:block; height:100%; }
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="c"></canvas></div>
-<div class="hint">アイソメ・プレビュー — ドラッグで移動 / ピンチ・ホイールでズーム。下のスライダーで見た目を調整して、好みの値を教えてください。</div>
+<div id="clock">🕘 06:00</div>
+<div id="focuscard" class="hidden" style="display:none"></div>
+<div class="hint">アイソメ・プレビュー — タップで住人にフォーカス / ドラッグで移動 / ピンチ・ホイールでズーム。</div>
 <div id="panel">
   <h1>🧭 Isometric look — tweak & tell me the values</h1>
   <label>Tile</label><input id="s_tile" type="range" min="14" max="44" value="26" /><span class="val" id="v_tile"></span>
@@ -64,10 +75,14 @@ const FAC=[ [3,3,"town_hall"],[5,3,"library"],[7,4,"temple"],[4,6,"market"],[6,6
   [8,6,"hospital"],[3,8,"house"],[5,8,"house"],[7,8,"workshop"],[9,8,"granary"],
   [6,10,"monument"],[9,4,"house"] ];
 const PERSONA=["#4aa3ff","#f0b429","#3fb950","#f85149"];
+const PNAME=["Guardian","Philosopher","Idealist","Predator"];
+const FACNAME={ town_hall:"Town hall", library:"Library", temple:"Temple", market:"Market",
+  bank:"Bank", hospital:"Hospital", house:"House", workshop:"Workshop", granary:"Granary", monument:"Monument" };
 // agents walk slow loops so the town feels alive
 const AG=[]; for(let i=0;i<10;i++){ const cx=3+Math.random()*9, cy=3+Math.random()*9;
-  AG.push({x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7, sp:0.15+Math.random()*0.2,
-           r:1.2+Math.random()*1.6, hx:cx, hy:cy, e:55+Math.random()*45, rest:false}); }
+  AG.push({id:i, name:"Citizen "+(i+1), pi:i%4, x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7,
+           sp:0.15+Math.random()*0.2, r:1.2+Math.random()*1.6, hx:cx, hy:cy, e:55+Math.random()*45, rest:false}); }
+let focus=null;   // the focused citizen (tap to select)
 
 let terrain=null, seed=7;
 function buildTerrain(){ const elev=makeNoise(seed*2+1), moist=makeNoise(seed*7+3), fz=0.18, cells=[];
@@ -173,10 +188,18 @@ function draw(){
     if(it.kind==="fac"){ const art=ART[it.type]||ART.house;
       const h=(TH*1.5*cam.zoom)*BH*(it.type==="monument"?1.4:1);
       isoBox(it.x,it.y,h,art.wall,art.roof);
-      if(nf>0.05){ const c=iso(it.x,it.y); ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
+      const c=iso(it.x,it.y);
+      if(nf>0.05){ ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
         ctx.fillRect(c.x-TH*0.18*cam.zoom, c.y-h*0.55, TH*0.16*cam.zoom, TH*0.22*cam.zoom); }
+      if(cam.zoom*TH>=18){ const lbl=FACNAME[it.type]||it.type;   // name label so types are distinct
+        ctx.font=`${Math.max(9,Math.round(TH*0.42*cam.zoom))}px system-ui`; ctx.textAlign="center"; ctx.textBaseline="bottom";
+        const ty=c.y-h-TH*0.3*cam.zoom; ctx.lineWidth=3; ctx.strokeStyle="rgba(0,0,0,.55)";
+        ctx.strokeText(lbl,c.x,ty); ctx.fillStyle="rgba(240,245,252,.92)"; ctx.fillText(lbl,c.x,ty); }
     } else if(it.kind==="tree") tree(it.x,it.y);
-    else person(it.a.x,it.a.y,it.a.col,it.a.e,it.a.rest);
+    else { person(it.a.x,it.a.y,it.a.col,it.a.e,it.a.rest);
+      if(focus===it.a){ const c=iso(it.a.x,it.a.y), z=Z(), pr=(0.5+0.45*Math.sin(performance.now()/240));
+        ctx.strokeStyle=`rgba(255,255,255,${pr.toFixed(2)})`; ctx.lineWidth=Math.max(1.5,TH*0.08*cam.zoom);
+        ctx.beginPath(); ctx.ellipse(c.x,c.y-z,TH*0.5*cam.zoom,TH*0.26*cam.zoom,0,0,7); ctx.stroke(); } }
   }
   // 3) night darkening over the whole scene (the obvious "it got dark")
   if(nf>0.01){ ctx.fillStyle=`rgba(12,18,46,${(0.6*nf).toFixed(3)})`; ctx.fillRect(0,0,W2,H2); }
@@ -197,18 +220,38 @@ function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
     a.ang+=(Math.random()-0.5)*0.3; a.x+=Math.cos(a.ang)*a.sp*dt*3; a.y+=Math.sin(a.ang)*a.sp*dt*3;
     if(Math.hypot(a.x-a.hx,a.y-a.hy)>a.r) a.ang=Math.atan2(a.hy-a.y,a.hx-a.x);
     a.x=Math.max(1,Math.min(W-2,a.x)); a.y=Math.max(1,Math.min(H-2,a.y)); }
+  // clock: map the cycle to a 24h time (06:00 sunrise · 12:00 · 18:00 sunset · 00:00)
+  { const hr=(6+dayv*24)%24, hh=Math.floor(hr), mm=Math.floor((hr-hh)*60);
+    $("clock").textContent=(dayv<0.5?"☀️":"🌙")+" "+String(hh).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
+  if(focus){ followFocus(); updateFocusCard(); }
   draw();
   facc++; if(now-facc*0+0>0 && frames++>=30){ $("fps").textContent=Math.round(1/dt)+" fps"; frames=0; }
   requestAnimationFrame(loop);
 }
 
+// ---- focus: tap a citizen to select, follow, and read their state -----------
+function pickAgent(cx,cy){ let best=null,bd=1e9;
+  for(const a of AG){ const c=iso(a.x,a.y); const d=Math.hypot(c.x-cx, (c.y-Z())-cy); if(d<bd){bd=d;best=a;} }
+  return bd < TH*cam.zoom*1.1 ? best : null; }
+function followFocus(){ const c=iso(focus.x,focus.y), W2=cv.clientWidth,H2=cv.clientHeight;
+  cam.px+=(W2/2-c.x)*0.08; cam.py+=(H2*0.55-c.y)*0.08; }
+function updateFocusCard(){ const el=$("focuscard"); if(!focus){ el.style.display="none"; return; }
+  const f=Math.max(0,Math.min(1,focus.e/100)), g=(120*f)|0;
+  el.style.display="block";
+  el.innerHTML=`<div><span class="sw" style="background:${focus.col}"></span><b>${focus.name}</b></div>`
+    +`<div style="color:var(--dim)">${PNAME[focus.pi]} · ${focus.rest?"😴 resting":"walking"}</div>`
+    +`<div class="bar"><i style="width:${(f*100)|0}%;background:rgb(${(220*(1-f)+40)|0},${(120+g)|0},70)"></i></div>`; }
+
 // ---- input: drag/pinch/zoom + sliders ---------------------------------------
 function fit(){ const dpr=window.devicePixelRatio||1; cv.width=cv.clientWidth*dpr; cv.height=cv.clientHeight*dpr;
   ctx.setTransform(dpr,0,0,dpr,0,0); if(!cam._init){ resetView(); cam._init=true; } }
 let drag=null, pinch=null;
-cv.addEventListener("pointerdown",e=>{ cv.setPointerCapture(e.pointerId); drag={x:e.clientX,y:e.clientY}; });
-cv.addEventListener("pointermove",e=>{ if(!drag)return; cam.px+=e.clientX-drag.x; cam.py+=e.clientY-drag.y; drag={x:e.clientX,y:e.clientY}; });
-cv.addEventListener("pointerup",()=>drag=null);
+cv.addEventListener("pointerdown",e=>{ cv.setPointerCapture(e.pointerId); drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:0}; });
+cv.addEventListener("pointermove",e=>{ if(!drag)return; cam.px+=e.clientX-drag.x; cam.py+=e.clientY-drag.y;
+  drag.moved+=Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y); drag={...drag,x:e.clientX,y:e.clientY}; });
+cv.addEventListener("pointerup",e=>{ if(drag && drag.moved<6){       // a tap = focus / deselect
+    const r=cv.getBoundingClientRect(); focus=pickAgent(e.clientX-r.left, e.clientY-r.top); updateFocusCard(); }
+  drag=null; });
 cv.addEventListener("wheel",e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
   const z0=cam.zoom; cam.zoom=Math.max(0.4,Math.min(3,cam.zoom*(e.deltaY<0?1.1:1/1.1))); const k=cam.zoom/z0;
   cam.px=mx-(mx-cam.px)*k; cam.py=my-(my-cam.py)*k; }, {passive:false});
