@@ -78,7 +78,7 @@ const GROUND={ water:[40,86,120], sand:[166,150,104], rock:[96,100,110], forest:
 
 // ---- isometric projection (adjustable) --------------------------------------
 let TH=26, PITCH=0.5, BH=1, dayv=0.12;    // tile half-height, vertical pitch, building-height scale
-let timeAuto=true; const CYCLE=70;        // Time is the flow of time: it loops (a full dawn→night→dawn in CYCLE seconds)
+let timeAuto=true; const CYCLE=28;        // Time is the flow of time: it loops (a full dawn→night→dawn in CYCLE seconds)
 const DEFAULTS={tile:26, h:100, pitch:50};// baked defaults; sliders can change & are remembered
 const cam={px:0,py:0,zoom:1,_init:false};
 function tw(){ return TH*2; }            // 2:1 dimetric base
@@ -120,16 +120,34 @@ function person(gx,gy,col){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom;
   ctx.lineTo(c.x+s*0.18,by); ctx.lineTo(c.x-s*0.18,by); ctx.closePath(); ctx.fill();
   ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,by-h*0.62,s*0.16,0,7); ctx.fill(); }
 
-function skyTint(){ const p=dayv;          // 0 dawn .. 1 night
-  if(p<0.25) return "rgba(255,180,120,"+(0.18*(1-p/0.25)).toFixed(2)+")";
-  if(p<0.5)  return "rgba(255,255,255,0)";
-  if(p<0.75) return "rgba(255,150,90,"+(0.2*((p-0.5)/0.25)).toFixed(2)+")";
-  return "rgba(16,22,60,"+(0.2+0.35*((p-0.75)/0.25)).toFixed(2)+")"; }
-function nightF(){ return dayv>0.6?Math.min(1,(dayv-0.6)/0.4):0; }
+// Day/night, made obvious: a sky gradient + an arcing sun/moon + night darkening.
+// Phase p: 0 sunrise · 0.25 midday · 0.5 sunset · 0.75 midnight.
+const SKY=[ // [phase, topRGB, bottomRGB]
+  [0.00,[255,170,120],[120,110,150]], [0.22,[110,175,235],[200,225,248]],
+  [0.50,[250,140,85],[150,90,120]],   [0.72,[18,26,66],[8,12,30]],
+  [1.00,[255,170,120],[120,110,150]] ];
+function lerp3(a,b,f){ return [a[0]+(b[0]-a[0])*f|0, a[1]+(b[1]-a[1])*f|0, a[2]+(b[2]-a[2])*f|0]; }
+function skyAt(p){ let A=SKY[0],B=SKY[1];
+  for(let i=0;i<SKY.length-1;i++){ if(p>=SKY[i][0]&&p<=SKY[i+1][0]){A=SKY[i];B=SKY[i+1];break;} }
+  const f=(p-A[0])/((B[0]-A[0])||1); return {top:lerp3(A[1],B[1],f), bot:lerp3(A[2],B[2],f)}; }
+function nightF(){ const p=dayv; return p>0.55?Math.min(1,(p-0.55)/0.2) - Math.max(0,(p-0.92)/0.08) : 0; }
+function rgb(c){ return `rgb(${c[0]},${c[1]},${c[2]})`; }
+function drawSky(W2,H2){ const s=skyAt(dayv), g=ctx.createLinearGradient(0,0,0,H2);
+  g.addColorStop(0,rgb(s.top)); g.addColorStop(1,rgb(s.bot)); ctx.fillStyle=g; ctx.fillRect(0,0,W2,H2); }
+function drawCelestial(W2,H2){ const p=dayv;
+  const day = p<0.5;                       // sun by day, moon by night
+  const t = day ? p/0.5 : (p-0.5)/0.5;     // 0..1 across the sky
+  const x = W2*(0.12+0.76*t), y = H2*0.34 - Math.sin(t*Math.PI)*H2*0.24;
+  const r = Math.min(W2,H2)*0.05;
+  const glow=ctx.createRadialGradient(x,y,r*0.4,x,y,r*3);
+  glow.addColorStop(0, day?"rgba(255,225,150,.55)":"rgba(210,225,255,.4)"); glow.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(x,y,r*3,0,7); ctx.fill();
+  ctx.fillStyle=day?"#ffe27a":"#dfe7f2"; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); }
 
 const facBy=new Map(FAC.map(f=>[f[0]+","+f[1],f[2]]));
 function draw(){
   const W2=cv.clientWidth,H2=cv.clientHeight; ctx.clearRect(0,0,W2,H2);
+  drawSky(W2,H2); drawCelestial(W2,H2);     // 0) the changing sky + sun/moon
   // 1) ground, back to front
   for(let s=0;s<=W+H;s++) for(let y=0;y<H;y++){ const x=s-y; if(x<0||x>=W) continue; tile(x,y); }
   // 2) props (buildings/trees/people) in one depth-sorted pass
@@ -149,8 +167,8 @@ function draw(){
     } else if(it.kind==="tree") tree(it.x,it.y);
     else person(it.x,it.y,it.col);
   }
-  // 3) time-of-day tint
-  ctx.fillStyle=skyTint(); ctx.fillRect(0,0,W2,H2);
+  // 3) night darkening over the whole scene (the obvious "it got dark")
+  if(nf>0.01){ ctx.fillStyle=`rgba(12,18,46,${(0.6*nf).toFixed(3)})`; ctx.fillRect(0,0,W2,H2); }
 }
 
 let last=performance.now(), frames=0, facc=0;
