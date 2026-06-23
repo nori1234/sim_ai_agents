@@ -218,8 +218,18 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   food-less patient accepts the cheapest affordable offer in reach. Richer play
   (haggling, refusing the poor, gouging the desperate) is the LLM's. Opt-in via
   `--economy`; baseline byte-identical.
-- **Next services (same mechanism):** a **bank** (deposit for safe-keeping /
-  interest; lending as a posted service) and an **inn** (paid rest → recovery).
+- **[shipped] Bank — deposits as claim-items.** A depositor hands money to a
+  **banker** (an agent stationed at a `BANK`) and holds a **deposit-receipt**
+  (`market.Deposit`) — a claim the bank owes back. The coin is **conserved**: it
+  sits in the banker's hands, so the banker *can* spend it, and a `withdraw` pays
+  only from what the bank still holds — a short payout is a **run / embezzlement
+  made visible** (not an engine-guaranteed vault). `deposit`/`withdraw` verbs;
+  the economy `Observation` surfaces a nearby open bank + your receipts; the
+  heuristic banks its surplus / redeems when short, richer play (trust, runs,
+  *receipts circulating as money*) is the LLM's. Opt-in `--economy`; baseline
+  byte-identical. (Follow-ups: **lending as a posted service** — the `LEND`/
+  `Loan` claim already exists — and interest/embezzlement depth, #38.)
+- **Next services (same mechanism):** an **inn** (paid rest → recovery).
 - **Conspicuous consumption**: spend on a feast / patronage / commissioning →
   `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).
 

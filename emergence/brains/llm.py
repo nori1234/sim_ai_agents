@@ -78,6 +78,8 @@ Choose ONE action. Common actions and their params:
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
   lend   {"to": id, "item": "money", "qty": N, "repay": M, "due_in_days": D}  (credit; M>N = interest)
   repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)
+  deposit  {"bank": id, "amount": N}   (place money with a banker at a BANK for safe-keeping; you hold a claim)
+  withdraw {"bank": id, "amount": N}   (redeem your deposit — but the bank pays only from what it still holds)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 

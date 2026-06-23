@@ -123,6 +123,7 @@ class Simulation:
     economy: bool = False
     offers: list = field(default_factory=list)        # open Offer order book
     loans: list = field(default_factory=list)         # outstanding credit (Loan)
+    deposits: list = field(default_factory=list)      # bank deposit-receipts (Deposit)
     # Mints a brain for a newborn given (child_agent, persona_key, rng).
     newborn_brain_factory: Optional[Callable[[Agent, str, random.Random], AgentBrain]] = None
 
@@ -138,6 +139,7 @@ class Simulation:
         self._next_faith_num = 1
         self._next_offer_id = 1
         self._next_loan_id = 1
+        self._next_deposit_id = 1
         # Emergent prices: recent settled swap ratios per ordered (give, want) pair.
         self._trade_ratios: dict[tuple, list] = {}
 
@@ -320,7 +322,13 @@ class Simulation:
                       # labour for a price, accepted like any offer. The going rate
                       # emerges from accepted fees, surfaced so a brain can weigh it.
                       "services": sorted(self._service_effects),
-                      "price_healing_in_money": self.emergent_price("healing", "money")}
+                      "price_healing_in_money": self.emergent_price("healing", "money"),
+                      # Banking: a banker (an agent at a BANK) you can deposit with,
+                      # and the deposit-receipts you currently hold (claims a bank
+                      # owes you). Withdrawing can come up short if the bank spent it.
+                      "bank_here": self._banker_near(agent),
+                      "my_deposits": [d.as_dict() for d in self.deposits
+                                      if d.holder == agent.id and d.amount > 0]}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -1446,6 +1454,75 @@ class Simulation:
         creditor.adjust_trust(agent.id, 0.2)
         agent.adjust_trust(creditor.id, 0.1)
         self.world.log("loan_repaid", id=loan.id, debtor=agent.id, creditor=creditor.id)
+
+    # -- banking: deposit money for safe-keeping, get a claim back -----------
+    def _banker_near(self, agent: Agent):
+        """An agent (not self) currently stationed at a BANK within reach — i.e.
+        someone you could deposit with. None if no bank is open nearby."""
+        for o in self.agents:
+            if o.alive and o is not agent and chebyshev(agent.pos, o.pos) <= 2:
+                f = self.world.facility_at(o.pos)
+                if f is not None and f.ftype is FacilityType.BANK:
+                    return o.id
+        return None
+
+    def _do_deposit(self, agent: Agent, action: Action) -> None:
+        """Deposit money with a banker (an agent stationed at a BANK). The coin
+        moves into the banker's hands (conserved); the depositor holds a claim —
+        a deposit-receipt the bank owes back. The banker *can* spend it, so the
+        safety of the deposit is a trusted promise, not a guarantee."""
+        if not self.economy:
+            return
+        bank = self._by_id.get(action.params.get("bank"))
+        amount = int(action.params.get("amount", 0) or 0)
+        if bank is None or bank is agent or not bank.alive or amount <= 0:
+            return
+        # Banking happens *at* a bank: the banker must be standing on one.
+        bf = self.world.facility_at(bank.pos)
+        if bf is None or bf.ftype is not FacilityType.BANK:
+            return
+        if chebyshev(agent.pos, bank.pos) > 2 or agent.money < amount:
+            return
+        moved = agent.take("money", amount)
+        bank.add("money", moved)
+        dep = next((d for d in self.deposits
+                    if d.bank == bank.id and d.holder == agent.id), None)
+        if dep is not None:
+            dep.amount += moved
+        else:
+            dep = MK.Deposit(id=self._next_deposit_id, bank=bank.id,
+                             holder=agent.id, amount=moved)
+            self._next_deposit_id += 1
+            self.deposits.append(dep)
+        agent.adjust_trust(bank.id, 0.02)
+        self.world.log("deposit", holder=agent.id, bank=bank.id, amount=moved)
+
+    def _do_withdraw(self, agent: Agent, action: Action) -> None:
+        """Redeem a deposit. The bank pays from what it actually holds — if it
+        spent the funds, the withdrawal comes up short and trust collapses (a run
+        / embezzlement made visible). Conserved: only real coin moves."""
+        if not self.economy:
+            return
+        bank = self._by_id.get(action.params.get("bank"))
+        want = int(action.params.get("amount", 0) or 0)
+        if bank is None or not bank.alive or want <= 0 \
+                or chebyshev(agent.pos, bank.pos) > 2:
+            return
+        dep = next((d for d in self.deposits if d.bank == bank.id
+                    and d.holder == agent.id and d.amount > 0), None)
+        if dep is None:
+            return
+        payable = min(want, dep.amount, bank.money)
+        if payable <= 0:                      # the bank can't pay — a run/default
+            agent.adjust_trust(bank.id, -0.3)
+            self.world.log("bank_default", holder=agent.id, bank=bank.id, owed=dep.amount)
+            return
+        moved = bank.take("money", payable)
+        agent.add("money", moved)
+        dep.amount -= moved
+        short = want > moved                  # got less than asked → partial run
+        agent.adjust_trust(bank.id, -0.15 if short else 0.05)
+        self.world.log("withdraw", holder=agent.id, bank=bank.id, amount=moved, short=short)
 
     def _religion_of(self, rid: str):
         for r in self.religions:

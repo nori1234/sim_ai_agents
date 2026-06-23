@@ -105,6 +105,9 @@ class HeuristicBrain(AgentBrain):
         # 3.6 Market: trade and craft on the economic-physics primitives. Early
         #     enough that agents with a surplus actually go to market.
         if obs.economy.get("enabled"):
+            bank = self._bank_action(agent, obs)
+            if bank is not None:
+                return bank
             trade = self._trade_action(agent, obs)
             if trade is not None:
                 return trade
@@ -512,6 +515,27 @@ class HeuristicBrain(AgentBrain):
         return None
 
     # -- economy --------------------------------------------------------
+    def _bank_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """One opt-in rule: when a bank is open within reach, park surplus money
+        there (keeping a working buffer); when short on cash, redeem a deposit.
+        Richer judgement (trust, runs) is the LLM's. Gated on economy.enabled."""
+        ec = obs.economy
+        bh = ec.get("bank_here")
+        deps = ec.get("my_deposits") or []
+        if not bh:
+            return None
+        # Short on cash and the bank that holds our savings is right here: withdraw.
+        if agent.money < 4:
+            d = next((d for d in deps if d.get("bank") == bh), None)
+            if d:
+                return Action(ActionType.WITHDRAW, {"bank": bh, "amount": d["amount"]},
+                              rationale="withdraw savings")
+        # Comfortable surplus: deposit the excess for safe-keeping.
+        if agent.money >= 12:
+            return Action(ActionType.DEPOSIT, {"bank": bh, "amount": agent.money - 8},
+                          rationale="bank my surplus")
+        return None
+
     def _trade_action(self, agent: Agent, obs: Observation) -> Action | None:
         """Use the market primitives: craft a good, take a useful offer, or sell
         a surplus. The engine just clears swaps; prices form from these choices."""
