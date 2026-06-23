@@ -104,11 +104,13 @@
     <div class="tabs">
       <button data-tab="chronicle" class="active" data-i18n="tab_chronicle">📜 Chronicle</button>
       <button data-tab="citizen" data-i18n="tab_citizen">👤 Citizen</button>
+      <button data-tab="town" data-i18n="tab_town">🏛️ Town</button>
       <button id="narrate" title="have the world's LLM write the chronicle as prose"
               style="margin-left:auto;color:var(--ink)" data-i18n="narrate">✨ Narrate</button>
     </div>
     <div id="chronicle" class="scroll"><div class="reading muted" data-i18n="emptyChronicle">Create a world to begin its chronicle.</div></div>
     <div id="citizen" class="scroll hidden"><div class="reading muted" data-i18n="emptyCitizen">Click a citizen in the town to possess them.</div></div>
+    <div id="town" class="scroll hidden"><div class="reading muted" data-i18n="emptyChronicle">Create a world to begin its chronicle.</div></div>
   </div>
 </main>
 <div id="tip" class="tip hidden"></div>
@@ -155,7 +157,11 @@ const I18N = {
     play:"▶ Play", pause:"⏸ Pause", narrate:"✨ Narrate",
     hint:"Click a citizen to possess + follow · scroll to zoom · drag to pan · double-click to reset.",
     l_guardian:"Guardian", l_philosopher:"Philosopher", l_idealist:"Idealist", l_predator:"Predator",
-    tab_chronicle:"📜 Chronicle", tab_citizen:"👤 Citizen",
+    tab_chronicle:"📜 Chronicle", tab_citizen:"👤 Citizen", tab_town:"🏛️ Town",
+    town_laws:"Laws in force", town_economy:"Economy", town_library:"Library",
+    t_treasury:"Treasury", t_price_food:"Food price", t_price_care:"Care fee",
+    t_trades:"Trades", t_offers:"Open offers", t_books:"books on the shelf",
+    t_no_laws:"No laws enacted yet.", t_off:"(layer off)",
     emptyChronicle:"Create a world to begin its chronicle.",
     emptyCitizen:"Click a citizen in the town to possess them.",
     running:"running…", quiet:"Quiet so far — step the world forward.",
@@ -177,7 +183,11 @@ const I18N = {
     play:"▶ 再生", pause:"⏸ 一時停止", narrate:"✨ 物語化",
     hint:"住人をクリックで憑依＋追従・ホイールでズーム・ドラッグで移動・ダブルクリックで戻す。",
     l_guardian:"守護者", l_philosopher:"哲学者", l_idealist:"理想家", l_predator:"捕食者",
-    tab_chronicle:"📜 年代記", tab_citizen:"👤 住人",
+    tab_chronicle:"📜 年代記", tab_citizen:"👤 住人", tab_town:"🏛️ 町",
+    town_laws:"施行中の法", town_economy:"経済", town_library:"図書館",
+    t_treasury:"国庫", t_price_food:"食料価格", t_price_care:"治療費",
+    t_trades:"取引数", t_offers:"出品中", t_books:"冊が棚に",
+    t_no_laws:"まだ法は制定されていません。", t_off:"（レイヤー無効）",
     emptyChronicle:"世界を作ると年代記が始まります。",
     emptyCitizen:"街の住人をクリックして憑依してください。",
     running:"進行中…", quiet:"まだ静かです — 世界を先に進めてください。",
@@ -203,7 +213,8 @@ function applyI18n(){
   $("#play").textContent = playing ? t("pause") : t("play");
   $("#lang").value = lang;
   if(lastState) renderStatus(lastState);
-  if(world){ loadChronicle(); if(selected) possess(selected); }
+  if(world){ loadChronicle(); if(selected) possess(selected);
+    if(!$("#town").classList.contains("hidden")) renderTown(); }
 }
 
 let world=null, agents=[], facilities=[], selected=null, playing=false, es=null;
@@ -710,6 +721,7 @@ function applyState(st){
   syncWeather();
   renderStatus(st);
   roster(); kick(); draw();
+  if(!$("#town").classList.contains("hidden")) renderTown();
   if(st.finished&&playing) stopPlay();
 }
 
@@ -776,6 +788,35 @@ function showTab(name){
   document.querySelectorAll(".tabs button[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   $("#chronicle").classList.toggle("hidden",name!=="chronicle");
   $("#citizen").classList.toggle("hidden",name!=="citizen");
+  $("#town").classList.toggle("hidden",name!=="town");
+  if(name==="town") renderTown();
+}
+// The Town panel: what the town has legislated, its economy, its library.
+function renderTown(){
+  const st=lastState;
+  if(!st){ $("#town").innerHTML=`<div class="reading muted">${esc(t("emptyChronicle"))}</div>`; return; }
+  const laws=st.laws||[], ec=st.economy||{}, lib=st.library||{};
+  const lawHtml = laws.length
+    ? laws.map(l=>`<div class="beat">📜 ${esc(l.text)}`
+        + `${l.effects&&l.effects.length?` <span class="muted">(${l.effects.map(esc).join(", ")})</span>`:""}</div>`).join("")
+    : `<div class="muted">${esc(t("t_no_laws"))}</div>`;
+  const row=(k,v)=>`<div><span class="muted">${esc(t(k))}</span> <b>${esc(v)}</b></div>`;
+  const ecHtml = ec.enabled
+    ? `<div class="report"><div class="rgrid">`
+        + row("t_treasury", ec.treasury)
+        + (ec.price_food!=null?row("t_price_food", ec.price_food):"")
+        + (ec.price_healing!=null?row("t_price_care", ec.price_healing):"")
+        + row("t_trades", ec.trades) + row("t_offers", ec.open_offers)
+        + `</div></div>`
+    : `<div class="muted">${esc(t("t_off"))}</div>`;
+  const libHtml = lib.enabled
+    ? `<div class="beat">📚 <b>${esc(lib.books)}</b> ${esc(t("t_books"))}</div>`
+        + (lib.recent||[]).map(b=>`<div class="beat muted">“${esc(b.text)}” — ${esc(b.author)}</div>`).join("")
+    : `<div class="muted">${esc(t("t_off"))}</div>`;
+  $("#town").innerHTML=`<div class="reading">`
+    + `<div class="day">${esc(t("town_laws"))}</div>${lawHtml}`
+    + `<div class="day">${esc(t("town_economy"))}</div>${ecHtml}`
+    + `<div class="day">${esc(t("town_library"))}</div>${libHtml}</div>`;
 }
 document.querySelectorAll(".tabs button[data-tab]").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 
@@ -784,7 +825,9 @@ async function createWorld(){
   stopPlay();
   const body={persona:$("#persona").value,seed:+$("#seed").value,days:15,
               rich:$("#rich").checked,brain:$("#brain").value,
-              environment:true};   // seasons + weather drive the world's sky/look
+              environment:true,   // seasons + weather drive the world's sky/look
+              economy:true, library:true};   // populate the Town panel
+  if(!$("#town").classList.contains("hidden")) showTab("chronicle");
   const st=await api("POST","/api/worlds",body);
   world={id:st.world_id,width:st.width,height:st.height}; selected=null; narrative=null;
   resetView();
