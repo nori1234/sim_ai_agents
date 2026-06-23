@@ -77,7 +77,9 @@ buildTerrain();
 const GROUND={ water:[40,86,120], sand:[166,150,104], rock:[96,100,110], forest:[64,96,54], grass:[86,134,66] };
 
 // ---- isometric projection (adjustable) --------------------------------------
-let TH=26, PITCH=0.5, BH=1, dayv=0.3;     // tile half-height, vertical pitch, building-height scale
+let TH=26, PITCH=0.5, BH=1, dayv=0.12;    // tile half-height, vertical pitch, building-height scale
+let timeAuto=true; const CYCLE=70;        // Time is the flow of time: it loops (a full dawn→night→dawn in CYCLE seconds)
+const DEFAULTS={tile:26, h:100, pitch:50};// baked defaults; sliders can change & are remembered
 const cam={px:0,py:0,zoom:1,_init:false};
 function tw(){ return TH*2; }            // 2:1 dimetric base
 function thh(){ return TH*PITCH; }       // on-screen tile vertical radius
@@ -153,6 +155,8 @@ function draw(){
 
 let last=performance.now(), frames=0, facc=0;
 function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(timeAuto){ dayv=(dayv+dt/CYCLE)%1; const p=Math.round(dayv*100);
+    $("s_day").value=p; $("v_day").textContent=p+"%"; }
   for(const a of AG){ a.ang+=(Math.random()-0.5)*0.3; a.x+=Math.cos(a.ang)*a.sp*dt*3; a.y+=Math.sin(a.ang)*a.sp*dt*3;
     if(Math.hypot(a.x-a.hx,a.y-a.hy)>a.r) a.ang=Math.atan2(a.hy-a.y,a.hx-a.x);
     a.x=Math.max(1,Math.min(W-2,a.x)); a.y=Math.max(1,Math.min(H-2,a.y)); }
@@ -171,13 +175,28 @@ cv.addEventListener("pointerup",()=>drag=null);
 cv.addEventListener("wheel",e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
   const z0=cam.zoom; cam.zoom=Math.max(0.4,Math.min(3,cam.zoom*(e.deltaY<0?1.1:1/1.1))); const k=cam.zoom/z0;
   cam.px=mx-(mx-cam.px)*k; cam.py=my-(my-cam.py)*k; }, {passive:false});
-function bind(id,vid,fn,fmt){ const el=$(id); const upd=()=>{ fn(+el.value); $(vid).textContent=fmt(+el.value); }; el.oninput=upd; upd(); }
-bind("s_tile","v_tile",v=>TH=v,v=>v);
-bind("s_h","v_h",v=>BH=v/100,v=>(v/100).toFixed(2)+"×");
-bind("s_pitch","v_pitch",v=>PITCH=v/100,v=>(v/100).toFixed(2));
-bind("s_day","v_day",v=>dayv=v/100,v=>v+"%");
+// Spatial sliders: apply, show, and remember the value (so tweaks survive a reload).
+function bind(id,vid,fn,fmt,key){ const el=$(id);
+  if(key){ const v=localStorage.getItem(key); if(v!==null) el.value=v; }
+  const upd=()=>{ fn(+el.value); $(vid).textContent=fmt(+el.value); if(key) localStorage.setItem(key,el.value); };
+  el.oninput=upd; upd(); }
+bind("s_tile","v_tile",v=>TH=v,v=>v,"iso_tile");
+bind("s_h","v_h",v=>BH=v/100,v=>(v/100).toFixed(2)+"×","iso_h");
+bind("s_pitch","v_pitch",v=>PITCH=v/100,v=>(v/100).toFixed(2),"iso_pitch");
+// Time loops on its own; grab the slider to scrub, release to resume the cycle.
+(function(){ const el=$("s_day");
+  el.addEventListener("pointerdown",()=>timeAuto=false);
+  el.addEventListener("input",()=>{ dayv=(+el.value)/100; $("v_day").textContent=(+el.value)+"%"; });
+  window.addEventListener("pointerup",()=>{ timeAuto=true; });
+  $("v_day").textContent=Math.round(dayv*100)+"%"; })();
 $("reseed").onclick=()=>{ seed=(Math.random()*1e6)|0; buildTerrain(); };
-$("reset").onclick=resetView;
+// Reset restores the baked defaults (and clears remembered tweaks) + recentres.
+$("reset").onclick=()=>{
+  for(const [k,id] of [["iso_tile","s_tile"],["iso_h","s_h"],["iso_pitch","s_pitch"]]) localStorage.removeItem(k);
+  $("s_tile").value=DEFAULTS.tile; $("s_h").value=DEFAULTS.h; $("s_pitch").value=DEFAULTS.pitch;
+  $("s_tile").dispatchEvent(new Event("input")); $("s_h").dispatchEvent(new Event("input")); $("s_pitch").dispatchEvent(new Event("input"));
+  resetView();
+};
 window.addEventListener("resize",fit);
 fit(); requestAnimationFrame(loop);
 </script>
