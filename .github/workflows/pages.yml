@@ -1,0 +1,39 @@
+name: pages
+
+# Publish the standalone web previews (e.g. the isometric mockup) to GitHub
+# Pages, so they can be opened on a phone for visual iteration. These are static
+# single-file pages with no server; the live observatory still needs the API.
+on:
+  push:
+    branches: [main]
+    paths: ["emergence/web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload the web previews
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: emergence/web
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4

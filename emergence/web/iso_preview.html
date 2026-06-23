@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Emergence — Isometric preview</title>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22cc; --line:#272e38; --ink:#e6edf3; --dim:#8b98a5; }
+  * { box-sizing:border-box; } html,body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--ink); overflow:hidden;
+         font:14px/1.5 system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; }
+  #stage { position:fixed; inset:0; }
+  #c { display:block; width:100%; height:100%; touch-action:none; cursor:grab; }
+  #panel { position:fixed; left:8px; right:8px; bottom:8px; background:var(--panel);
+           border:1px solid var(--line); border-radius:10px; padding:.5rem .7rem;
+           backdrop-filter:blur(6px); display:grid; grid-template-columns:auto 1fr auto;
+           gap:.25rem .6rem; align-items:center; max-width:520px; margin:0 auto; }
+  #panel h1 { grid-column:1/-1; margin:.1rem 0 .3rem; font-size:13px; font-weight:700; color:var(--dim); }
+  #panel label { color:var(--dim); white-space:nowrap; }
+  #panel input[type=range] { width:100%; accent-color:#1f6feb; }
+  #panel .val { color:var(--ink); font-variant-numeric:tabular-nums; min-width:2.6rem; text-align:right; }
+  #panel .row { grid-column:1/-1; display:flex; gap:.5rem; flex-wrap:wrap; }
+  button { font:inherit; color:var(--ink); background:#0d1117; border:1px solid var(--line);
+           border-radius:6px; padding:.25rem .6rem; cursor:pointer; }
+  .hint { position:fixed; top:8px; left:0; right:0; text-align:center; color:var(--dim); font-size:12px; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<div class="hint">アイソメ・プレビュー — ドラッグで移動 / ピンチ・ホイールでズーム。下のスライダーで見た目を調整して、好みの値を教えてください。</div>
+<div id="panel">
+  <h1>🧭 Isometric look — tweak & tell me the values</h1>
+  <label>Tile</label><input id="s_tile" type="range" min="14" max="44" value="26" /><span class="val" id="v_tile"></span>
+  <label>Height</label><input id="s_h" type="range" min="0" max="200" value="100" /><span class="val" id="v_h"></span>
+  <label>Pitch</label><input id="s_pitch" type="range" min="35" max="65" value="50" /><span class="val" id="v_pitch"></span>
+  <label>Time</label><input id="s_day" type="range" min="0" max="100" value="30" /><span class="val" id="v_day"></span>
+  <div class="row">
+    <button id="reseed">↻ Terrain</button>
+    <button id="reset">⟳ Reset view</button>
+    <span class="val" style="margin-left:auto" id="fps"></span>
+  </div>
+</div>
+<script>
+const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+const $=s=>document.getElementById(s);
+// ---- a tiny seeded value-noise (shared idea with the observatory) -----------
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function makeNoise(seed){ const r=mulberry32(seed),G=64,g=new Float32Array(G*G);
+  for(let i=0;i<g.length;i++)g[i]=r(); const at=(x,y)=>g[((y%G+G)%G)*G+((x%G+G)%G)], sm=t=>t*t*(3-2*t);
+  return (x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,a=at(xi,yi),b=at(xi+1,yi),c=at(xi,yi+1),d=at(xi+1,yi+1),u=sm(xf),v=sm(yf);
+    return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v;}; }
+function shade(hex,k){ const n=parseInt(hex.slice(1),16);
+  const r=Math.min(255,((n>>16)&255)*k)|0,g=Math.min(255,((n>>8)&255)*k)|0,b=Math.min(255,(n&255)*k)|0; return `rgb(${r},${g},${b})`; }
+
+// ---- the sample town (hard-coded; no server needed) -------------------------
+const W=15,H=15;
+const ART={ house:{wall:"#caa37a",roof:"#8c5a3b"}, market:{wall:"#cdb38b",roof:"#c2643f"},
+  bank:{wall:"#dad3c3",roof:"#7a7f88"}, town_hall:{wall:"#d7d2c4",roof:"#8a6a48"},
+  hospital:{wall:"#e7eaef",roof:"#cf4a4a"}, temple:{wall:"#d8c9a8",roof:"#9a3b3b"},
+  library:{wall:"#c2a36a",roof:"#6b4a8a"}, workshop:{wall:"#b59171",roof:"#5a6470"},
+  granary:{wall:"#caa86a",roof:"#7a5a3a"}, monument:{wall:"#cfc7b6",roof:"#b8b0a0"} };
+const FAC=[ [3,3,"town_hall"],[5,3,"library"],[7,4,"temple"],[4,6,"market"],[6,6,"bank"],
+  [8,6,"hospital"],[3,8,"house"],[5,8,"house"],[7,8,"workshop"],[9,8,"granary"],
+  [6,10,"monument"],[9,4,"house"] ];
+const PERSONA=["#4aa3ff","#f0b429","#3fb950","#f85149"];
+// agents walk slow loops so the town feels alive
+const AG=[]; for(let i=0;i<10;i++){ const cx=3+Math.random()*9, cy=3+Math.random()*9;
+  AG.push({x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7, sp:0.15+Math.random()*0.2, r:1.2+Math.random()*1.6, hx:cx, hy:cy}); }
+
+let terrain=null, seed=7;
+function buildTerrain(){ const elev=makeNoise(seed*2+1), moist=makeNoise(seed*7+3), fz=0.18, cells=[];
+  for(let y=0;y<H;y++){ const row=[]; for(let x=0;x<W;x++){ const e=elev(x*fz,y*fz), m=moist(x*fz+9,y*fz+9);
+    let t; if(e<0.30)t="water"; else if(e<0.36)t="sand"; else if(e>0.74)t="rock"; else t=m>0.62?"forest":"grass";
+    row.push({t,sh:(elev(x*0.9,y*0.9)-0.5)*0.12}); } cells.push(row); } terrain={cells}; }
+buildTerrain();
+const GROUND={ water:[40,86,120], sand:[166,150,104], rock:[96,100,110], forest:[64,96,54], grass:[86,134,66] };
+
+// ---- isometric projection (adjustable) --------------------------------------
+let TH=26, PITCH=0.5, BH=1, dayv=0.3;     // tile half-height, vertical pitch, building-height scale
+const cam={px:0,py:0,zoom:1,_init:false};
+function tw(){ return TH*2; }            // 2:1 dimetric base
+function thh(){ return TH*PITCH; }       // on-screen tile vertical radius
+function iso(gx,gy){ return { x:cam.px+(gx-gy)*tw()/2*cam.zoom, y:cam.py+(gx+gy)*thh()*cam.zoom }; }
+function center(){ const c=iso(W/2,H/2); cam.px+=cv.clientWidth/2-c.x; cam.py+=cv.clientHeight/2-c.y; }
+function resetView(){ cam.zoom=1; cam.px=0; cam.py=0; center(); }
+
+function poly(pts,fill){ ctx.fillStyle=fill; ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath(); ctx.fill(); }
+const Z=()=>TH*0.5*cam.zoom;            // ground slab thickness
+function tile(gx,gy){ const t=terrain.cells[gy][gx], base=GROUND[t.t], k=1+t.sh;
+  const c=iso(gx,gy), hw=tw()/2*cam.zoom, hh=thh()*cam.zoom, z=Z();
+  const top=`rgb(${Math.min(255,base[0]*k)|0},${Math.min(255,base[1]*k)|0},${Math.min(255,base[2]*k)|0})`;
+  const T={x:c.x,y:c.y-hh},R={x:c.x+hw,y:c.y},B={x:c.x,y:c.y+hh},L={x:c.x-hw,y:c.y};
+  // slab side faces (only lower-left & lower-right are visible)
+  poly([L,B,{x:B.x,y:B.y+z},{x:L.x,y:L.y+z}], `rgb(${base[0]*0.6|0},${base[1]*0.6|0},${base[2]*0.6|0})`);
+  poly([B,R,{x:R.x,y:R.y+z},{x:B.x,y:B.y+z}], `rgb(${base[0]*0.45|0},${base[1]*0.45|0},${base[2]*0.45|0})`);
+  poly([T,R,B,L], top);
+  if(t.t==="water"){ const s=(Math.sin(performance.now()/700+gx+gy)+1)/2;
+    poly([T,R,B,L], `rgba(150,200,230,${0.05+0.05*s})`); }
+}
+function isoBox(gx,gy,hgt,wall,roof){ const c=iso(gx,gy), hw=tw()/2*cam.zoom, hh=thh()*cam.zoom, h=hgt;
+  const B={x:c.x,y:c.y+hh},R={x:c.x+hw,y:c.y},T={x:c.x,y:c.y-hh},L={x:c.x-hw,y:c.y};
+  const up=p=>({x:p.x,y:p.y-h});
+  poly([L,B,up(B),up(L)], shade(wall,0.72));        // left face
+  poly([B,R,up(R),up(B)], shade(wall,0.52));        // right face (darker)
+  poly([up(T),up(R),up(B),up(L)], shade(roof,1.12));// lit roof top
+}
+function tree(gx,gy){ const c=iso(gx,gy), z=Z(), s=TH*0.9*cam.zoom;
+  ctx.fillStyle="#5a3f25"; ctx.fillRect(c.x-s*0.06,c.y-z-s*0.5,s*0.12,s*0.5);
+  ctx.fillStyle="#3f7d3a"; ctx.beginPath(); ctx.arc(c.x,c.y-z-s*0.62,s*0.34,0,7);
+  ctx.arc(c.x-s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.arc(c.x+s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.fill(); }
+function person(gx,gy,col){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom;
+  ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(c.x,c.y-z,s*0.22,s*0.1,0,0,7); ctx.fill();
+  const by=c.y-z, h=s*0.9;
+  ctx.fillStyle=shade(col,0.95); ctx.beginPath();
+  ctx.moveTo(c.x-s*0.12,by-h*0.5); ctx.lineTo(c.x+s*0.12,by-h*0.5);
+  ctx.lineTo(c.x+s*0.18,by); ctx.lineTo(c.x-s*0.18,by); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,by-h*0.62,s*0.16,0,7); ctx.fill(); }
+
+function skyTint(){ const p=dayv;          // 0 dawn .. 1 night
+  if(p<0.25) return "rgba(255,180,120,"+(0.18*(1-p/0.25)).toFixed(2)+")";
+  if(p<0.5)  return "rgba(255,255,255,0)";
+  if(p<0.75) return "rgba(255,150,90,"+(0.2*((p-0.5)/0.25)).toFixed(2)+")";
+  return "rgba(16,22,60,"+(0.2+0.35*((p-0.75)/0.25)).toFixed(2)+")"; }
+function nightF(){ return dayv>0.6?Math.min(1,(dayv-0.6)/0.4):0; }
+
+const facBy=new Map(FAC.map(f=>[f[0]+","+f[1],f[2]]));
+function draw(){
+  const W2=cv.clientWidth,H2=cv.clientHeight; ctx.clearRect(0,0,W2,H2);
+  // 1) ground, back to front
+  for(let s=0;s<=W+H;s++) for(let y=0;y<H;y++){ const x=s-y; if(x<0||x>=W) continue; tile(x,y); }
+  // 2) props (buildings/trees/people) in one depth-sorted pass
+  const items=[];
+  for(const [x,y,type] of FAC) items.push({d:x+y, kind:"fac", x,y,type});
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(terrain.cells[y][x].t==="forest" && !facBy.has(x+","+y))
+    items.push({d:x+y, kind:"tree", x,y});
+  for(const a of AG) items.push({d:a.x+a.y, kind:"ag", x:a.x, y:a.y, col:a.col});
+  items.sort((p,q)=>p.d-q.d);
+  const nf=nightF();
+  for(const it of items){
+    if(it.kind==="fac"){ const art=ART[it.type]||ART.house;
+      const h=(TH*1.5*cam.zoom)*BH*(it.type==="monument"?1.4:1);
+      isoBox(it.x,it.y,h,art.wall,art.roof);
+      if(nf>0.05){ const c=iso(it.x,it.y); ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
+        ctx.fillRect(c.x-TH*0.18*cam.zoom, c.y-h*0.55, TH*0.16*cam.zoom, TH*0.22*cam.zoom); }
+    } else if(it.kind==="tree") tree(it.x,it.y);
+    else person(it.x,it.y,it.col);
+  }
+  // 3) time-of-day tint
+  ctx.fillStyle=skyTint(); ctx.fillRect(0,0,W2,H2);
+}
+
+let last=performance.now(), frames=0, facc=0;
+function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
+  for(const a of AG){ a.ang+=(Math.random()-0.5)*0.3; a.x+=Math.cos(a.ang)*a.sp*dt*3; a.y+=Math.sin(a.ang)*a.sp*dt*3;
+    if(Math.hypot(a.x-a.hx,a.y-a.hy)>a.r) a.ang=Math.atan2(a.hy-a.y,a.hx-a.x);
+    a.x=Math.max(1,Math.min(W-2,a.x)); a.y=Math.max(1,Math.min(H-2,a.y)); }
+  draw();
+  facc++; if(now-facc*0+0>0 && frames++>=30){ $("fps").textContent=Math.round(1/dt)+" fps"; frames=0; }
+  requestAnimationFrame(loop);
+}
+
+// ---- input: drag/pinch/zoom + sliders ---------------------------------------
+function fit(){ const dpr=window.devicePixelRatio||1; cv.width=cv.clientWidth*dpr; cv.height=cv.clientHeight*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0); if(!cam._init){ resetView(); cam._init=true; } }
+let drag=null, pinch=null;
+cv.addEventListener("pointerdown",e=>{ cv.setPointerCapture(e.pointerId); drag={x:e.clientX,y:e.clientY}; });
+cv.addEventListener("pointermove",e=>{ if(!drag)return; cam.px+=e.clientX-drag.x; cam.py+=e.clientY-drag.y; drag={x:e.clientX,y:e.clientY}; });
+cv.addEventListener("pointerup",()=>drag=null);
+cv.addEventListener("wheel",e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  const z0=cam.zoom; cam.zoom=Math.max(0.4,Math.min(3,cam.zoom*(e.deltaY<0?1.1:1/1.1))); const k=cam.zoom/z0;
+  cam.px=mx-(mx-cam.px)*k; cam.py=my-(my-cam.py)*k; }, {passive:false});
+function bind(id,vid,fn,fmt){ const el=$(id); const upd=()=>{ fn(+el.value); $(vid).textContent=fmt(+el.value); }; el.oninput=upd; upd(); }
+bind("s_tile","v_tile",v=>TH=v,v=>v);
+bind("s_h","v_h",v=>BH=v/100,v=>(v/100).toFixed(2)+"×");
+bind("s_pitch","v_pitch",v=>PITCH=v/100,v=>(v/100).toFixed(2));
+bind("s_day","v_day",v=>dayv=v/100,v=>v+"%");
+$("reseed").onclick=()=>{ seed=(Math.random()*1e6)|0; buildTerrain(); };
+$("reset").onclick=resetView;
+window.addEventListener("resize",fit);
+fit(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
