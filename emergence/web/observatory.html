@@ -86,6 +86,7 @@
   <button id="step1" data-i18n="step1">+1 day</button>
   <button id="step5" data-i18n="step5">+5 days</button>
   <button id="play"></button>
+  <button id="view" title="switch top-down / isometric view">🧭 Iso</button>
   <select id="lang" title="language">
     <option value="ja">日本語</option>
     <option value="en">English</option>
@@ -254,19 +255,30 @@ function fit(){ const r=$("#stage").getBoundingClientRect();
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if(world) recenter();   // keep zoom, re-centre for the new size
   draw(); }
+// View projection: top-down (default) or 2:1 isometric. gx/gy take BOTH grid
+// coords so a single ISO flag switches the projection; the people/flashes/
+// particles are billboards positioned by gx/gy, so they work in either mode —
+// only the terrain tiles and buildings get a per-mode shape (below).
+let ISO=false; const ISO_PITCH=0.5;
+function isoFactor(){ return ISO?0.62:1; }   // iso tiles are wider/flatter → fit
 function geom(){ const W=canvas.clientWidth, H=canvas.clientHeight;
-  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom; }
-const gx=x=>cam.px+(x+0.5)*cell, gy=y=>cam.py+(y+0.5)*cell;
+  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom*isoFactor(); }
+function projX(x,y){ return ISO ? (x-y)*cell : (x+0.5)*cell; }
+function projY(x,y){ return ISO ? (x+y)*cell*ISO_PITCH : (y+0.5)*cell; }
+const gx=(x,y)=>cam.px+projX(x,y), gy=(x,y)=>cam.py+projY(x,y);
 function recenter(){ const W=canvas.clientWidth, H=canvas.clientHeight;
-  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom;
-  cam.px=(W-cell*world.width)/2; cam.py=(H-cell*world.height)/2; }
+  baseCell=Math.min(W/world.width, H/world.height); cell=baseCell*cam.zoom*isoFactor();
+  let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;
+  for(const [x,y] of [[0,0],[world.width,0],[0,world.height],[world.width,world.height]]){
+    const px=projX(x,y), py=projY(x,y);
+    mnx=Math.min(mnx,px); mxx=Math.max(mxx,px); mny=Math.min(mny,py); mxy=Math.max(mxy,py); }
+  cam.px=W/2-(mnx+mxx)/2; cam.py=H/2-(mny+mxy)/2; }
 function resetView(){ cam.zoom=1; cam.follow=null; recenter(); }
 // Keep the followed citizen gently centred (called each animation frame).
 function followCam(){ if(!cam.follow) return;
   const a=agents.find(x=>x.id===cam.follow); if(!a){ cam.follow=null; return; }
   const p=disp.get(a.id)||a, W=canvas.clientWidth, H=canvas.clientHeight;
-  const tpx=W/2-(p.x+0.5)*cell, tpy=H/2-(p.y+0.5)*cell;
-  cam.px+=(tpx-cam.px)*0.12; cam.py+=(tpy-cam.py)*0.12; }
+  cam.px+=(W/2-gx(p.x,p.y))*0.12; cam.py+=(H*0.5-gy(p.x,p.y))*0.12; }
 
 // --- procedural world dressing: terrain, seasons, day/night, weather --------
 // Everything here is drawn from code (no image assets), so the observatory stays
@@ -337,15 +349,26 @@ function tintCell(type, shade){
   if(s==="winter" && type!=="water"){ c=[(c[0]+206)/2|0,(c[1]+214)/2|0,(c[2]+224)/2|0]; }
   const k=1+shade; return `rgb(${Math.min(255,c[0]*k)|0},${Math.min(255,c[1]*k)|0},${Math.min(255,c[2]*k)|0})`;
 }
+function isoDiamond(x,y,fill){ const cx=gx(x,y), cy=gy(x,y), hw=cell, hh=cell*ISO_PITCH;
+  ctx.fillStyle=fill; ctx.beginPath();
+  ctx.moveTo(cx,cy-hh); ctx.lineTo(cx+hw,cy); ctx.lineTo(cx,cy+hh); ctx.lineTo(cx-hw,cy); ctx.closePath(); ctx.fill(); }
 function drawTerrain(){
-  if(!terrain) return; const o=cell*0.5;
+  if(!terrain) return;
+  if(ISO){                       // isometric diamonds, back-to-front by (x+y)
+    for(let s=0;s<=terrain.W+terrain.H;s++) for(let y=0;y<terrain.H;y++){ const x=s-y;
+      if(x<0||x>=terrain.W) continue; const t=terrain.cells[y][x];
+      isoDiamond(x,y,tintCell(t.type,t.shade));
+      if(terrain.path.has(`${x},${y}`) && t.type!=="water") isoDiamond(x,y,"rgba(120,98,66,.45)"); }
+    return;
+  }
+  const o=cell*0.5;
   for(let y=0;y<terrain.H;y++) for(let x=0;x<terrain.W;x++){
     const t=terrain.cells[y][x];
     ctx.fillStyle=tintCell(t.type,t.shade);
-    ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell+1);
+    ctx.fillRect(gx(x,y)-o, gy(x,y)-o, cell+1, cell+1);
     if(terrain.path.has(`${x},${y}`) && t.type!=="water"){
       ctx.fillStyle="rgba(120,98,66,.5)";
-      ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell+1);
+      ctx.fillRect(gx(x,y)-o, gy(x,y)-o, cell+1, cell+1);
     }
   }
   // gentle water shimmer
@@ -353,7 +376,7 @@ function drawTerrain(){
   for(let y=0;y<terrain.H;y++) for(let x=0;x<terrain.W;x++){
     if(terrain.cells[y][x].type!=="water") continue;
     ctx.fillStyle=`rgba(150,200,230,${0.05+0.05*((x+y+Math.floor(performance.now()/500))%3===0?sh:0)})`;
-    ctx.fillRect(gx(x)-o, gy(y)-o, cell+1, cell*0.5);
+    ctx.fillRect(gx(x,y)-o, gy(x,y)-o, cell+1, cell*0.5);
   }
 }
 // Day/night: a slow real-time clock gives the world a living sky. Returns the
@@ -527,10 +550,40 @@ function vPlaza(cx,baseY,w){ ctx.fillStyle="rgba(200,205,215,.5)"; ctx.beginPath
   ctx.fillStyle="#4a7fa8"; ctx.beginPath(); ctx.arc(cx,baseY-w*0.18,w*0.26,0,7); ctx.fill();
   ctx.fillStyle="#cfe6f5"; ctx.beginPath(); ctx.arc(cx,baseY-w*0.18,w*0.1,0,7); ctx.fill(); }
 
+// An isometric block for a facility (used in ISO view): left/right faces + lit
+// roof on the tile's diamond, with the per-type palette + emblem on the front.
+function isoBox(f){ const art=ART[f.type]||ART.house, cx=gx(f.x,f.y), cyb=gy(f.x,f.y);
+  const hw=cell, hh=cell*ISO_PITCH, h=cell*(f.type==="monument"?2.2:1.5), nf=nightFactor();
+  const B={x:cx,y:cyb+hh},R={x:cx+hw,y:cyb},T={x:cx,y:cyb-hh},L={x:cx-hw,y:cyb};
+  const up=p=>({x:p.x,y:p.y-h}); const poly=(pts,fill)=>{ ctx.fillStyle=fill; ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath(); ctx.fill(); };
+  // contact shadow
+  ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(cx,cyb,hw*0.8,hh*0.8,0,0,7); ctx.fill();
+  poly([L,B,up(B),up(L)], shade(art.wall,0.72));        // left face
+  poly([B,R,up(R),up(B)], shade(art.wall,0.52));        // right face (darker)
+  poly([up(T),up(R),up(B),up(L)], shade(art.roof||art.wall,1.12));  // lit roof
+  if(art.emblem) vEmblem(art.emblem, cx, cyb-h*0.5, hh*0.5, art.acc);
+  if(nf>0.05){ ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
+    ctx.fillRect(cx-hw*0.12, cyb-h*0.55, hw*0.1, hh*0.5); }
+}
 function drawFacility(f){
-  const x=gx(f.x), y=gy(f.y), t=cell*0.46, baseY=y+t*0.92;
+  const nf=nightFactor();
+  if(ISO){
+    const land=f.type==="farm"||f.type==="forest"||f.type==="mine"||f.type==="plaza";
+    if(land){ const cx=gx(f.x,f.y), cy=gy(f.x,f.y);
+      isoDiamond(f.x,f.y, f.type==="water"?"#2e5a78":"rgba(110,150,80,.5)");
+      if(f.type==="forest") vTree(cx,cy,cell*1.3);
+      else { ctx.fillStyle="rgba(230,237,243,.7)"; ctx.font=`${Math.max(8,Math.round(cell*0.5))}px system-ui`;
+        ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(facName(f.type),cx,cy); }
+    } else { isoBox(f);
+      if(cell>=14){ ctx.font=`${Math.max(8,Math.round(cell*0.5))}px system-ui`;
+        ctx.fillStyle="rgba(230,237,243,.8)"; ctx.textAlign="center"; ctx.textBaseline="bottom";
+        ctx.fillText(facName(f.type), gx(f.x,f.y), gy(f.x,f.y)-cell*(f.type==="monument"?2.2:1.5)-cell*0.2); } }
+    return;
+  }
+  const x=gx(f.x,f.y), y=gy(f.x,f.y), t=cell*0.46, baseY=y+t*0.92;
   ctx.save();
-  const w=t*1.5, wh=t*1.25, nf=nightFactor();
+  const w=t*1.5, wh=t*1.25;
   const land=f.type==="farm"||f.type==="forest"||f.type==="mine"||f.type==="plaza";
   if(land){            // a soft contact shadow; the open-land features sit on it
     ctx.fillStyle="rgba(0,0,0,.26)";
@@ -616,19 +669,21 @@ function draw(){
   ctx.save();
   if(shake>0.2) ctx.translate((Math.random()*2-1)*shake, (Math.random()*2-1)*shake);
   drawTerrain();                                   // the land
-  // landmarks painted back-to-front so nearer (lower) buildings overlap farther ones
-  for(const f of facilities.slice().sort((a,b)=>a.y-b.y)) drawFacility(f);
+  // landmarks painted back-to-front (by depth: x+y in iso, y in top-down)
+  const fkey = ISO ? (f=>f.x+f.y) : (f=>f.y);
+  for(const f of facilities.slice().sort((a,b)=>fkey(a)-fkey(b))) drawFacility(f);
   // people, painted back-to-front so lower figures overlap correctly
-  const order=agents.slice().sort((a,b)=>(disp.get(a.id)?.y??a.y)-(disp.get(b.id)?.y??b.y));
+  const pdepth = a=>{ const p=disp.get(a.id)||a; return ISO ? p.x+p.y : p.y; };
+  const order=agents.slice().sort((a,b)=>pdepth(a)-pdepth(b));
   for(const a of order){ const p=disp.get(a.id)||{x:a.x,y:a.y};
     const ddx=a.x-p.x, moving=Math.abs(ddx)>0.02||Math.abs(p.y-a.y)>0.02;
-    drawPeg(gx(p.x), gy(p.y), a.persona, a.profession, a.alive, a.id===selected, moving, ddx); }
+    drawPeg(gx(p.x,p.y), gy(p.x,p.y), a.persona, a.profession, a.alive, a.id===selected, moving, ddx); }
   // event flashes float up and fade
   const now=performance.now();
   for(const fl of flashes){ const t=(now-fl.t0)/900; if(t>=1) continue;
     ctx.save(); ctx.globalAlpha=1-t; ctx.font=`${Math.round(cell*0.9)}px system-ui`;
     ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(fl.emoji, gx(fl.x), gy(fl.y)-cell*0.6*t-cell*0.4); ctx.restore(); }
+    ctx.fillText(fl.emoji, gx(fl.x,fl.y), gy(fl.x,fl.y)-cell*0.6*t-cell*0.4); ctx.restore(); }
   drawParticles();                                 // event bursts (sparks/coins/…)
   drawWeather();                                   // rain / snow
   ctx.restore();
@@ -684,7 +739,7 @@ function flashEvents(list){
     const p=posOf(ev); if(!p) continue;
     const emoji=FLASH[ev.kind];
     if(emoji) flashes.push({x:p.x,y:p.y,emoji,t0:performance.now()});
-    if(BURST[ev.kind]) spawnBurst(gx(p.x), gy(p.y), ev.kind);
+    if(BURST[ev.kind]) spawnBurst(gx(p.x,p.y), gy(p.x,p.y), ev.kind);
     if(SHAKE[ev.kind]) shake=Math.max(shake, SHAKE[ev.kind]);
   }
 }
@@ -696,7 +751,7 @@ let drag=null;   // {x,y,moved} while the mouse button is down
 function nearestAgent(ev){ const r=canvas.getBoundingClientRect();
   const px=ev.clientX-r.left, py=ev.clientY-r.top;
   let best=null,bd=1e9; for(const a of agents){ const p=disp.get(a.id)||a;
-    const d=Math.hypot(gx(p.x)-px, gy(p.y)-py); if(d<bd){bd=d;best=a;} }
+    const d=Math.hypot(gx(p.x,p.y)-px, gy(p.x,p.y)-py); if(d<bd){bd=d;best=a;} }
   return {best, bd}; }
 canvas.addEventListener("mousedown",ev=>{ if(!world) return;
   drag={x:ev.clientX,y:ev.clientY,moved:0}; canvas.classList.add("dragging"); });
@@ -712,7 +767,7 @@ window.addEventListener("mouseup",ev=>{
 canvas.addEventListener("wheel",ev=>{ if(!world) return; ev.preventDefault();
   const r=canvas.getBoundingClientRect(), mx=ev.clientX-r.left, my=ev.clientY-r.top;
   const z0=cam.zoom; cam.zoom=Math.max(1,Math.min(MAXZOOM, cam.zoom*(ev.deltaY<0?1.12:1/1.12)));
-  const k=cam.zoom/z0; cell=baseCell*cam.zoom;       // keep the point under the cursor fixed
+  const k=cam.zoom/z0; cell=baseCell*cam.zoom*isoFactor();   // keep the point under the cursor fixed
   cam.px=mx-(mx-cam.px)*k; cam.py=my-(my-cam.py)*k; cam.follow=null; }, {passive:false});
 canvas.addEventListener("dblclick",()=>{ if(world) resetView(); });
 canvas.addEventListener("mousemove",ev=>{       // hover tooltip (when not panning)
@@ -911,6 +966,8 @@ $("#create").onclick=()=>createWorld().catch(e=>alert(e.message));
 $("#step1").onclick=()=>step(1).catch(e=>alert(e.message));
 $("#step5").onclick=()=>step(5).catch(e=>alert(e.message));
 $("#play").onclick=togglePlay;
+$("#view").onclick=()=>{ ISO=!ISO; $("#view").textContent=ISO?"🗺️ Top":"🧭 Iso";
+  if(world){ recenter(); draw(); } };
 $("#narrate").onclick=()=>narrateChronicle().catch(e=>alert(e.message));
 $("#lang").onchange=e=>{ lang=e.target.value; localStorage.setItem("lang",lang); applyI18n(); };
 window.addEventListener("resize",fit);
