@@ -81,7 +81,9 @@ const FACNAME={ town_hall:"Town hall", library:"Library", temple:"Temple", marke
 // agents walk slow loops so the town feels alive
 const AG=[]; for(let i=0;i<10;i++){ const cx=3+Math.random()*9, cy=3+Math.random()*9;
   AG.push({id:i, name:"Citizen "+(i+1), pi:i%4, x:cx,y:cy, col:PERSONA[i%4], ang:Math.random()*7,
-           sp:0.15+Math.random()*0.2, r:1.2+Math.random()*1.6, hx:cx, hy:cy, e:55+Math.random()*45, rest:false}); }
+           sp:0.15+Math.random()*0.2, r:1.2+Math.random()*1.6, hx:cx, hy:cy, e:55+Math.random()*45, rest:false,
+           sex:Math.random()<0.5?"m":"f", build:0.82+Math.random()*0.4}); }   // physical individuation (#76 mockup)
+const HAIR=["#3a2a1c","#5a3b2a","#7a5a3a","#cdb06a","#222"];
 let focus=null;   // the focused citizen (tap to select)
 
 let terrain=null, seed=7;
@@ -128,14 +130,22 @@ function tree(gx,gy){ const c=iso(gx,gy), z=Z(), s=TH*0.9*cam.zoom;
   ctx.fillStyle="#5a3f25"; ctx.fillRect(c.x-s*0.06,c.y-z-s*0.5,s*0.12,s*0.5);
   ctx.fillStyle="#3f7d3a"; ctx.beginPath(); ctx.arc(c.x,c.y-z-s*0.62,s*0.34,0,7);
   ctx.arc(c.x-s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.arc(c.x+s*0.22,c.y-z-s*0.48,s*0.24,0,7); ctx.fill(); }
-function person(gx,gy,col,e,rest){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom;
+function person(gx,gy,col,e,rest,sex,build){ const c=iso(gx,gy), z=Z(), s=TH*cam.zoom*(build||1);
+  const male = sex!=="f";
+  const shoulder = male? s*0.17 : s*0.105;   // male: broader shoulders
+  const hip      = male? s*0.15 : s*0.205;    // female: wider skirt flare
+  const by=c.y-z, h=s*0.95, headR=s*0.16, hcy=by-h*0.62;
   ctx.save(); if(rest) ctx.globalAlpha=0.6;
   ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(c.x,c.y-z,s*0.22,s*0.1,0,0,7); ctx.fill();
-  const by=c.y-z, h=s*0.9;
+  // body (persona colour) — trapezoid shaped by sex
   ctx.fillStyle=shade(col,0.95); ctx.beginPath();
-  ctx.moveTo(c.x-s*0.12,by-h*0.5); ctx.lineTo(c.x+s*0.12,by-h*0.5);
-  ctx.lineTo(c.x+s*0.18,by); ctx.lineTo(c.x-s*0.18,by); ctx.closePath(); ctx.fill();
-  ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,by-h*0.62,s*0.16,0,7); ctx.fill();
+  ctx.moveTo(c.x-shoulder,by-h*0.52); ctx.lineTo(c.x+shoulder,by-h*0.52);
+  ctx.lineTo(c.x+hip,by); ctx.lineTo(c.x-hip,by); ctx.closePath(); ctx.fill();
+  // hair: female frames the face / longer; male a short cap on top
+  const hair = HAIR[(sex==="f"?1:0)];
+  if(!male){ ctx.fillStyle=hair; ctx.beginPath(); ctx.ellipse(c.x,hcy+headR*0.15,headR*1.25,headR*1.45,0,0,7); ctx.fill(); }
+  ctx.fillStyle="#e8b98e"; ctx.beginPath(); ctx.arc(c.x,hcy,headR,0,7); ctx.fill();   // head (skin)
+  if(male){ ctx.fillStyle=hair; ctx.beginPath(); ctx.arc(c.x,hcy-headR*0.25,headR*0.95,Math.PI,2*Math.PI); ctx.fill(); }
   ctx.restore();
   // energy bar above the head (green=full → red=spent), so the time↔energy loop is visible
   if(e!=null){ const bw=s*0.6, bh=Math.max(1.5,s*0.09), bx=c.x-bw/2, byy=by-h*0.95;
@@ -196,7 +206,7 @@ function draw(){
         const ty=c.y-h-TH*0.3*cam.zoom; ctx.lineWidth=3; ctx.strokeStyle="rgba(0,0,0,.55)";
         ctx.strokeText(lbl,c.x,ty); ctx.fillStyle="rgba(240,245,252,.92)"; ctx.fillText(lbl,c.x,ty); }
     } else if(it.kind==="tree") tree(it.x,it.y);
-    else { person(it.a.x,it.a.y,it.a.col,it.a.e,it.a.rest);
+    else { person(it.a.x,it.a.y,it.a.col,it.a.e,it.a.rest,it.a.sex,it.a.build);
       if(focus===it.a){ const c=iso(it.a.x,it.a.y), z=Z(), pr=(0.5+0.45*Math.sin(performance.now()/240));
         ctx.strokeStyle=`rgba(255,255,255,${pr.toFixed(2)})`; ctx.lineWidth=Math.max(1.5,TH*0.08*cam.zoom);
         ctx.beginPath(); ctx.ellipse(c.x,c.y-z,TH*0.5*cam.zoom,TH*0.26*cam.zoom,0,0,7); ctx.stroke(); } }
@@ -238,8 +248,8 @@ function followFocus(){ const c=iso(focus.x,focus.y), W2=cv.clientWidth,H2=cv.cl
 function updateFocusCard(){ const el=$("focuscard"); if(!focus){ el.style.display="none"; return; }
   const f=Math.max(0,Math.min(1,focus.e/100)), g=(120*f)|0;
   el.style.display="block";
-  el.innerHTML=`<div><span class="sw" style="background:${focus.col}"></span><b>${focus.name}</b></div>`
-    +`<div style="color:var(--dim)">${PNAME[focus.pi]} · ${focus.rest?"😴 resting":"walking"}</div>`
+  el.innerHTML=`<div><span class="sw" style="background:${focus.col}"></span><b>${focus.name}</b> ${focus.sex==="f"?"♀":"♂"}</div>`
+    +`<div style="color:var(--dim)">${PNAME[focus.pi]} · build ${focus.build.toFixed(2)} · ${focus.rest?"😴 resting":"walking"}</div>`
     +`<div class="bar"><i style="width:${(f*100)|0}%;background:rgb(${(220*(1-f)+40)|0},${(120+g)|0},70)"></i></div>`; }
 
 // ---- input: drag/pinch/zoom + sliders ---------------------------------------
