@@ -89,6 +89,7 @@ class EmergenceAPI:
     # -- world lifecycle ------------------------------------------------
     def create_world(self, *, persona="guardian", seed=42, days=15, ticks=8,
                      agents=10, rich=False, economy=False, environment=False,
+                     library=False,
                      public_works=False, brain="heuristic", provider="openai",
                      model="llama3.1", base_url=None, api_key=None,
                      temperature=0.8, llm_client=None, replay=None) -> dict:
@@ -130,6 +131,7 @@ class EmergenceAPI:
             society=SocietyConfig(enabled=True) if rich else None,
             economy=bool(economy),
             environment=bool(environment),
+            library=bool(library),
             public_works=bool(public_works),
             brain_factory=brain_factory,
         )
@@ -318,6 +320,22 @@ class EmergenceAPI:
             "granary_food": sim.world.granary_food,
             "environment": (sim.environment.snapshot()
                             if getattr(sim, "environment", None) is not None else None),
+            # Town-panel data: what the town has legislated, its economy, its library.
+            "laws": sim._published_laws(),
+            "economy": {
+                "enabled": bool(sim.economy),
+                "treasury": sim.treasury,
+                "price_food": sim.emergent_price("food", "money"),
+                "price_healing": sim.emergent_price("healing", "money"),
+                "trades": sim.metrics.trades,
+                "open_offers": len(sim.offers),
+            },
+            "library": ({
+                "enabled": True,
+                "books": len(sim.library),
+                "recent": [{"author": b["author"], "text": b["text"], "day": b["day"]}
+                           for b in reversed(sim.library.books[-6:])],
+            } if getattr(sim, "library", None) is not None else {"enabled": False}),
             "metrics": sim.metrics.as_dict(),
             "verdict": one_line_verdict(sim, lang),
             "event_count": len(sim.world.events),
