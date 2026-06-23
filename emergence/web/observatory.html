@@ -32,6 +32,10 @@
          border:1px solid var(--line); border-radius:6px; padding:.3rem .55rem;
          font-size:12px; color:var(--ink); box-shadow:0 4px 14px rgba(0,0,0,.45); }
   .hint { padding:.4rem .7rem; color:var(--dim); font-size:12px; border-top:1px solid var(--line); }
+  .scrubrow { display:flex; gap:.5rem; align-items:center; padding:.35rem .7rem;
+              border-top:1px solid var(--line); }
+  .scrubrow input[type=range] { flex:1; accent-color:#1f6feb; }
+  #scrublabel { font-size:12px; color:var(--dim); white-space:nowrap; min-width:8.5rem; text-align:right; }
   .legend { display:flex; gap:.7rem; font-size:11px; color:var(--dim); padding:.35rem .7rem; flex-wrap:wrap; }
   .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:.2rem; vertical-align:middle; }
   #roster { padding:.4rem .7rem; max-height:26%; overflow:auto; border-top:1px solid var(--line);
@@ -91,6 +95,10 @@
 <main>
   <div class="side">
     <div id="stage"><canvas id="town"></canvas></div>
+    <div id="scrubrow" class="scrubrow hidden">
+      <input id="scrub" type="range" min="0" max="0" value="0" title="scrub through the days" />
+      <span id="scrublabel"></span>
+    </div>
     <div class="hint" data-i18n="hint">Click a citizen to possess them and read their life.</div>
     <div class="legend">
       <span><i class="dot" style="background:var(--guardian)"></i><span data-i18n="l_guardian">Guardian</span></span>
@@ -167,6 +175,7 @@ const I18N = {
     running:"running…", quiet:"Quiet so far — step the world forward.",
     status:"Day {d}/{D} · {a}/{p} alive · {b} · {v}",
     day:"Day {n}", deceased:"(deceased)", uneventful:"An uneventful life.",
+    scrub:"Day {n}/{D}", live:"live",
     allies:"Allies", foes:"Foes", marks:"Marks",
     noLLM:"This world has no LLM brain — pick Local LLM / Hosted API to narrate.",
     report_title:"Final report — day {n}", r_survivors:"Survivors", r_crimes:"Crimes",
@@ -193,6 +202,7 @@ const I18N = {
     running:"進行中…", quiet:"まだ静かです — 世界を先に進めてください。",
     status:"{d}/{D}日目 · 生存 {a}/{p} · {b} · {v}",
     day:"{n}日目", deceased:"（故人）", uneventful:"平穏な一生。",
+    scrub:"{n}/{D}日目", live:"ライブ",
     allies:"盟友", foes:"敵", marks:"刻まれたもの",
     noLLM:"この世界にはLLM脳がありません — ローカルLLM／ホストAPIを選ぶと物語化できます。",
     report_title:"最終レポート — {n}日目", r_survivors:"生存", r_crimes:"犯罪",
@@ -712,18 +722,41 @@ function renderStatus(st){
     const wx=(WEATHER_ICON[e.weather]||""); line = `${wx} ${e.season} · ` + line; }
   $("#status").textContent = line;
 }
+// Timeline: every state (one per day) is kept client-side so the scrubber can
+// replay past days without re-running the sim. `viewing` is the index being
+// shown, or null when tracking the live (latest) frame.
+let history=[], viewing=null;
+const HISTORY_MAX=200;
 function applyState(st){
-  world={id:st.world_id||world.id,width:st.width,height:st.height};
-  agents=st.agents; facilities=st.facilities; lastState=st;
-  // prune display state for agents that no longer exist
-  for(const id of [...disp.keys()]) if(!agents.some(a=>a.id===id)) disp.delete(id);
-  flashEvents(st.new_events);
-  syncWeather();
-  renderStatus(st);
-  roster(); kick(); draw();
-  if(!$("#town").classList.contains("hidden")) renderTown();
+  history.push(st); if(history.length>HISTORY_MAX) history.shift();
+  const sc=$("#scrub"); sc.max=history.length-1;
+  $("#scrubrow").classList.toggle("hidden", history.length<2);
+  if(viewing===null){ sc.value=history.length-1; display(st, true); }
+  else updateScrubLabel();
   if(st.finished&&playing) stopPlay();
 }
+// Render a stored frame. `live` frames may flash their new events; scrubbed-to
+// past frames just show the world as it stood that day.
+function display(st, live){
+  world={id:st.world_id||world.id,width:st.width,height:st.height};
+  agents=st.agents; facilities=st.facilities; lastState=st;
+  for(const id of [...disp.keys()]) if(!agents.some(a=>a.id===id)) disp.delete(id);
+  if(live) flashEvents(st.new_events);
+  syncWeather(); renderStatus(st); roster(); kick(); draw();
+  if(!$("#town").classList.contains("hidden")) renderTown();
+  updateScrubLabel();
+}
+function updateScrubLabel(){
+  if(!history.length){ $("#scrublabel").textContent=""; return; }
+  const i=viewing===null?history.length-1:viewing, st=history[i];
+  $("#scrublabel").textContent=fmt("scrub",{n:st.day, D:st.config.days})
+    + (viewing===null?" · "+t("live"):"");
+}
+$("#scrub").addEventListener("input", e=>{
+  const i=Math.min(+e.target.value, history.length-1);
+  viewing = (i>=history.length-1)? null : i;
+  display(history[i], viewing===null);
+});
 
 // --- the story (read on the right) ---------------------------------------
 let narrative = null;   // cached LLM prose for the current chronicle, if any
@@ -831,7 +864,7 @@ async function createWorld(){
   const st=await api("POST","/api/worlds",body);
   world={id:st.world_id,width:st.width,height:st.height}; selected=null; narrative=null;
   resetView();
-  disp.clear(); flashes=[];
+  disp.clear(); flashes=[]; history=[]; viewing=null;
   $("#citizen").innerHTML=`<div class="reading muted">${esc(t("emptyCitizen"))}</div>`;
   applyState(st); await loadChronicle(); showTab("chronicle");
 }
