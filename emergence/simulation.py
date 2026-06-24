@@ -1519,9 +1519,21 @@ class Simulation:
         if creditor is None or not creditor.alive:
             loan.settled = True  # creditor gone; debt lapses
             return
-        if MK.holdings(agent, loan.item) < loan.repay:
+        if MK.holdings(agent, loan.item) >= loan.repay:
+            apply_transfer(agent, creditor, loan.item, loan.repay)
+        elif loan.item == "money":
+            # Short of coin but holding a bank-note: settle the debt by endorsing
+            # the receipt to the creditor — a note functioning as money. Needs a
+            # single claim that covers it and the creditor within reach to hand over.
+            dep = next((d for d in self.deposits if d.holder == agent.id
+                        and d.amount >= loan.repay), None)
+            if dep is None or chebyshev(agent.pos, creditor.pos) > SERVICE_RANGE:
+                return  # can't settle yet
+            self._endorse_claim(dep, creditor, loan.repay)
+            self.world.log("endorse", frm=agent.id, to=creditor.id,
+                           bank=dep.bank, amount=loan.repay)
+        else:
             return  # can't settle yet
-        apply_transfer(agent, creditor, loan.item, loan.repay)
         loan.settled = True
         self.metrics.loans_repaid += 1
         # Honouring credit builds trust — the collateral of a credit economy.
@@ -1597,6 +1609,44 @@ class Simulation:
         short = want > moved                  # got less than asked → partial run
         agent.adjust_trust(bank.id, -0.15 if short else 0.05)
         self.world.log("withdraw", holder=agent.id, bank=bank.id, amount=moved, short=short)
+
+    def _endorse_claim(self, dep, to_agent: Agent, amount: int) -> None:
+        """Move ``amount`` of a deposit-receipt from its holder to ``to_agent``.
+        The bank still owes the same total — only the *holder* changes — so a
+        receipt passes hand to hand as a bearer claim. The new holder can redeem
+        it (or pass it on again). This is the mechanic by which a trusted bank's
+        receipts can *become money*: emergently, if agents accept them in trade."""
+        dep.amount -= amount
+        existing = next((d for d in self.deposits if d.bank == dep.bank
+                         and d.holder == to_agent.id), None)
+        if existing is not None:
+            existing.amount += amount
+        else:
+            self.deposits.append(MK.Deposit(id=self._next_deposit_id, bank=dep.bank,
+                                            holder=to_agent.id, amount=amount))
+            self._next_deposit_id += 1
+
+    def _do_endorse(self, agent: Agent, action: Action) -> None:
+        """Pay someone with a bank-note: hand a deposit-receipt (or part of it) to
+        a nearby agent. Conserved — the claim is transferred, not created — and
+        local (you hand the note over). Whether such notes come to *circulate as
+        money* is up to whoever will accept them; the engine only makes it possible."""
+        if not self.economy:
+            return
+        to = self._by_id.get(action.params.get("to"))
+        bank_id = action.params.get("bank")
+        amount = int(action.params.get("amount", 0) or 0)
+        if to is None or to is agent or not to.alive or amount <= 0:
+            return
+        if chebyshev(agent.pos, to.pos) > SERVICE_RANGE:   # you hand the note over
+            return
+        dep = next((d for d in self.deposits if d.holder == agent.id
+                    and (bank_id is None or d.bank == bank_id) and d.amount >= amount), None)
+        if dep is None:
+            return
+        self._endorse_claim(dep, to, amount)
+        agent.adjust_trust(to.id, 0.02)
+        self.world.log("endorse", frm=agent.id, to=to.id, bank=dep.bank, amount=amount)
 
     def _religion_of(self, rid: str):
         for r in self.religions:

@@ -248,7 +248,21 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   heuristic: a flush agent posts credit priced by temperament (grasping personas
   charge more), a broke one borrows the cheapest open loan in reach. Opt-in
   `--economy`; baseline byte-identical. (Follow-ups: interest depth,
-  embezzlement #38, deposit-receipts circulating as money.)
+  embezzlement #38.)
+- **[shipped] Paper money — deposit-receipts can circulate (the keystone).**
+  A deposit-receipt (`market.Deposit`) is a *claim* the bank owes its holder.
+  The new **`endorse`** verb hands that claim (or part of it) to another agent —
+  **conserved** (the bank still owes the same total; only the *holder* changes),
+  **local** (you pass the note over). The new holder can redeem it or pass it on,
+  so a trusted bank's receipts can **become money emergently** — exactly how
+  goldsmith receipts became banknotes. One concrete use is wired: a coin-short
+  debtor settles a loan by **endorsing a note to the creditor** — a note
+  functioning as money. Opt-in `--economy`; baseline byte-identical. *Caveat:*
+  like the deposit feature, this stays dormant under the pure heuristic until an
+  agent actually **mans a bank** (no banker ⇒ no receipts ⇒ nothing to endorse) —
+  tracked in #87; the primitive is verified by tests and is the LLM's to exploit.
+  Wider note-as-coin acceptance across all trade (not just debt settlement) is the
+  natural follow-up.
 - **[shipped] Conspicuous consumption — a feast as a service that buys honour.**
   A **feast** rides the same service substrate as healing, but its *effect* is
   **reputation**, not energy. A caterer (anyone) posts a feast offer at a fee it
