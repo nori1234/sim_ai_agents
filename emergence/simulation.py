@@ -337,6 +337,7 @@ class Simulation:
                       # and the deposit-receipts you currently hold (claims a bank
                       # owes you). Withdrawing can come up short if the bank spent it.
                       "bank_here": self._banker_near(agent),
+                      "deposit_rate": MK.DEPOSIT_INTEREST_PER_DAY,
                       "my_deposits": [d.as_dict() for d in self.deposits
                                       if d.holder == agent.id and d.amount > 0]}
                      if self.economy else {}),
@@ -1648,6 +1649,26 @@ class Simulation:
         agent.adjust_trust(to.id, 0.02)
         self.world.log("endorse", frm=agent.id, to=to.id, bank=dep.bank, amount=amount)
 
+    def _pay_deposit_interest(self) -> None:
+        """Daily upkeep: each bank pays interest *in coin* to its depositors from
+        its reserves — conserved, no money minted. A bank funds this by lending
+        those reserves at a higher rate (the spread is its profit); one that has
+        lent out too much can't cover the interest, an early tremor before a run.
+        Savings that visibly grow are what draw deposits in (the missing demand)."""
+        for dep in self.deposits:
+            if dep.amount <= 0:
+                continue
+            bank = self._by_id.get(dep.bank)
+            holder = self._by_id.get(dep.holder)
+            if bank is None or holder is None or not bank.alive or not holder.alive:
+                continue
+            paid = min(round(dep.amount * MK.DEPOSIT_INTEREST_PER_DAY), bank.money)
+            if paid <= 0:
+                continue
+            bank.take("money", paid)
+            holder.add("money", paid)
+            self.world.log("interest", bank=bank.id, holder=holder.id, amount=paid)
+
     def _religion_of(self, rid: str):
         for r in self.religions:
             if r.id == rid:
@@ -1942,6 +1963,7 @@ class Simulation:
                 self.world.log("loan_default", id=loan.id,
                                debtor=loan.debtor, creditor=loan.creditor)
             self.loans = [l for l in self.loans if not (l.settled or l.defaulted)]
+            self._pay_deposit_interest()
         if self.public_works:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:
