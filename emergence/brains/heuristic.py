@@ -25,6 +25,7 @@ WORKPLACES = {"workshop", "market"}
 LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
+BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
 
 
 class HeuristicBrain(AgentBrain):
@@ -560,12 +561,31 @@ class HeuristicBrain(AgentBrain):
 
     # -- economy --------------------------------------------------------
     def _bank_action(self, agent: Agent, obs: Observation) -> Action | None:
-        """One opt-in rule: when a bank is open within reach, park surplus money
-        there (keeping a working buffer); when short on cash, redeem a deposit.
+        """Two opt-in rules. (1) *Be* a banker: a capital-rich, secure agent with
+        no bank yet serving it sets up at a BANK and lends its reserves — earning
+        the spread between the loan rate and the deposit interest it pays (this is
+        what makes someone keep a bank, and what brings deposits/notes alive).
+        (2) Be a customer: park surplus where savings grow, redeem when short.
         Richer judgement (trust, runs) is the LLM's. Gated on economy.enabled."""
         ec = obs.economy
         bh = ec.get("bank_here")
         deps = ec.get("my_deposits") or []
+        here = obs.here["type"] if obs.here else None
+        # (1) Become / keep a bank. With no banker already serving here, a secure
+        # capitalist mans the bank: stay put and lend the reserves it holds.
+        if bh is None and agent.money >= BANKER_CAPITAL \
+                and obs.fear_level == 0 and agent.energy > LOW_ENERGY:
+            if here == "bank":
+                if not any(o.get("maker") == agent.id for o in obs.open_offers):
+                    interest = 1 + round(2 * (1 - self.persona.cooperation))
+                    return Action(ActionType.OFFER,
+                                  {"loan": True, "item": "money",
+                                   "principal": 5, "repay": 5 + interest},
+                                  rationale="lend the bank's reserves")
+                return Action(ActionType.REST, rationale="keep the bank open")
+            if any(f["type"] == "bank" for f in obs.nearby_facilities):
+                return Action(ActionType.MOVE, {"facility_type": "bank"},
+                              rationale="set up as a banker")
         if not bh:
             return None
         # Short on cash and the bank that holds our savings is right here: withdraw.

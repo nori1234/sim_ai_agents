@@ -236,6 +236,17 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   heuristic banks its surplus / redeems when short, richer play (trust, runs,
   *receipts circulating as money*) is the LLM's. Opt-in `--economy`; baseline
   byte-identical.
+  - **[shipped] Deposit interest — savings grow, so banking comes alive.**
+    Banking was dormant: nothing made an agent deposit (money just sat) or *keep*
+    a bank (no income). Both fixed at once with the historical mechanism — a bank
+    takes deposits and **lends the reserves at a higher rate**, profiting on the
+    spread. Each day it pays depositors interest **in coin from its reserves**
+    (`DEPOSIT_INTEREST_PER_DAY`, conserved — no money minted); a bank that has
+    lent out too much can't cover it (or a withdrawal) → a **run** emerges. The
+    heuristic now has a banker: a capital-rich, secure agent **mans a bank and
+    lends its reserves**; others, seeing savings grow, deposit. With deposits
+    finally flowing, the **endorsable notes** above actually circulate. (Resolves
+    the activation gap, #87.) Opt-in `--economy`; baseline byte-identical.
 - **[shipped] Credit — lending as a posted service.** Beyond the directed
   `LEND` (offer credit to one named neighbour), a lender can now post an **open
   loan** on the same OFFER/ACCEPT order book: `offer {loan:true, item, principal,

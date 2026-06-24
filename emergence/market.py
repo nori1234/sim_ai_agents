@@ -99,6 +99,14 @@ def can_provide(service: str, profession: str) -> bool:
 
 DEFAULT_LOAN_DUE_DAYS = 3
 
+# Deposits earn interest each day — savings *grow*, which is what draws them in.
+# The bank pays it in coin from its reserves (conserved, no money minted); it
+# funds this by lending those reserves at a higher rate, so the spread is the
+# banker's profit. A banker that over-lends can't cover the interest (or a
+# withdrawal) — and a run emerges. Set below the going loan rate so the spread
+# stays positive and lending, not pure inflation, is what makes a bank work.
+DEPOSIT_INTEREST_PER_DAY = 0.08
+
 
 @dataclass
 class Deposit:
