@@ -79,6 +79,10 @@ class Offer:
 SERVICES: dict[str, dict] = {
     "healing": {"provider": "doctor",
                 "desc": "restore a patient's energy (better at a hospital)"},
+    "feast": {"provider": None,
+              "desc": "host a feast / commission a work — the host pays a caterer "
+                      "and the lavish outlay buys honour (the more it costs, the "
+                      "more reputation); only meaningful under --status"},
 }
 
 

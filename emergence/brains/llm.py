@@ -73,8 +73,9 @@ Choose ONE action. Common actions and their params:
   bond {"proposal_id": N, "support": true} or {"with": id}  (commit: a vote, or a pact of mutual allegiance)
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
-         or a SERVICE you perform: {"service": "healing", "want_item": "money", "want_qty": M}
-            (e.g. a doctor offers care for a fee it picks — M=0 is charity; whoever accepts is healed)
+         or a SERVICE you perform: {"service": "healing|feast", "want_item": "money", "want_qty": M}
+            (a doctor offers care for a fee it picks — M=0 is charity; whoever accepts is healed.
+             "feast": you cater for a host — whoever accepts pays M and buys honour by it)
          or CREDIT you post: {"loan": true, "item": "money", "principal": N, "repay": M}
             (lend N now to whoever accepts, be repaid M later — M>N = interest; the rate is yours to set)
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)

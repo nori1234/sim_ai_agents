@@ -321,8 +321,13 @@ class Simulation:
                       # Services on offer (e.g. a doctor's healing): provider-chosen
                       # labour for a price, accepted like any offer. The going rate
                       # emerges from accepted fees, surfaced so a brain can weigh it.
-                      "services": sorted(self._service_effects),
+                      "services": sorted(s for s in self._service_effects
+                                         if s != "feast" or self.status.enabled),
                       "price_healing_in_money": self.emergent_price("healing", "money"),
+                      # Conspicuous consumption: a feast's going rate (what hosts
+                      # spend to buy honour) — only present under the status layer.
+                      "price_feast_in_money": (self.emergent_price("feast", "money")
+                                               if self.status.enabled else None),
                       # Banking: a banker (an agent at a BANK) you can deposit with,
                       # and the deposit-receipts you currently hold (claims a bank
                       # owes you). Withdrawing can come up short if the bank spent it.
@@ -723,16 +728,27 @@ class Simulation:
     # the provider's labour; the fee is settled by _do_accept (conserved), and
     # the handler here applies the benefit to the taker. New services (a bank's
     # deposit/loan, an inn's lodging) register an entry + a handler the same way.
-    def _serve_healing(self, provider: Agent, taker: Agent) -> None:
+    def _serve_healing(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Restore the taker's energy; care is more effective at a hospital."""
         f = self.world.facility_at(taker.pos)
         gain = HEAL_ENERGY * (HOSPITAL_HEAL_BONUS
                               if f and f.ftype is FacilityType.HOSPITAL else 1.0)
         taker.energy = min(MAX_ENERGY, taker.energy + gain)
 
+    def _serve_feast(self, provider: Agent, taker: Agent, fee: int) -> None:
+        """Conspicuous consumption: the taker hosts a feast (the provider caters,
+        and has already been paid the fee). The lavish outlay buys *honour* — the
+        more it cost, the more reputation — so the price of honour emerges from
+        what hosts are willing to spend. Only the status layer carries honour, so
+        without it the spend is just a paid party with no recognition to record."""
+        if not self.status.enabled:
+            return
+        rep = self.status.rep_per_feast_coin * fee
+        self._recognise(taker, rep, self.status.achievement_relief, "feast")
+
     @property
     def _service_effects(self):
-        return {"healing": self._serve_healing}
+        return {"healing": self._serve_healing, "feast": self._serve_feast}
 
     def _do_work(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
@@ -1323,6 +1339,11 @@ class Simulation:
             if service not in self._service_effects or wi not in MK.TRADABLE \
                     or wq < 0 or not MK.can_provide(service, agent.profession):
                 return
+            # Conspicuous consumption only means anything where honour exists, so
+            # a feast can't even be offered without the status layer (keeps the
+            # economy-only baseline free of feast offers entirely).
+            if service == "feast" and not self.status.enabled:
+                return
             offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
                              give_qty=0, want_item=wi, want_qty=wq,
                              day=self.world.day, service=service)
@@ -1387,7 +1408,7 @@ class Simulation:
             if chebyshev(agent.pos, maker.pos) > SERVICE_RANGE:
                 return
             apply_transfer(agent, maker, offer.want_item, offer.want_qty)
-            self._service_effects[offer.service](maker, agent)
+            self._service_effects[offer.service](maker, agent, offer.want_qty)
             self.offers.remove(offer)
             self.metrics.trades += 1
             # The accepted fee IS the price of the service — emergent.

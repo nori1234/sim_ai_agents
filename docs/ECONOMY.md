@@ -241,9 +241,20 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   charge more), a broke one borrows the cheapest open loan in reach. Opt-in
   `--economy`; baseline byte-identical. (Follow-ups: interest depth,
   embezzlement #38, deposit-receipts circulating as money.)
+- **[shipped] Conspicuous consumption — a feast as a service that buys honour.**
+  A **feast** rides the same service substrate as healing, but its *effect* is
+  **reputation**, not energy. A caterer (anyone) posts a feast offer at a fee it
+  picks; a host accepts, pays the caterer (conserved), and the **lavish outlay
+  buys honour** — reputation scales with the fee (`rep_per_feast_coin × fee`), so
+  the **price of honour emerges** from what the proud will spend
+  (`emergent_price("feast","money")`). Honour only exists on the status layer, so
+  the feast is gated on **both `--economy` and `--status`**: without `--status` it
+  can't even be offered, leaving the economy-only baseline free of feasts. The
+  heuristic: a provisioned agent caters (priced by temperament), an esteem-hungry
+  rich agent hosts the **dearest feast it can reach** (the more conspicuous, the
+  more honour). Baseline byte-identical. (This is the "the rich buy honour" tie
+  between money and the dignity layer.)
 - **Next services (same mechanism):** an **inn** (paid rest → recovery).
-- **Conspicuous consumption**: spend on a feast / patronage / commissioning →
-  `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).
 
 ### Phase 3 — facility depth
 - Market as a real buy/sell venue; **bank** as credit + storage; a **school**
