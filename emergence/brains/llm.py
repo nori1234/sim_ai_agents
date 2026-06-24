@@ -84,6 +84,8 @@ Choose ONE action. Common actions and their params:
   repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)
   deposit  {"bank": id, "amount": N}   (place money with a banker at a BANK for safe-keeping; you hold a claim)
   withdraw {"bank": id, "amount": N}   (redeem your deposit — but the bank pays only from what it still holds)
+  endorse  {"to": id, "bank": id, "amount": N}   (pay someone with a bank-note: hand them your deposit-receipt;
+            they can redeem or pass it on — if such notes are widely trusted, they become money)
 Reply with ONLY a JSON object: {"action": <name>, "params": {...}, "rationale": "<short>"}."""
 
 

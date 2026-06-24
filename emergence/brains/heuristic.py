@@ -594,11 +594,20 @@ class HeuristicBrain(AgentBrain):
             return Action(ActionType.OFFER,
                           {"service": "healing", "want_item": "money", "want_qty": ask},
                           rationale="offer care for a fee")
-        # Repay a debt when able — honouring credit is what keeps it flowing.
+        # Repay a debt when able — honouring credit is what keeps it flowing. Pay
+        # in coin if held; else, for a money debt, settle with a bank-note (a
+        # deposit-receipt covering it) — letting notes circulate as money.
+        notes = max((dp["amount"] for dp in obs.economy.get("my_deposits", [])),
+                    default=0)
+        reach = {o["id"]: o["distance"] for o in obs.others}
         for d in obs.debts:
             owe_q, owe_i = d["owe"].split(" ", 1)
+            owe_q = int(owe_q)
             have = agent.money if owe_i == "money" else agent.inventory.get(owe_i, 0)
-            if have >= int(owe_q):
+            # A note settles a money debt only with the creditor in reach to hand it.
+            pay_note = (owe_i == "money" and have < owe_q and notes >= owe_q
+                        and reach.get(d.get("creditor"), 99) <= 2)
+            if have >= owe_q or pay_note:
                 return Action(ActionType.REPAY, {"loan_id": d["id"]},
                               rationale="repay my debt")
         # Make tools from surplus materials (value-add at the workshop).

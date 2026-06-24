@@ -55,6 +55,7 @@ class ActionType(str, Enum):
     REPAY = "repay"  # settle a loan you owe (builds trust; defaulting destroys it)
     DEPOSIT = "deposit"  # place money with a banker for safe-keeping (get a claim)
     WITHDRAW = "withdraw"  # redeem a bank deposit (pays from what the bank holds)
+    ENDORSE = "endorse"  # hand a deposit-receipt to another agent (notes circulate as money)
 
 
     # -- physical primitives (the instruction set the macros lower to) --
