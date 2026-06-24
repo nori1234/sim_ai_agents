@@ -75,6 +75,8 @@ Choose ONE action. Common actions and their params:
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
          or a SERVICE you perform: {"service": "healing", "want_item": "money", "want_qty": M}
             (e.g. a doctor offers care for a fee it picks — M=0 is charity; whoever accepts is healed)
+         or CREDIT you post: {"loan": true, "item": "money", "principal": N, "repay": M}
+            (lend N now to whoever accepts, be repaid M later — M>N = interest; the rate is yours to set)
   accept {"offer_id": N}   craft {"item": "tools"}   (trade freely; prices are what you agree on)
   lend   {"to": id, "item": "money", "qty": N, "repay": M, "due_in_days": D}  (credit; M>N = interest)
   repay  {"loan_id": N}   (settle a debt — repaying builds trust, defaulting destroys it)

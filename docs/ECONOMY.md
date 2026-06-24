@@ -227,8 +227,20 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   the economy `Observation` surfaces a nearby open bank + your receipts; the
   heuristic banks its surplus / redeems when short, richer play (trust, runs,
   *receipts circulating as money*) is the LLM's. Opt-in `--economy`; baseline
-  byte-identical. (Follow-ups: **lending as a posted service** — the `LEND`/
-  `Loan` claim already exists — and interest/embezzlement depth, #38.)
+  byte-identical.
+- **[shipped] Credit — lending as a posted service.** Beyond the directed
+  `LEND` (offer credit to one named neighbour), a lender can now post an **open
+  loan** on the same OFFER/ACCEPT order book: `offer {loan:true, item, principal,
+  repay}` advertises "I lend `principal` now, repay me `repay` later"
+  (`repay > principal` = interest). Whoever **accepts** takes the principal
+  immediately (paying nothing up front) and owes a `market.Loan`, settled through
+  the existing `repay` verb. The lender must actually **hold the principal** to
+  post — credit can't conjure money — and the **"price of money" emerges** from
+  which rates get taken (surfaced as `emergent_price("loan", "money")`). The
+  heuristic: a flush agent posts credit priced by temperament (grasping personas
+  charge more), a broke one borrows the cheapest open loan in reach. Opt-in
+  `--economy`; baseline byte-identical. (Follow-ups: interest depth,
+  embezzlement #38, deposit-receipts circulating as money.)
 - **Next services (same mechanism):** an **inn** (paid rest → recovery).
 - **Conspicuous consumption**: spend on a feast / patronage / commissioning →
   `esteem`/`reputation` (ties money to the dignity layer — the rich buy honour).

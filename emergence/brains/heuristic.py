@@ -328,7 +328,7 @@ class HeuristicBrain(AgentBrain):
         if gather_multiplier(agent.profession, "food") >= 1.0:
             return None  # a food specialist just farms
         for off in obs.open_offers:
-            if off.get("maker") == agent.id or off.get("service"):
+            if off.get("maker") == agent.id or off.get("service") or off.get("loan"):
                 continue
             give_i = off["give"].split(" ", 1)[1]
             if give_i != "food":
@@ -570,10 +570,18 @@ class HeuristicBrain(AgentBrain):
                                   {"to": o["id"], "item": "money", "qty": 4,
                                    "repay": 6, "due_in_days": 3},
                                   rationale="lend to a neighbour")
+        # Short on cash: take the cheapest credit on offer (an open loan).
+        if agent.money < 3:
+            loans=[o for o in obs.open_offers if o.get("loan") and o.get("item")=="money"
+                   and o.get("maker")!=agent.id]
+            if loans:
+                best=min(loans, key=lambda o:o.get("repay",99))
+                return Action(ActionType.ACCEPT, {"offer_id": best["id"]},
+                              rationale="borrow to get by")
         # Accept an open offer that gives me something I lack and can pay for.
         for off in obs.open_offers:
-            if off.get("service"):
-                continue  # services are taken up via the survival/care path
+            if off.get("service") or off.get("loan"):
+                continue  # services / credit are taken up via their own paths
             give_i = off["give"].split(" ", 1)[1]
             want_q, want_i = off["want"].split(" ", 1)
             want_q = int(want_q)
@@ -602,6 +610,15 @@ class HeuristicBrain(AgentBrain):
                               {"give_item": "food", "give_qty": 2,
                                "want_item": "money", "want_qty": 3},
                               rationale="sell surplus food")
+            # Flush with cash: post credit. Lend 5 now to be repaid with interest;
+            # the rate scales with how grasping the persona is (a cooperative lender
+            # charges less). The "price of money" emerges from which offers get taken.
+            if agent.money >= 14:
+                interest = 1 + round(2 * (1 - self.persona.cooperation))
+                return Action(ActionType.OFFER,
+                              {"loan": True, "item": "money",
+                               "principal": 5, "repay": 5 + interest},
+                              rationale="offer credit")
         return None
 
     def _economy_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:

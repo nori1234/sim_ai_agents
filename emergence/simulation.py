@@ -1297,6 +1297,25 @@ class Simulation:
             return
         if len(self.offers) >= MK.MAX_OPEN_OFFERS:
             return
+        if p.get("loan"):
+            # A loan offer: the maker advertises credit — lend `principal` now,
+            # be repaid `repay` later (repay > principal = interest). Must hold the
+            # principal to make a credible offer; the rate is the maker's choice and
+            # "the price of money" emerges from which offers get taken.
+            item = str(p.get("item", "money"))
+            principal = int(p.get("principal", 0) or 0)
+            repay = int(p.get("repay", 0) or 0)
+            if item not in MK.TRADABLE or principal <= 0 or repay <= 0 \
+                    or MK.holdings(agent, item) < principal:
+                return
+            offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item=item,
+                             give_qty=principal, want_item=item, want_qty=repay,
+                             day=self.world.day, loan=True)
+            self._next_offer_id += 1
+            self.offers.append(offer)
+            self.world.log("offer", id=offer.id, by=agent.id,
+                           loan=f"{principal} {item}", repay=f"{repay} {item}")
+            return
         if service:
             # A service offer: the maker offers to *perform* labour for a price it
             # picks (wq >= 0; 0 = charity). It must be able to provide the service.
@@ -1336,6 +1355,28 @@ class Simulation:
         maker = self._by_id.get(offer.maker)
         if maker is None or not maker.alive:
             self.offers.remove(offer)
+            return
+        if offer.loan:
+            # Take the credit: the lender hands over the principal now; the borrower
+            # owes `repay` later (recorded as a Loan, settled via REPAY). Pays nothing
+            # up front. The accepted rate is the emergent "price of money".
+            if MK.holdings(maker, offer.give_item) < offer.give_qty:
+                self.offers.remove(offer); return
+            apply_transfer(maker, agent, offer.give_item, offer.give_qty)
+            loan = MK.Loan(id=self._next_loan_id, creditor=maker.id, debtor=agent.id,
+                           item=offer.give_item, principal=offer.give_qty,
+                           repay=offer.want_qty, due_day=self.world.day + MK.DEFAULT_LOAN_DUE_DAYS)
+            self._next_loan_id += 1
+            self.loans.append(loan)
+            self.offers.remove(offer)
+            self.metrics.loans_made += 1
+            key = ("loan", offer.give_item)
+            self._trade_ratios.setdefault(key, []).append(offer.want_qty / offer.give_qty)
+            self._trade_ratios[key] = self._trade_ratios[key][-10:]
+            maker.adjust_trust(agent.id, 0.05); agent.adjust_trust(maker.id, 0.05)
+            self.world.log("loan", id=loan.id, creditor=maker.id, debtor=agent.id,
+                           principal=f"{offer.give_qty} {offer.give_item}",
+                           repay=f"{offer.want_qty} {offer.give_item}")
             return
         # The taker must be able to pay the asking price (conservation, no credit).
         if MK.holdings(agent, offer.want_item) < offer.want_qty:
