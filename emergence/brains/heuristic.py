@@ -26,6 +26,7 @@ LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
 BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
+BRIBE_PRICE = 6         # what a wanted offender slips a guard to be let off
 
 
 class HeuristicBrain(AgentBrain):
@@ -64,8 +65,15 @@ class HeuristicBrain(AgentBrain):
             return Action(ActionType.MOVE, {"facility_type": refuge},
                           rationale="flee to safety")
 
+        # 1.55 Corruption: a wanted, scheming offender buys off a nearby guard
+        #      before it comes to an arrest. Inert off the society layer.
+        bribe = self._bribe_action(agent, obs)
+        if bribe is not None:
+            return bribe
+
         # 1.6 Enforcement: a guard collars a nearby offender. Keeping the peace
-        #     is an act someone chooses, not an aura a building radiates.
+        #     is an act someone chooses, not an aura a building radiates. Under the
+        #     society layer a venal guard may instead look away (selective / bribed).
         arrest = self._enforce_action(agent, obs)
         if arrest is not None:
             return arrest
@@ -495,7 +503,13 @@ class HeuristicBrain(AgentBrain):
 
         Only the guard role keeps the peace in offline runs; other personas
         leave the action to the LLM brain. The window mirrors the engine's
-        arrest window so the guard doesn't chase a lapsed offender."""
+        arrest window so the guard doesn't chase a lapsed offender.
+
+        Enforcement is a *choice*, so it can be corrupt. Under the society layer a
+        venal guard (cold / scheming) practises **selective enforcement** — it
+        never collars its own crew or trusted allies — and **takes bribes**, looking
+        the other way for a fat purse. An honest guard arrests the nearest wanted,
+        as before; off the society layer nothing changes (baseline byte-identical)."""
         if agent.profession != "guard":
             return None
         wanted = [
@@ -506,9 +520,40 @@ class HeuristicBrain(AgentBrain):
         ]
         if not wanted:
             return None
+        venal = obs.society.get("active") and \
+            (self.persona.cooperation < 0.3 or self.persona.deception > 0.3)
+        if venal:
+            crew = agent.gang_id
+            def protected(o):  # your own crew, or someone you're bonded to
+                return o.get("trust", 0.0) >= 0.3 or (crew and o.get("gang") == crew)
+            # Selective enforcement: spare allies; take a bribe (look away) from
+            # anyone wealthy enough to be worth shaking down.
+            wanted = [o for o in wanted
+                      if not protected(o) and o.get("money", 0) < BRIBE_PRICE]
+            if not wanted:
+                return None   # all friends or paying — no arrests in this town today
         target = min(wanted, key=lambda o: o["distance"])
         return Action(ActionType.ARREST, {"target": target["id"]},
                       rationale="keep the peace")
+
+    def _bribe_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """A wanted, scheming offender with coin buys off a nearby guard rather
+        than risk arrest — an ordinary transfer the engine reads as a bribe; the
+        corruption is the guard's matching choice not to enforce. Only under the
+        society layer and for deceptive personas, so the baseline is untouched."""
+        if not obs.society.get("active") or self.persona.deception < 0.3 \
+                or agent.money < BRIBE_PRICE:
+            return None
+        if agent.last_crime_day is None or obs.day - agent.last_crime_day > 2:
+            return None  # not wanted → nothing to buy off
+        guards = [o for o in obs.others
+                  if o.get("profession") == "guard" and o["distance"] <= 2]
+        if not guards:
+            return None
+        g = min(guards, key=lambda o: o["distance"])
+        return Action(ActionType.TRANSFER,
+                      {"target": g["id"], "resource": "money", "amount": BRIBE_PRICE},
+                      rationale="slip the guard a bribe")
 
     # -- governance -----------------------------------------------------
     def _governance_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:
