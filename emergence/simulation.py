@@ -251,6 +251,11 @@ class Simulation:
                 "hunger": round(o.hunger, 1), "fatigue": round(o.fatigue, 1),
                 "age_days": o.age_days, "reputation": round(o.reputation, 1),
                 "last_crime_day": o.last_crime_day,
+                # Crew ties (only when gangs are live): a guard weighing whether to
+                # enforce can read who is kin-of-the-crew — the seed of selective
+                # enforcement / protecting your own (#38). Absent off the layer.
+                **({"gang": o.gang_id} if (self.society.enabled
+                                           and self.society.gangs) else {}),
             })
         eligible = self._eligible_voters()
         proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
