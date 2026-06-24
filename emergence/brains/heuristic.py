@@ -24,6 +24,7 @@ WORKPLACES = {"workshop", "market"}
 
 LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
+SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
 
 
 class HeuristicBrain(AgentBrain):
@@ -345,15 +346,20 @@ class HeuristicBrain(AgentBrain):
         return None
 
     def _buy_care_action(self, agent: Agent, obs: Observation) -> Action | None:
-        """Economy layer, one rule: when depleted with no food on hand, accept the
-        cheapest affordable healing offer from a doctor within reach — buy care
-        rather than trek for food. The doctor *chose* to offer (and set the
-        price); this side just takes it up. Money's survival-grade demand. Gated
-        on economy.enabled, so the offline baseline is byte-identical."""
+        """Economy layer: see a doctor when care is worth paying for — depleted
+        with no food on hand (buy energy rather than trek for food), or *afflicted*
+        (trauma/withdrawal), which a meal can't fix. Accept the cheapest affordable
+        healing offer from a doctor within reach. The doctor *chose* to offer (and
+        set the price); this side just takes it up. Gated on economy.enabled, so
+        the offline baseline is byte-identical; affliction reasons stay 0 unless
+        the psyche / society layers are live."""
         if not obs.economy.get("enabled"):
             return None
-        if agent.food() > 0:
-            return None  # a free meal beats paying for care
+        afflicted = obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION
+        # A free meal fixes hunger-energy, but not a wounded mind or withdrawal —
+        # so only let food crowd out care when the sole reason is being run down.
+        if not afflicted and agent.food() > 0:
+            return None
         reach = {o["id"]: o["distance"] for o in obs.others}
         best = None
         for off in obs.open_offers:
@@ -399,6 +405,13 @@ class HeuristicBrain(AgentBrain):
                       rationale="host a lavish feast to buy honour")
 
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
+        # Affliction (trauma / withdrawal) warrants a doctor even when fed and
+        # rested — a meal mends neither. Inert unless the psyche / society layers
+        # are live (the reasons stay 0) and a healing offer is in reach.
+        if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION:
+            care = self._buy_care_action(agent, obs)
+            if care is not None:
+                return care
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
             return None
         # A poor food-gatherer buys rather than farms, when it can afford to.

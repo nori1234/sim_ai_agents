@@ -53,6 +53,11 @@ SHELTER_REST_ENERGY = 16.0  # at a house or hospital
 # whether care is free, fair, or extortionate stays the doctor's choice.
 HEAL_ENERGY = 24.0
 HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the open)
+# A doctor mends more than exhaustion: care also calms trauma (fear) and eases
+# the sickness of withdrawal (addiction) — but only where those layers exist, so
+# the baseline is untouched. The hospital bonus applies to all of it.
+HEAL_FEAR_RELIEF = 20.0       # treating the wounded mind (psyche layer)
+HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
@@ -729,11 +734,18 @@ class Simulation:
     # the handler here applies the benefit to the taker. New services (a bank's
     # deposit/loan, an inn's lodging) register an entry + a handler the same way.
     def _serve_healing(self, provider: Agent, taker: Agent, fee: int) -> None:
-        """Restore the taker's energy; care is more effective at a hospital."""
+        """Care mends more than exhaustion. It restores energy (more at a
+        hospital) and, where those layers are live, also calms trauma (fear) and
+        eases the sickness of withdrawal (addiction) — a doctor treats the wounded
+        body, mind, and the addicted alike. Each relief is gated on its layer, so
+        without them this is exactly the old energy-only care (baseline intact)."""
         f = self.world.facility_at(taker.pos)
-        gain = HEAL_ENERGY * (HOSPITAL_HEAL_BONUS
-                              if f and f.ftype is FacilityType.HOSPITAL else 1.0)
-        taker.energy = min(MAX_ENERGY, taker.energy + gain)
+        boost = HOSPITAL_HEAL_BONUS if f and f.ftype is FacilityType.HOSPITAL else 1.0
+        taker.energy = min(MAX_ENERGY, taker.energy + HEAL_ENERGY * boost)
+        if self.psyche.enabled and taker.fear > 0:
+            taker.fear = max(0.0, taker.fear - HEAL_FEAR_RELIEF * boost)
+        if self.society.enabled and self.society.drugs and taker.addiction > 0:
+            taker.addiction = max(0.0, taker.addiction - HEAL_ADDICTION_RELIEF * boost)
 
     def _serve_feast(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Conspicuous consumption: the taker hosts a feast (the provider caters,
