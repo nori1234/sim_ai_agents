@@ -78,7 +78,9 @@ class Offer:
 #   provider: a required profession, or None for "anyone capable".
 SERVICES: dict[str, dict] = {
     "healing": {"provider": "doctor",
-                "desc": "restore a patient's energy (better at a hospital)"},
+                "desc": "treat a patient — restore energy and, where those layers "
+                        "exist, calm trauma (fear) and ease withdrawal (addiction); "
+                        "better at a hospital"},
     "feast": {"provider": None,
               "desc": "host a feast / commission a work — the host pays a caterer "
                       "and the lavish outlay buys honour (the more it costs, the "

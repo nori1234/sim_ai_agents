@@ -218,6 +218,14 @@ a **provider-posted offer on the existing OFFER/ACCEPT order book**:
   food-less patient accepts the cheapest affordable offer in reach. Richer play
   (haggling, refusing the poor, gouging the desperate) is the LLM's. Opt-in via
   `--economy`; baseline byte-identical.
+  - **[shipped] Care has depth — body, mind, and the addicted.** Healing mends
+    more than exhaustion: where those layers are live it also **calms trauma**
+    (`fear`, `--psyche`) and **eases withdrawal** (`addiction`, `--society` drugs),
+    each gated on its layer (off → energy-only care, baseline intact), all
+    hospital-boosted. So a doctor is worth seeing for a wound a meal can't fix:
+    the heuristic patient now visits when *afflicted* (traumatised / sick), not
+    only when run down — giving money a demand that reaches the psyche and society
+    layers, not just hunger.
 - **[shipped] Bank — deposits as claim-items.** A depositor hands money to a
   **banker** (an agent stationed at a `BANK`) and holds a **deposit-receipt**
   (`market.Deposit`) — a claim the bank owes back. The coin is **conserved**: it

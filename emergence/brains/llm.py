@@ -74,7 +74,8 @@ Choose ONE action. Common actions and their params:
   craft_weapon {}  join_gang {}  preach {}  deal_drug {"target": id}  take_drug {}
   offer  {"give_item": "food|materials|tools|money", "give_qty": N, "want_item": "...", "want_qty": M}
          or a SERVICE you perform: {"service": "healing|feast", "want_item": "money", "want_qty": M}
-            (a doctor offers care for a fee it picks — M=0 is charity; whoever accepts is healed.
+            (a doctor offers care for a fee it picks — M=0 is charity; care restores energy and
+             also calms trauma (fear) / eases withdrawal (addiction), better at a hospital.
              "feast": you cater for a host — whoever accepts pays M and buys honour by it)
          or CREDIT you post: {"loan": true, "item": "money", "principal": N, "repay": M}
             (lend N now to whoever accepts, be repaid M later — M>N = interest; the rate is yours to set)
