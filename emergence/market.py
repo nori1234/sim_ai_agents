@@ -51,8 +51,15 @@ class Offer:
     # and triggers the service's effect. Price is emergent, free-vs-paid is the
     # provider's choice.
     service: str | None = None
+    # When True, this is a LOAN offer: the maker (lender) hands over give_qty of
+    # give_item now, against a promise to be repaid want_qty later (want_qty >
+    # give_qty = interest). Accepting opens a Loan; the borrower pays nothing now.
+    loan: bool = False
 
     def as_dict(self) -> dict:
+        if self.loan:
+            return {"id": self.id, "maker": self.maker, "loan": True,
+                    "item": self.give_item, "principal": self.give_qty, "repay": self.want_qty}
         if self.service is not None:
             return {"id": self.id, "maker": self.maker,
                     "service": self.service,
