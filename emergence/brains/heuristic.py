@@ -293,6 +293,11 @@ class HeuristicBrain(AgentBrain):
         status_drive = 0.35 + 0.4 * p.talkativeness + 0.25 * p.cooperation
         if self.rng.random() >= obs.esteem_urge * status_drive:
             return None
+        # The rich buy honour: host a feast (conspicuous consumption) when one is
+        # on offer and affordable. Spending for standing is itself a status move.
+        feast = self._buy_feast_action(agent, obs)
+        if feast is not None:
+            return feast
         here = obs.here["type"] if obs.here else None
         # A monument is the most conspicuous achievement (すごいと思われたい).
         if agent.materials() >= 2:
@@ -366,6 +371,32 @@ class HeuristicBrain(AgentBrain):
             return None
         return Action(ActionType.ACCEPT, {"offer_id": best[1]},
                       rationale="pay a doctor for care rather than trek for food")
+
+    def _buy_feast_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Conspicuous consumption: an esteem-hungry, cash-rich agent buys honour
+        by hosting the dearest feast it can comfortably afford within reach — the
+        more lavish the outlay, the more reputation. The caterer *chose* to offer;
+        this side picks the most impressive one it can pay for (keeping a buffer).
+        Only fires under the status layer (feast offers exist only then)."""
+        if not obs.economy.get("enabled"):
+            return None
+        reach = {o["id"]: o["distance"] for o in obs.others}
+        best = None  # the priciest affordable feast in reach (most conspicuous)
+        for off in obs.open_offers:
+            if off.get("service") != "feast" or off.get("maker") == agent.id:
+                continue
+            want_q, want_i = off["want"].split(" ", 1)
+            if want_i != "money":
+                continue
+            fee = int(want_q)
+            if fee <= 0 or agent.money - fee < 6 or reach.get(off["maker"], 99) > 2:
+                continue
+            if best is None or fee > best[0]:
+                best = (fee, off["id"])
+        if best is None:
+            return None
+        return Action(ActionType.ACCEPT, {"offer_id": best[1]},
+                      rationale="host a lavish feast to buy honour")
 
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
@@ -613,6 +644,19 @@ class HeuristicBrain(AgentBrain):
             # Flush with cash: post credit. Lend 5 now to be repaid with interest;
             # the rate scales with how grasping the persona is (a cooperative lender
             # charges less). The "price of money" emerges from which offers get taken.
+            # Cater a feast for the status-hungry (only when the honour layer is
+            # live, so feasts exist). Catering needs provisions on hand; the fee is
+            # the caterer's to set — grasping personas charge more, so the price of
+            # honour emerges from which feasts the proud actually pay for.
+            if agent.food() >= 2 and "feast" in obs.economy.get("services", []):
+                fee = 4 + round(4 * (1 - self.persona.cooperation))
+                return Action(ActionType.OFFER,
+                              {"service": "feast", "want_item": "money",
+                               "want_qty": fee},
+                              rationale="cater a feast for a fee")
+            # Flush with cash and no provisions to cater: post credit instead. Lend
+            # 5 now to be repaid with interest; the rate scales with how grasping
+            # the persona is. The "price of money" emerges from offers taken.
             if agent.money >= 14:
                 interest = 1 + round(2 * (1 - self.persona.cooperation))
                 return Action(ActionType.OFFER,

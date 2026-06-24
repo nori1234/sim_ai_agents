@@ -43,6 +43,7 @@ class StatusConfig:
     rep_per_law_passed: float = 3.0    # an proposal you authored is enacted
     rep_per_mayor: float = 12.0
     rep_per_collab: float = 1.0
+    rep_per_feast_coin: float = 0.6    # honour bought per coin spent conspicuously
     rep_decay_per_day: float = 1.5     # prestige fades without fresh deeds
 
     # -- pleasure (気持ちよさ) — recognition feels good ------------------
