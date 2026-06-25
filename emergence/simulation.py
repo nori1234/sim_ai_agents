@@ -1838,10 +1838,16 @@ class Simulation:
             # Withdrawal: the craving sickness drains the body.
             if agent.addiction > self.society.withdrawal_threshold:
                 agent.energy -= self.society.withdrawal_energy_penalty
+        if self.drives.enabled and agent.age_days > self.drives.senescence_age_days:
+            # Senescence: the old body tires faster (a gentle, rising drain). Pure
+            # decline — natural death itself is the daily hazard in _end_of_day.
+            agent.energy -= self.drives.senescence_energy_penalty
         if agent.energy <= 0 and agent.alive:
             cause = "starvation"
             if self.drives.enabled and agent.fatigue >= 100.0:
                 cause = "exhaustion"
+            if self.drives.enabled and agent.age_days > self.drives.mortality_onset_days:
+                cause = "old_age"
             if self.society.enabled and agent.addiction > self.society.withdrawal_threshold:
                 cause = "overdose/withdrawal"
             agent.die(self.world.day, cause)
@@ -1921,6 +1927,23 @@ class Simulation:
         marker = "taught me: "
         return text.split(marker)[-1] if marker in text else text
 
+    def _maybe_die_of_age(self, a: Agent) -> None:
+        """Natural death: past the onset age, a daily death hazard that rises with
+        age and worsens with frailty (low energy). So a lifecycle emerges — elders
+        pass away — rather than only violence/starvation ending a life. Gated on
+        the drives layer (which advances age_days), so the baseline is untouched."""
+        d = self.drives
+        if a.age_days <= d.mortality_onset_days:
+            return
+        over = a.age_days - d.mortality_onset_days
+        hazard = d.mortality_hazard_per_day * (1.0 + over / d.mortality_onset_days)
+        if a.energy < d.mortality_frailty_energy:
+            hazard *= d.mortality_frailty_mult
+        if self.rng.random() < min(1.0, hazard):
+            a.die(self.world.day, "old_age")
+            self.metrics.deaths += 1
+            self.world.log("death", agent=a.id, cause="old_age")
+
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
             return self.newborn_brain_factory(child, persona_key, self.rng)
@@ -1988,6 +2011,7 @@ class Simulation:
             for a in self.agents:
                 if a.alive:
                     a.age_days += 1
+                    self._maybe_die_of_age(a)
         if self.status.enabled:
             # Honour is not permanent: prestige fades without fresh deeds.
             for a in self.agents:
