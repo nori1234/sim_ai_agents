@@ -61,6 +61,7 @@ HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
+    ActionType.SOW: 3.0,
     ActionType.WORK: 3.0,
     ActionType.BUILD: 4.0,
     ActionType.ATTACK: 5.0,
@@ -225,6 +226,16 @@ class Simulation:
         )[:12]
         here_f = self.world.facility_at(agent.pos)
         here = {"name": here_f.name, "type": here_f.ftype.value} if here_f else None
+        # Agriculture: surface each farm's crop state (empty/growing/ripe) so a
+        # farmer knows whether to sow, wait, or harvest. Inert unless agriculture.
+        if self.environment is not None and self.environment.config.agriculture:
+            crop_of = {f.name: self.environment.crop_state(f)
+                       for f in self.world.facilities if f.ftype is FacilityType.FARM}
+            for v in nearby:
+                if v["name"] in crop_of:
+                    v["crop"] = crop_of[v["name"]]
+            if here is not None and here["name"] in crop_of:
+                here["crop"] = crop_of[here["name"]]
         here_roles = sorted(here_f.roles) if here_f else []
         nearest_roles: dict = {}
         if self.society.enabled:
@@ -659,10 +670,34 @@ class Simulation:
         self._harvest(agent, f)
         self._spend(agent, ActionType.GATHER)
 
+    def _do_sow(self, agent: Agent, action: Action) -> None:
+        """Plant the field you're standing on (agriculture subsystem). It then
+        ripens over several days of growing season before it can be harvested —
+        so a farmer's year gains structure. Inert unless --environment agriculture."""
+        if self.environment is None or not self.environment.config.agriculture:
+            return
+        f = self.world.facility_at(agent.pos)
+        if f is None or f.ftype is not FacilityType.FARM:
+            return
+        if self.environment.sow(f):
+            self._spend(agent, ActionType.SOW)
+            self.world.log("sow", by=agent.id, farm=f.name)
+
     def _harvest(self, agent: Agent, f) -> Event:
         """Take from a world resource node: the node *produces* a yield (shaped
         by the environment), which flows into the gatherer. No counterparty, so
         nothing is interpreted as an institution."""
+        # Agriculture: a farm is a sown field, not a tap — it gives only a ripe
+        # crop (a lump), then lies empty until sown again. Other nodes unchanged.
+        if (self.environment is not None and self.environment.config.agriculture
+                and f.ftype is FacilityType.FARM):
+            amount = self.environment.harvest_crop(f)
+            if amount:
+                agent.add("food", amount)
+            ev = Event(kind="take", actor=agent, other=None, site=f,
+                       items={"food": amount} if amount else {})
+            self._interpret(ev)
+            return ev
         resource, amount = f.gather_yield()  # type: ignore[misc]
         # Economy layer: production is specialised. A specialist gathers its good
         # well; off-specialty self-supply is inefficient (a low-yield fallback,
