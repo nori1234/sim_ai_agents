@@ -413,7 +413,26 @@ class HeuristicBrain(AgentBrain):
         return Action(ActionType.ACCEPT, {"offer_id": best[1]},
                       rationale="host a lavish feast to buy honour")
 
+    def _tend_farm(self, obs: Observation) -> Action | None:
+        """Agriculture: a farm is a field to work, not a tap. Standing on one, sow
+        it if empty and harvest it if ripe; while it's growing there's nothing to
+        do here. Inert unless --environment agriculture (no `crop` key surfaced)."""
+        h = obs.here
+        if not h or h.get("type") != "farm" or "crop" not in h:
+            return None
+        if h["crop"] == "ripe":
+            return Action(ActionType.GATHER, rationale="harvest the ripe field")
+        if h["crop"] == "empty":
+            return Action(ActionType.SOW, rationale="sow the field")
+        return None  # growing — let it ripen
+
     def _survival_action(self, agent: Agent, obs: Observation) -> Action | None:
+        # Agriculture: tend a field you're on (sow/harvest) before anything else —
+        # so crops get planted in good time, not only under starvation. Inert
+        # off the agriculture subsystem (no crop state is surfaced).
+        tend = self._tend_farm(obs)
+        if tend is not None:
+            return tend
         # Affliction (trauma / withdrawal) warrants a doctor even when fed and
         # rested — a meal mends neither. Inert unless the psyche / society layers
         # are live (the reasons stay 0) and a healing offer is in reach.
@@ -436,20 +455,24 @@ class HeuristicBrain(AgentBrain):
         if agent.energy <= LOW_ENERGY:
             if agent.food() > 0:
                 return Action(ActionType.EAT, rationale="restore energy")
-            # No food on hand: draw from commons if standing on it.
+            # No food on hand: draw from commons if standing on it. (An
+            # agriculture field that isn't ripe was already handled by _tend_farm;
+            # don't waste a turn gathering it — fall through to seek food.)
             if obs.here and obs.here["type"] in FOOD_SOURCES and obs.granary_food > 0:
                 if obs.here["type"] == "granary":
                     return Action(ActionType.DRAW_GRANARY, rationale="hungry")
-                return Action(ActionType.GATHER, rationale="harvest food")
+                if "crop" not in obs.here:
+                    return Action(ActionType.GATHER, rationale="harvest food")
             # Head to the nearest food source.
             return Action(
                 ActionType.MOVE,
                 {"facility_type": self._nearest_food_type(obs)},
                 rationale="seek food",
             )
-        # Energy fine but low on food: top up if convenient.
+        # Energy fine but low on food: top up if convenient (a non-ripe field was
+        # already tended above, so only gather a tap-source here).
         if agent.food() < 2:
-            if obs.here and obs.here["type"] in FOOD_SOURCES:
+            if obs.here and obs.here["type"] in FOOD_SOURCES and "crop" not in obs.here:
                 return Action(ActionType.GATHER, rationale="stock food")
             return Action(
                 ActionType.MOVE,

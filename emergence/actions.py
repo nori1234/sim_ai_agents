@@ -16,6 +16,7 @@ class ActionType(str, Enum):
     IDLE = "idle"
     MOVE = "move"  # toward a facility type or coordinate
     GATHER = "gather"  # collect food/materials at current facility
+    SOW = "sow"  # plant a field (under --environment agriculture); it ripens over days
     EAT = "eat"  # consume food -> energy, relieve hunger
     REST = "rest"  # restore a little energy (more at house/hospital)
     SLEEP = "sleep"  # relieve fatigue substantially (best at a house)

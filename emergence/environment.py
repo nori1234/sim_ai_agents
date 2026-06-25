@@ -34,6 +34,9 @@ SEASONS = ["spring", "summer", "autumn", "winter"]
 # Per-season harvest yield multiplier (food/materials) and energy-drain multiplier.
 SEASON_YIELD = {"spring": 1.0, "summer": 1.3, "autumn": 1.15, "winter": 0.55}
 SEASON_ENERGY = {"spring": 1.0, "summer": 0.95, "autumn": 1.0, "winter": 1.22}
+# How fast a sown crop ripens per day, by season — growth halts in winter, so
+# *when* you plant matters (the agricultural calendar emerges, not scripted).
+SEASON_GROWTH = {"spring": 1.0, "summer": 1.0, "autumn": 0.5, "winter": 0.0}
 
 # Daily weather, weighted by season; each modifies yield and energy a little.
 #   condition -> (yield_mult, energy_mult)
@@ -62,6 +65,13 @@ class EnvironmentConfig:
     economy: bool = True
     disasters: bool = True
     depletion: bool = True
+    # Agriculture is OFF even when the layer is on: it changes the food loop
+    # (farms must be sown, ripen, and be harvested) so it's a deliberate opt-in;
+    # with it off a FARM is the constant yield tap it has always been.
+    agriculture: bool = False
+    crop_grow_days: int = 3          # growing-season days for a sown field to ripen
+    crop_yield: int = 4              # food per harvest from a ripe (productive) field
+    crop_harvests: int = 5           # how many harvests a ripe field bears before going fallow
 
     season_length_days: int = 4
 
@@ -115,6 +125,22 @@ class Environment:
         }
         # Market price index per resource (economy subsystem).
         self.price: dict[str, float] = {"food": 1.0, "materials": 1.0}
+        # Agriculture subsystem. A field is sown, *ripens* over crop_grow_days,
+        # then becomes a productive plot that bears crop_harvests harvests before
+        # going fallow (empty) and needing re-sowing. Two maps:
+        #   grow[name]  : ripening progress 0..crop_grow_days (0 = not ripening)
+        #   ripe[name]  : harvests remaining on a productive field (0 = not ripe)
+        # Only farms appear. Fields don't start barren — stagger them (some
+        # productive now, some still ripening) so there's an opening harvest.
+        self.grow: dict[str, float] = {}
+        self.ripe: dict[str, int] = {}
+        if config.agriculture:
+            # Start every field productive so the town has a standing food supply
+            # to live on while it learns its own sow/harvest rhythm; once a field's
+            # harvests are spent it goes fallow and must be re-sown.
+            for f in world.facilities:
+                if f.ftype is FacilityType.FARM:
+                    self.ripe[f.name] = config.crop_harvests
         # Active disaster: (kind, days_left) or None.
         self.active_disaster: Optional[tuple[str, int]] = None
         # Tallies for the report.
@@ -146,6 +172,36 @@ class Environment:
             self.stock[facility.name] = max(0.0, self.stock[facility.name] - amount)
         return amount
 
+    # ------------------------------------------------------------- agriculture
+    def sow(self, farm) -> bool:
+        """Plant a fallow (empty) field; it ripens over `crop_grow_days` of growing
+        season. False if agriculture is off or the field is already sown/productive."""
+        if not self.config.agriculture:
+            return False
+        if self.grow.get(farm.name, 0.0) > 0.0 or self.ripe.get(farm.name, 0) > 0:
+            return False
+        self.grow[farm.name] = 1e-6          # planted (ripening, not yet productive)
+        return True
+
+    def crop_state(self, farm) -> str:
+        if self.ripe.get(farm.name, 0) > 0:
+            return "ripe"
+        if self.grow.get(farm.name, 0.0) > 0.0:
+            return "growing"
+        return "empty"
+
+    def harvest_crop(self, farm) -> int:
+        """A productive (ripe) field bears a harvest (shaped by weather/famine) and
+        loses one of its remaining harvests; when spent it goes fallow. An unripe
+        or fallow field gives nothing."""
+        if self.ripe.get(farm.name, 0) <= 0:
+            return 0
+        self.ripe[farm.name] -= 1
+        mult = self.weather.yield_mult if self.config.weather else 1.0
+        if self.active_disaster and self.active_disaster[0] == "famine":
+            mult *= self.config.famine_yield_mult
+        return max(1, round(self.config.crop_yield * mult))
+
     # ----------------------------------------------------------------- economy
     def work_pay_multiplier(self) -> float:
         """Lean times make goods dear: working a market pays more when scarce."""
@@ -175,6 +231,20 @@ class Environment:
             cap = self.config.stock_capacity
             for name in self.stock:
                 self.stock[name] = min(cap, self.stock[name] + self.config.regen_per_day)
+        if self.config.agriculture:
+            # Sown fields ripen by the day's season (halted in winter); on reaching
+            # maturity a field becomes a productive plot bearing crop_harvests.
+            step = SEASON_GROWTH.get(self.weather.season, 1.0)
+            mature = self.config.crop_grow_days
+            for name, val in list(self.grow.items()):
+                if val <= 0.0:
+                    continue
+                val += step
+                if val >= mature:
+                    self.grow[name] = 0.0
+                    self.ripe[name] = self.config.crop_harvests
+                else:
+                    self.grow[name] = val
         self._recompute_prices(sim.agents)
         self._tick_disaster(sim)
 
