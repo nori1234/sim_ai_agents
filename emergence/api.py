@@ -87,7 +87,7 @@ class EmergenceAPI:
         return sim
 
     # -- world lifecycle ------------------------------------------------
-    def create_world(self, *, persona="guardian", seed=42, days=15, ticks=8,
+    def create_world(self, *, persona="guardian", seed=42, days=30, ticks=8,
                      agents=10, rich=False, economy=False, environment=False,
                      library=False,
                      public_works=False, brain="heuristic", provider="openai",
@@ -109,7 +109,7 @@ class EmergenceAPI:
         """
         persona = self._valid_persona(persona)
         seed = _clamp(seed, 0, 2**31 - 1, 42)
-        days = _clamp(days, 1, MAX_DAYS, 15)
+        days = _clamp(days, 1, MAX_DAYS, 30)
         ticks = _clamp(ticks, 1, MAX_TICKS, 8)
         agents = _clamp(agents, 1, MAX_AGENTS, 10)
         if brain not in ("heuristic", "local", "api"):
