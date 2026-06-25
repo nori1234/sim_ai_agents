@@ -8,6 +8,7 @@ from .agent import Agent
 from .brains.base import AgentBrain
 from .brains.heuristic import HeuristicBrain
 from .drives import DrivesConfig
+from .ecology import EcologyConfig
 from .esteem import StatusConfig
 from .psyche import PsycheConfig
 from .society import SocietyConfig
@@ -66,6 +67,7 @@ def make_simulation(
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
+    ecology: "EcologyConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
     public_works: bool = False,
     founding: bool = False,
@@ -158,6 +160,11 @@ def make_simulation(
         if env_cfg.enabled:
             env = Environment(env_cfg, world, random.Random(config.seed ^ 0x5EED))
 
+    eco_cfg = ecology or EcologyConfig()
+    if eco_cfg.enabled and eco_cfg.start_herd:
+        for agent in agents:                       # each founder starts with a herd
+            agent.add("livestock", eco_cfg.start_herd)
+
     town_memory = None
     if memory:
         from .memory_backend import TownMemory
@@ -177,6 +184,7 @@ def make_simulation(
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
+        ecology=eco_cfg,
         environment=env,
         public_works=bool(public_works),
         development=bool(founding),
