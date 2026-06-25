@@ -608,6 +608,7 @@ class Simulation:
             victim.die(self.world.day, "killed in violence")
             self.metrics.deaths += 1
             self.world.log("death", agent=victim.id, cause="violence")
+            self._settle_estate(victim)
         return ev
 
     def _do_strike(self, agent: Agent, action: Action) -> None:
@@ -1853,6 +1854,7 @@ class Simulation:
             agent.die(self.world.day, cause)
             self.metrics.deaths += 1
             self.world.log("death", agent=agent.id, cause=cause)
+            self._settle_estate(agent)
 
     def _drive_upkeep(self, agent: Agent) -> None:
         """Raise hunger and fatigue; let unmet drives erode energy; and let
@@ -1943,6 +1945,43 @@ class Simulation:
             a.die(self.world.day, "old_age")
             self.metrics.deaths += 1
             self.world.log("death", agent=a.id, cause="old_age")
+            self._settle_estate(a)
+
+    def _settle_estate(self, deceased: Agent) -> None:
+        """Death is not a reset: the deceased's estate — coin, goods, and the
+        bank-receipts it held — passes to its **heirs** (its living children),
+        split among them; with no heir it **escheats to the treasury**. Conserved
+        (a transfer, not a magic edit), so wealth can now compound across
+        generations (and concentrate). Loans resolve through their existing paths
+        (a dead creditor's debt lapses on repay; a dead banker's depositors can't
+        redeem — an emergent run). Opt-in under --economy; baseline byte-identical."""
+        if not self.economy:
+            return
+        heirs = [a for a in self.agents
+                 if a.alive and deceased.id in (a.parent_ids or ())]
+        coin = deceased.take("money", deceased.money)
+        goods = {item: deceased.take(item, qty)
+                 for item, qty in list(deceased.inventory.items())
+                 if item != "money" and qty > 0}
+        claims = [d for d in self.deposits if d.holder == deceased.id and d.amount > 0]
+        if heirs:
+            n = len(heirs)
+            base, extra = divmod(coin, n)
+            for i, h in enumerate(heirs):
+                h.add("money", base + (1 if i < extra else 0))
+            eldest = max(heirs, key=lambda a: a.age_days)   # goods & receipts undivided
+            for item, qty in goods.items():
+                eldest.add(item, qty)
+            for c in claims:
+                c.holder = eldest.id
+            self.world.log("inheritance", deceased=deceased.id,
+                           heirs=[h.id for h in heirs], coin=coin)
+        else:
+            self.treasury += coin                            # escheat to the state
+            for c in claims:
+                c.amount = 0
+            if coin:
+                self.world.log("escheat", deceased=deceased.id, coin=coin)
 
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
