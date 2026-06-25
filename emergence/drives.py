@@ -62,6 +62,18 @@ class DrivesConfig:
     child_energy: float = 70.0         # a newborn's starting energy
     max_population: int = 30           # hard cap on living agents
 
+    # -- aging / senescence (老化・寿命) — only bites while this layer advances
+    # age_days, so the four-society baseline (drives off) is byte-identical.
+    # Seeded adults start at age_days=99 (the "mature adult" sentinel), so the
+    # elder phase sits just above that — founders have a believable remaining
+    # span, not instant death; newborns (age 0) live a long young life first.
+    senescence_age_days: int = 130     # past this the body begins to decline
+    senescence_energy_penalty: float = 0.6  # extra energy lost per tick when old
+    mortality_onset_days: int = 140    # natural death becomes possible past here
+    mortality_hazard_per_day: float = 0.04  # daily death chance at onset, rising with age
+    mortality_frailty_energy: float = 30.0  # below this energy, the hazard is worse
+    mortality_frailty_mult: float = 1.5     # how much frailty raises the hazard
+
     # -- pleasure (気持ちよさ) — the reward for relieving any urge --------
     pleasure_per_eat: float = 1.0      # scaled by how hungry you were
     pleasure_per_sleep: float = 1.0    # scaled by how tired you were
