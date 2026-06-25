@@ -442,6 +442,12 @@ class HeuristicBrain(AgentBrain):
                 return care
         if agent.energy > LOW_ENERGY and agent.food() >= 2:
             return None
+        # Own a herd? Slaughter one for meat rather than trek — but keep a
+        # breeding pair so the herd recovers. (livestock is 0 without --ecology,
+        # so this never fires in the baseline.)
+        if agent.food() < 2 and agent.inventory.get("livestock", 0) > 2:
+            return Action(ActionType.USE, {"item": "livestock"},
+                          rationale="slaughter livestock for food")
         # A poor food-gatherer buys rather than farms, when it can afford to.
         buy = self._buy_food_action(agent, obs)
         if buy is not None:

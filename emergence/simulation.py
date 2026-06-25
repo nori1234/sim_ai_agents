@@ -13,6 +13,7 @@ from .drives import DrivesConfig, can_reproduce, is_fertile, mating_urge
 from .affordances import affordances_at, gather_multiplier, gather_specialty, role_of
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
+from .ecology import EcologyConfig
 from .psyche import PsycheConfig, actualization_pull, fear_level
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
@@ -110,6 +111,7 @@ class Simulation:
     status: StatusConfig = field(default_factory=StatusConfig)
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
     society: SocietyConfig = field(default_factory=SocietyConfig)
+    ecology: EcologyConfig = field(default_factory=EcologyConfig)
     gangs: list = field(default_factory=list)        # list[Gang]
     religions: list = field(default_factory=list)    # list[Religion]
     # Optional external-world layer (environment.Environment); opt-in.
@@ -575,6 +577,10 @@ class Simulation:
             # A narcotic is cooked on the spot (materials spent by the caller),
             # so there is nothing in inventory to consume — the dose is the act.
             self._dose(user)
+        elif item == "livestock" and self.ecology.enabled and used:
+            # Slaughter the herd for meat: animals -> food (production, like a
+            # harvest). The animal is gone; the food enters the owner's stores.
+            user.add("food", used * self.ecology.slaughter_food)
         ev = Event(kind="use", actor=agent, other=target,
                    items={item: used} if used else {}, consent=None)
         self._interpret(ev)
@@ -2026,6 +2032,21 @@ class Simulation:
             if coin or estate:
                 self.world.log("escheat", deceased=deceased.id, coin=coin, estate=len(estate))
 
+    def _breed_livestock(self) -> None:
+        """Daily: a herd reproduces (wealth that grows by itself — the pastoral
+        analogue of deposit interest). A herd of >=2 grows by `breed_rate`, capped
+        at `herd_cap` per owner. Production, like a harvest; nothing is minted in
+        money terms. Gated on the ecology layer, so the baseline is untouched."""
+        eco = self.ecology
+        for a in self.agents:
+            if not a.alive:
+                continue
+            herd = a.inventory.get("livestock", 0)
+            if herd >= 2 and herd < eco.herd_cap:
+                born = int(herd * eco.breed_rate)
+                if born:
+                    a.add("livestock", min(born, eco.herd_cap - herd))
+
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
             return self.newborn_brain_factory(child, persona_key, self.rng)
@@ -2099,6 +2120,8 @@ class Simulation:
             for a in self.agents:
                 if a.alive:
                     a.reputation = max(0.0, a.reputation - self.status.rep_decay_per_day)
+        if self.ecology.enabled:
+            self._breed_livestock()
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
