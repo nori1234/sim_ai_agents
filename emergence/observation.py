@@ -86,7 +86,10 @@ class Observation:
 
 
 def _facility_view(f: Facility, dist: int) -> dict:
-    return {"name": f.name, "type": f.ftype.value, "distance": dist}
+    v = {"name": f.name, "type": f.ftype.value, "distance": dist}
+    if f.owner is not None:        # whose property this is (None = commons); set only under --economy
+        v["owner"] = f.owner
+    return v
 
 
 def _proposal_view(p: Proposal, voter_id: str) -> dict:

@@ -921,7 +921,10 @@ class Simulation:
         if existing is None:
             existing = self.world.add_facility(
                 Facility(name=name, ftype=ftype, x=agent.x, y=agent.y,
-                         built_on_day=self.world.day))
+                         built_on_day=self.world.day,
+                         # You own what you build — but only where ownership means
+                         # anything (the economy layer); commons stay unowned offline.
+                         owner=agent.id if self.economy else None))
             if ftype == FacilityType.MONUMENT:
                 self.metrics.monuments_built += 1
                 self.world.log("monument", name=name, by=agent.id)
@@ -1964,24 +1967,29 @@ class Simulation:
                  for item, qty in list(deceased.inventory.items())
                  if item != "money" and qty > 0}
         claims = [d for d in self.deposits if d.holder == deceased.id and d.amount > 0]
+        estate = [f for f in self.world.facilities if f.owner == deceased.id]  # land & title
         if heirs:
             n = len(heirs)
             base, extra = divmod(coin, n)
             for i, h in enumerate(heirs):
                 h.add("money", base + (1 if i < extra else 0))
-            eldest = max(heirs, key=lambda a: a.age_days)   # goods & receipts undivided
+            eldest = max(heirs, key=lambda a: a.age_days)   # goods, receipts & land undivided
             for item, qty in goods.items():
                 eldest.add(item, qty)
             for c in claims:
                 c.holder = eldest.id
+            for f in estate:
+                f.owner = eldest.id
             self.world.log("inheritance", deceased=deceased.id,
-                           heirs=[h.id for h in heirs], coin=coin)
+                           heirs=[h.id for h in heirs], coin=coin, estate=len(estate))
         else:
             self.treasury += coin                            # escheat to the state
             for c in claims:
                 c.amount = 0
-            if coin:
-                self.world.log("escheat", deceased=deceased.id, coin=coin)
+            for f in estate:
+                f.owner = None                               # land reverts to commons
+            if coin or estate:
+                self.world.log("escheat", deceased=deceased.id, coin=coin, estate=len(estate))
 
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
