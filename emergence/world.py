@@ -52,6 +52,11 @@ class Facility:
     # Built facilities (e.g. monuments) record who collaborated on them.
     builders: list[str] = field(default_factory=list)
     built_on_day: Optional[int] = None
+    # Who *owns* this (an agent id), set when an agent builds it under the economy
+    # layer; None = unowned commons (every seeded town facility, and the offline
+    # baseline). Ownership is a transferable claim — inherited at death (#92) — on
+    # which rent / exclusion / trespass can later be built. Inert until --economy.
+    owner: Optional[str] = None
     # Emergent roles a facility takes on (society layer): "weapons_factory",
     # "drug_den", "gang_turf", "temple". ``controller`` names the holding gang.
     roles: set[str] = field(default_factory=set)
