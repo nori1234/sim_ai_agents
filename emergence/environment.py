@@ -73,6 +73,15 @@ class EnvironmentConfig:
     crop_yield: int = 4              # food per harvest from a ripe (productive) field
     crop_harvests: int = 5           # how many harvests a ripe field bears before going fallow
 
+    # Dynamic weather: instead of an independent daily draw, weather moves in
+    # *fronts* — a condition persists for a few days, then shifts — so spells of
+    # fair weather and multi-day storms emerge rather than day-to-day flicker.
+    # Off (default) keeps the one-draw-per-day behaviour, so existing env runs are
+    # unchanged; on, it's still seasonally weighted and fully seeded.
+    dynamic_weather: bool = False
+    front_min_days: int = 2          # shortest a weather front lasts
+    front_max_days: int = 5          # longest a weather front lasts
+
     # Home as a refuge from the weather: indoors, this fraction of the *extra*
     # energy drain that harsh weather (cold/storm) inflicts is kept off — so foul
     # weather gives a real reason to go inside (#73). 0 = no shelter benefit.
@@ -123,6 +132,7 @@ class Environment:
         self.rng = rng
         self.day = 1
         self.weather = self._weather_for(1)
+        self._front_days_left = 0        # days remaining in the current weather front
         # Per-site finite stock (depletion subsystem).
         self.stock: dict[str, float] = {
             f.name: config.stock_capacity for f in world.facilities
@@ -158,6 +168,23 @@ class Environment:
         condition = self.rng.choice(SEASON_WEATHER[season]) if self.config.weather \
             else "clear"
         return Weather(season=season, condition=condition)
+
+    def _advance_weather(self) -> None:
+        """Set the day's weather. Static mode: one seasonal draw per day (as
+        before). Dynamic mode: weather moves in *fronts* — it persists for a few
+        days, then shifts (and always shifts when the season turns)."""
+        season = SEASONS[((self.day - 1) // self.config.season_length_days) % 4]
+        if not self.config.dynamic_weather:
+            self.weather = self._weather_for(self.day)
+            return
+        if self._front_days_left <= 0 or self.weather.season != season:
+            cond = self.rng.choice(SEASON_WEATHER[season]) if self.config.weather else "clear"
+            self.weather = Weather(season=season, condition=cond)
+            self._front_days_left = self.rng.randint(
+                self.config.front_min_days, self.config.front_max_days)
+        else:                                      # the front holds another day
+            self.weather = Weather(season=season, condition=self.weather.condition)
+        self._front_days_left -= 1
 
     def energy_multiplier(self) -> float:
         return self.weather.energy_mult if self.config.weather else 1.0
@@ -231,7 +258,7 @@ class Environment:
     def advance_day(self, sim) -> None:
         """Called at end of day: new weather, regen stock, reprice, maybe a shock."""
         self.day = self.world.day
-        self.weather = self._weather_for(self.day)
+        self._advance_weather()
         if self.config.depletion:
             cap = self.config.stock_capacity
             for name in self.stock:
