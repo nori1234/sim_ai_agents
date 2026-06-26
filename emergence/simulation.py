@@ -1862,7 +1862,15 @@ class Simulation:
     def _tick_upkeep(self, agent: Agent) -> None:
         decay = ENERGY_DECAY_PER_TICK
         if self.environment is not None:
-            decay *= self.environment.energy_multiplier()  # cold seasons drain more
+            mult = self.environment.energy_multiplier()  # cold seasons/storms drain more
+            if mult > 1.0:
+                # A roof shelters you from the *extra* bite of harsh weather, so
+                # foul weather is a real reason to head indoors (#73).
+                f = self.world.facility_at(agent.pos)
+                if f is not None and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}:
+                    relief = self.environment.config.shelter_weather_relief
+                    mult = 1.0 + (mult - 1.0) * (1.0 - relief)
+            decay *= mult
         agent.energy -= decay
         if self.drives.enabled:
             self._drive_upkeep(agent)

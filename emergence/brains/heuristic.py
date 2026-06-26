@@ -27,6 +27,7 @@ CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
 BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
 BRIBE_PRICE = 6         # what a wanted offender slips a guard to be let off
+HARSH_WEATHER = {"storm", "heatwave", "cold snap"}  # conditions worth sheltering from
 
 
 class HeuristicBrain(AgentBrain):
@@ -64,6 +65,12 @@ class HeuristicBrain(AgentBrain):
             refuge = "police_station" if self.rng.random() < 0.5 else "house"
             return Action(ActionType.MOVE, {"facility_type": refuge},
                           rationale="flee to safety")
+
+        # 1.52 Refuge: harsh weather drives a tiring body indoors, where shelter
+        #      keeps the cold/storm off. Inert without the environment layer.
+        shelter = self._shelter_action(agent, obs)
+        if shelter is not None:
+            return shelter
 
         # 1.55 Corruption: a wanted, scheming offender buys off a nearby guard
         #      before it comes to an arrest. Inert off the society layer.
@@ -583,6 +590,23 @@ class HeuristicBrain(AgentBrain):
         return Action(ActionType.TRANSFER,
                       {"target": g["id"], "resource": "money", "amount": BRIBE_PRICE},
                       rationale="slip the guard a bribe")
+
+    def _shelter_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Harsh weather (a storm, a cold snap, deep winter) drives a tiring body
+        indoors, where a roof keeps the worst of the drain off. Only fires under
+        the environment layer (no weather is surfaced otherwise) and when the body
+        is already wearing down — survival/eating still come first above."""
+        env = obs.environment
+        if not env:
+            return None
+        harsh = env.get("weather") in HARSH_WEATHER or env.get("season") == "winter"
+        if not harsh or agent.energy > LOW_ENERGY * 1.4:
+            return None
+        here = obs.here["type"] if obs.here else None
+        if here in {"house", "hospital"}:
+            return Action(ActionType.REST, rationale="wait out the weather indoors")
+        return Action(ActionType.MOVE, {"facility_type": "house"},
+                      rationale="get out of the weather")
 
     # -- governance -----------------------------------------------------
     def _governance_action(self, agent: Agent, obs: Observation, p: Persona) -> Action | None:
