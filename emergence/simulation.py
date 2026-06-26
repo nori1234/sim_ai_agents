@@ -45,6 +45,7 @@ EAT_ENERGY_PER_FOOD = 16.0
 # Principled fiscality (economy layer): how much money the state grants each poor
 # citizen per welfare day, drawn from the treasury it actually holds.
 FISCAL_WELFARE = 3
+FISCAL_EMBEZZLE_FRACTION = 0.5   # share of the take a corrupt collector pockets
 REST_ENERGY = 8.0
 SHELTER_REST_ENERGY = 16.0  # at a house or hospital
 # Healing as a chosen service (economy layer): a doctor offers care at a price
@@ -2193,6 +2194,22 @@ class Simulation:
         station_term = min(1.0, stations * 0.5)
         return min(1.0, 0.6 * guard_term + 0.4 * station_term)
 
+    def _corrupt_collector(self):
+        """The tax collector (the mayor) iff it exists, is alive, and is venal —
+        a cold/scheming persona that will pocket part of the take. None otherwise,
+        so an honest state (or no mayor) collects straight into the treasury."""
+        if self.mayor is None:
+            return None
+        m = self._by_id.get(self.mayor.agent_id)
+        if m is None or not m.alive:
+            return None
+        try:
+            from .personas import get_persona
+            p = get_persona(m.persona)
+        except Exception:
+            return None
+        return m if (p.cooperation < 0.3 or p.deception > 0.3) else None
+
     def _apply_daily_policy(self) -> None:
         """Run once per day: tax, food redistribution. With ``--economy`` these
         obey conservation — money moves to/from the treasury rather than vanishing
@@ -2204,13 +2221,22 @@ class Simulation:
             return
         if self.policy.has_tax():
             top = sorted(living, key=lambda a: a.money, reverse=True)[: max(1, len(living) // 3)]
+            # Enforcement is a choice and so is *collection*: a corrupt mayor —
+            # the collector — can route part of the take into its own purse rather
+            # than the treasury. Embezzlement emerges, it isn't a mechanic (#38).
+            collector = self._corrupt_collector()
             for a in top:
                 tribute = int(a.money * self.policy.config.tax_rate)
                 if self.economy:
                     paid = a.take("money", tribute)          # coerced take → state
-                    self.treasury += paid                    # conserved
-                    if paid:
-                        self.world.log("tax", payer=a.id, amount=paid)
+                    skim = int(paid * FISCAL_EMBEZZLE_FRACTION) if collector else 0
+                    if skim:
+                        collector.add("money", skim)         # into the mayor's purse
+                        self.metrics.embezzled += skim
+                        self.world.log("embezzle", collector=collector.id, amount=skim)
+                    self.treasury += paid - skim             # conserved either way
+                    if paid - skim:
+                        self.world.log("tax", payer=a.id, amount=paid - skim)
                 else:
                     a.money -= tribute
                     self.world.granary_food += tribute // 2  # legacy: money→food magic
