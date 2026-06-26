@@ -170,5 +170,59 @@ class TestOffenderBribes(unittest.TestCase):
         self.assertIsNone(brain._bribe_action(a, _obs(self._guard_near(), day=2)))
 
 
+class TestEmbezzlement(unittest.TestCase):
+    """The third form of corruption (#38): a collector pockets the take. Under
+    --economy the tax is a conserved take into the treasury; a venal mayor (the
+    collector) skims part of it into its own purse. Honest state / no mayor /
+    offline → straight collection, baseline byte-identical."""
+
+    def _sim_with_tax(self, economy=True):
+        from emergence.governance import Mayor
+        sim = make_simulation("guardian", n_agents=6,
+                              config=SimulationConfig(seed=1), economy=economy)
+        sim.policy.enact(1, "tax the wealthy", day=1)        # a TAX law is in force
+        self.assertTrue(sim.policy.has_tax())
+        rich, mayor = sim.agents[0], sim.agents[1]
+        for a in sim.agents:
+            a.money = 1
+        rich.money = 100                                     # the top taxpayer
+        mayor.money = 1
+        sim.mayor = Mayor(agent_id=mayor.id, elected_day=0, term_ends_day=99)
+        return sim, rich, mayor
+
+    def test_a_venal_mayor_skims_the_take(self):
+        sim, rich, mayor = self._sim_with_tax()
+        mayor.persona = "predator"                            # cold/scheming → corrupt
+        before_treasury = sim.treasury
+        sim._apply_daily_policy()
+        self.assertGreater(mayor.money, 1, "the mayor pocketed part of the take")
+        self.assertGreater(sim.metrics.embezzled, 0)
+        self.assertTrue(any(e.get("kind") == "embezzle" for e in sim.world.events))
+        # conservation: what left the rich = treasury gain + the skim
+        paid = 100 - rich.money
+        self.assertEqual(paid, (sim.treasury - before_treasury) + (mayor.money - 1))
+
+    def test_an_honest_mayor_collects_straight(self):
+        sim, rich, mayor = self._sim_with_tax()
+        mayor.persona = "guardian"                            # cooperative → honest
+        before_treasury = sim.treasury
+        sim._apply_daily_policy()
+        self.assertEqual(mayor.money, 1, "an honest mayor takes nothing for itself")
+        self.assertEqual(sim.metrics.embezzled, 0)
+        self.assertEqual(sim.treasury - before_treasury, 100 - rich.money)
+
+    def test_no_mayor_no_embezzlement(self):
+        sim, rich, mayor = self._sim_with_tax()
+        sim.mayor = None
+        sim._apply_daily_policy()
+        self.assertEqual(sim.metrics.embezzled, 0)
+
+    def test_offline_baseline_has_no_embezzlement(self):
+        sim, rich, mayor = self._sim_with_tax(economy=False)
+        mayor.persona = "predator"
+        sim._apply_daily_policy()
+        self.assertEqual(sim.metrics.embezzled, 0, "no conserved tax offline → nothing to skim")
+
+
 if __name__ == "__main__":
     unittest.main()
