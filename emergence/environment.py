@@ -73,6 +73,11 @@ class EnvironmentConfig:
     crop_yield: int = 4              # food per harvest from a ripe (productive) field
     crop_harvests: int = 5           # how many harvests a ripe field bears before going fallow
 
+    # Home as a refuge from the weather: indoors, this fraction of the *extra*
+    # energy drain that harsh weather (cold/storm) inflicts is kept off — so foul
+    # weather gives a real reason to go inside (#73). 0 = no shelter benefit.
+    shelter_weather_relief: float = 0.7
+
     season_length_days: int = 4
 
     # -- resource depletion --------------------------------------------
