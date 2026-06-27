@@ -61,6 +61,14 @@ class TestContractInSync(unittest.TestCase):
         self.assertTrue(C.is_valid_action_value("move"))
         self.assertFalse(C.is_valid_action_value("teleport"))
 
+    def test_target_key_maps_reference_only_real_actions(self):
+        for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY}:
+            self.assertIn(verb, C.ACTION_VOCAB, f"{verb!r} is not an engine action")
+        # strike is the one agent-OR-facility verb; arson is facility-only.
+        self.assertIn("strike", C.COUNTERPARTY_KEY)
+        self.assertIn("strike", C.FACILITY_TARGET_KEY)
+        self.assertEqual(C.STRIKE_DEFAULT_TARGET, "agent")
+
 
 @unittest.skipUnless(_HAS_NEURAL,
                      "the [neural] extra (agent.adapters.emergence) is not installed")

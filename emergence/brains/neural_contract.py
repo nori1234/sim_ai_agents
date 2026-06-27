@@ -106,6 +106,34 @@ OBSERVATION_FIELDS: frozenset[str] = frozenset({
 })
 
 
+#: For each verb that references another agent, the ``params`` key that holds the
+#: agent id (= ``observation.others[i]["id"]``). Verbs not listed take no agent
+#: counterparty. The adapter should resolve the key per this map, not assume
+#: "target" everywhere.
+COUNTERPARTY_KEY: dict[str, str] = {
+    "mate": "target", "praise": "target", "attack": "target", "steal": "target",
+    "arrest": "target", "report_crime": "target", "transfer": "target",
+    "solicit": "target", "deal_drug": "target",
+    "take": "from", "give": "to", "lend": "to", "endorse": "to", "bond": "with",
+    "strike": "target",          # strike also has a facility form — see below
+}
+
+#: Verbs that target a facility *by name* (= ``observation.nearby_facilities[i]["name"]``
+#: or ``observation.here["name"]``). ``strike`` is the only verb that is agent-OR-
+#: facility; ``arson`` is always a facility.
+FACILITY_TARGET_KEY: dict[str, str] = {"arson": "facility_name", "strike": "facility_name"}
+
+#: Target-resolution rules for the adapter (advisory, not version-bearing):
+#:  1. Honour an explicit target already in the policy's spec before any default.
+#:  2. The chosen target must actually be present in THIS observation (a nearby
+#:     agent / facility); if not, clamp to idle (same policy as out-of-vocab).
+#:  3. ``strike`` defaults to an AGENT, not a facility: the explicit
+#:     building-destruction verb is ``arson``, so a bare ``strike`` should read as
+#:     violence (the common case) and not silently become arson. Pick the nearest
+#:     plausible agent; fall back to a facility only if the spec named one.
+STRIKE_DEFAULT_TARGET = "agent"
+
+
 def is_valid_action_value(value: str) -> bool:
     """True if ``value`` is an action the engine accepts (a defensive check the
     adapter can call before constructing an Action)."""

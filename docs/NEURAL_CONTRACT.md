@@ -63,6 +63,23 @@ There is **no separate `target` argument**. `to_engine_action` builds
 `Action(ActionType(spec_verb), params_dict)`. See `PARAM_SPEC` for each verb's
 `params` shape; the engine clamps invalid/oversized params gracefully.
 
+### 1a. Target resolution (the only agent-vs-facility verb is `strike`)
+
+`COUNTERPARTY_KEY` / `FACILITY_TARGET_KEY` give the `params` key per verb (don't
+assume `"target"` everywhere: `take`→`from`, `give`/`lend`/`endorse`→`to`,
+`bond`→`with`, `arson`→`facility_name`). Rules for the adapter:
+
+1. **Honour an explicit target in the spec** before applying any positional default.
+2. The chosen target must be present in **this** observation (a nearby agent /
+   facility); if not, **clamp to `idle`** (same policy as out-of-vocab).
+3. **`strike` defaults to an AGENT, not a facility.** The explicit
+   building-destruction verb is `arson`, so a bare `strike` should read as
+   violence (the common case) and must not silently become arson — otherwise
+   arson floods the world and the crime metrics. Use a facility for `strike` only
+   when the spec explicitly named one. (`bond` is proposal-vs-agent, not
+   facility-vs-agent — your facility-first rule doesn't apply to it: prefer a
+   `proposal_id` vote-commit if a proposal is open, else a `with` pact.)
+
 ## 2. Action vocabulary (44)
 
 The policy's output dimension maps onto `ACTION_VOCAB` (derived from the engine
