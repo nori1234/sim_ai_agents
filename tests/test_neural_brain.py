@@ -112,8 +112,9 @@ class TestLearningPathWiring(unittest.TestCase):
         calls = self.calls
 
         class _FakeDev:
-            def act(self, obs):
+            def act(self, obs, agent=None):       # contract decision (a): act(obs, agent)
                 calls["act"] += 1
+                calls["act_agent"] = agent
                 return {"verb": "rest"}
 
             def learn(self, obs, reward):
@@ -153,6 +154,7 @@ class TestLearningPathWiring(unittest.TestCase):
         a1 = brain.decide(agent, sim._observe(agent))
         self.assertEqual(a1.type, ActionType.REST, "action came from the dev policy")
         self.assertEqual(self.calls["build"], 1)
+        self.assertIs(self.calls["act_agent"], agent, "act(obs, agent) receives the agent")
         self.assertEqual(self.calls["learn"], [], "nothing to learn from on turn 1")
 
         agent.energy -= 10          # the world changed between turns

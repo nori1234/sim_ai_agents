@@ -43,7 +43,10 @@ class NeuralDevelopmentalBrain(AgentBrain):
                  teacher: Optional[AgentBrain] = None,
                  checkpoint: Optional[str] = None,
                  reward_weights: Optional[dict] = None):
-        self._persona = persona
+        # The two factory paths pass persona differently — a Persona object for
+        # initial agents, a plain key string for newborns — so normalise to a key
+        # string and hand build_brain a single, stable type.
+        self._persona = getattr(persona, "key", persona)
         self._fallback = HeuristicBrain(persona)
         self._teacher = teacher          # parent: an LLMBrain/Heuristic to imitate early
         self._learn = learn
@@ -75,7 +78,9 @@ class NeuralDevelopmentalBrain(AgentBrain):
                                          self._reward_weights)
                 self._dev.learn(observation, reward)   # curiosity is added internally
             # 2) Choose an action (early stages imitate the teacher; later autonomous).
-            spec = self._dev.act(observation)
+            #    `agent` is passed so the brain's EngineTeacher can call
+            #    teacher.decide(agent, obs) for imitation (contract decision (a)).
+            spec = self._dev.act(observation, agent)
             self._prev_obs = observation
             # 3) Map the policy's output spec onto a concrete engine Action.
             from agent.adapters.emergence import to_engine_action  # type: ignore

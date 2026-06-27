@@ -114,6 +114,12 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
                           individuals=bool(getattr(args, "individuals", False)),
                           brain_factory=brain_factory)
+    if getattr(args, "neural", False):
+        # The same factory mints newborn brains too, so the next generation is
+        # raised on the developmental brain (it accepts persona as a key string,
+        # which is what the newborn path passes). Without this, children default
+        # to the heuristic.
+        sim.newborn_brain_factory = brain_factory
     sim.run(verbose=args.verbose and not args.json)
     return sim
 

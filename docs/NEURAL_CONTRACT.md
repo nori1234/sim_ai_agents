@@ -35,9 +35,13 @@ agent.adapters.emergence.EmergenceObsTokenizer                       # observati
 `DevelopmentalAgent` must expose:
 
 ```
-.act(observation) -> spec        # spec is the brain's own dict, mapped by to_engine_action
-.learn(observation, reward)      # reward is a float from the engine side (see below)
+.act(observation, agent=None) -> spec   # spec is the brain's own dict, mapped by to_engine_action
+.learn(observation, reward)             # reward is a float from the engine side (see below)
 ```
+
+`agent` is passed to `act` (contract decision (a), see §6) so the brain's
+`EngineTeacher` can call `teacher.decide(agent, observation) -> Action` for
+imitation. It is optional/keyword so a brain that ignores it still conforms.
 
 Call order inside `NeuralDevelopmentalBrain.decide` (already implemented):
 
@@ -106,11 +110,25 @@ reward API is added to the engine — it is derived from the observation delta.
   Keep Titans memory **internal** to the brain; don't write back to `TownMemory`
   (no double-management). They coexist without conflict.
 
-## 6. Open question for the brain side — the teacher call
+## 6. The teacher call — RESOLVED: (a)
 
 `build_brain` receives `teacher: AgentBrain` (e.g. an `LLMBrain`). To imitate it
-the brain needs `teacher.decide(agent, obs) -> Action`, but `act(obs)` does not
-receive `agent`. **Decide one:** (a) `act(observation, agent=None)` gains an
-optional `agent`, or (b) the engine adapter holds `agent` and exposes a
-`teacher_action(obs)` closure to the brain. The engine side can supply `agent`
-either way — tell us which shape you want and we'll finalise the adapter.
+the brain needs `teacher.decide(agent, obs) -> Action`. **Decision: (a)** — the
+engine calls `self._dev.act(observation, agent)`, passing the live `agent`, and
+the brain's `EngineTeacher` calls `teacher.decide(agent, obs)` and inverse-maps the
+returned `Action` onto `ACTION_VOCAB`. `agent` is keyword/optional so a brain that
+does not imitate still conforms.
+
+## 7. Newborns inherit the brain kind — wire `newborn_brain_factory`
+
+Children are born during a run (`_spawn_child`) and get their brain from
+`Simulation.newborn_brain_factory(child, persona_key, rng)` if set, else a plain
+`HeuristicBrain`. **`persona` arrives here as a key *string*, not a `Persona`
+object** (the top-level `brain_factory` gets a `Persona`). `NeuralDevelopmentalBrain`
+normalises both to a key string before `build_brain`, so the brain side always
+receives a `str` persona.
+
+For the "raised by parents" story to apply to the next generation, the neural
+backend must set `newborn_brain_factory` too (otherwise newborns are heuristic).
+Passing an existing `LLMBrain` instance as the teacher is fine and shareable —
+`LLMBrain.decide` holds no per-agent mutable state.
