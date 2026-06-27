@@ -21,6 +21,14 @@ from ..actions import ActionType
 #: was built against; a major mismatch means the mapping must be revisited.
 CONTRACT_VERSION = "1.0"
 
+#: The engine's canonical no-op, for the out-of-vocab / unresolvable-target clamp.
+#: ``_do_idle`` is literally ``pass`` (no effect, only the per-tick upkeep runs).
+#: It is also ``ACTION_VOCAB[0]`` (IDLE is the first enum member). IMPORTANT: clamp
+#: to THIS, not to ``rest``/``sleep`` — those are real actions that restore
+#: energy/fatigue, so using them as a "do nothing" would hand the agent free
+#: recovery and bias learning.
+IDLE_ACTION = ActionType.IDLE.value  # == "idle"
+
 #: The complete action vocabulary a policy may target — derived directly from the
 #: engine enum so it can never silently drift from what the engine accepts. Map
 #: the policy's output dimension onto these string values.

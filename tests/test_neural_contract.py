@@ -61,6 +61,11 @@ class TestContractInSync(unittest.TestCase):
         self.assertTrue(C.is_valid_action_value("move"))
         self.assertFalse(C.is_valid_action_value("teleport"))
 
+    def test_idle_is_the_canonical_noop_and_first_in_vocab(self):
+        self.assertEqual(C.IDLE_ACTION, "idle")
+        self.assertEqual(C.ACTION_VOCAB[0], C.IDLE_ACTION,
+                         "the clamp fallback ACTION_VOCAB[0] must be idle")
+
     def test_target_key_maps_reference_only_real_actions(self):
         for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY}:
             self.assertIn(verb, C.ACTION_VOCAB, f"{verb!r} is not an engine action")
