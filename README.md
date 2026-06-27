@@ -96,6 +96,7 @@ python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
 | [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 製品方向（観察所＋憑依）・リッチ2D Web UI・ローカルHTTP API |
 | [`docs/PRINCIPLED_MIGRATION.md`](docs/PRINCIPLED_MIGRATION.md) | **エンジン原則の正典**。作り付けの3制度（お金・警察オーラ・法律の魔法）をプリミティブへ溶かした記録 |
 | [`docs/VERB_PRIMITIVES.md`](docs/VERB_PRIMITIVES.md) | 動詞を原始動詞（命令セット）化する設計・現状・畳み込み計画 |
+| [`docs/GROUNDING.md`](docs/GROUNDING.md) | **接地の検証**：反事実世界の転移テスト（LLMが世界の帰結に接地しているか／訓練の再生かを反証可能に測る） |
 | [`docs/LOCAL.md`](docs/LOCAL.md) | 自分のPC（Ollama など）で動かす最小構成 |
 
 ## ライセンス

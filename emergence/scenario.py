@@ -10,6 +10,7 @@ from .brains.heuristic import HeuristicBrain
 from .drives import DrivesConfig
 from .ecology import EcologyConfig
 from .esteem import StatusConfig
+from .grounding import CounterfactualConfig
 from .psyche import PsycheConfig
 from .society import SocietyConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
@@ -68,6 +69,7 @@ def make_simulation(
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
     ecology: "EcologyConfig | None" = None,
+    counterfactual: "CounterfactualConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
     public_works: bool = False,
     founding: bool = False,
@@ -185,6 +187,7 @@ def make_simulation(
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
         ecology=eco_cfg,
+        counterfactual=counterfactual or CounterfactualConfig(),
         environment=env,
         public_works=bool(public_works),
         development=bool(founding),
