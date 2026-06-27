@@ -64,7 +64,11 @@ python3 -m unittest discover -s tests                       # テスト
 - **1つのLLMを「個」に分化**：各住人は固有の人格（プロンプト）＋固有の記憶を持つ1体のエージェント
   → 10人いれば10の個人（「4つのモデル」ではない）
 - **観察所（Web UI）**：リッチ2Dの町＋年代記＋憑依。1コマンド・依存ゼロ
-- **プラグイン式の脳**：`LLMBrain`（Llama・Anthropic＝本命）／`HeuristicBrain`（無料・オフライン決定論＝デモ/ベンチ層）
+- **プラグイン式の脳**：`LLMBrain`（Llama・Anthropic＝本命）／`HeuristicBrain`（無料・オフライン決定論＝デモ/ベンチ層）／
+  **`NeuralDevelopmentalBrain`**（世界の中で経験から継続学習し、親=teacherに育つ発達脳。opt-in・依存は任意・失敗時はheuristicへ縮退）
+- **接地の検証（研究方向）**：賢く振る舞うのが「世界の帰結への接地」か「訓練データの再生」かを、
+  反事実世界の転移テストで**反証可能に測る**（[`docs/GROUNDING.md`](docs/GROUNDING.md)）。発達脳が
+  *育って接地スコア（excess）が伸びるか* を学習中に追える（`GroundingMonitor`）
 - **再現性**：engine はseedで決定論的。LLM実行は **記録／再生** でビット一致（`temperature=0` に頼らない）
 - **opt-in レイヤー**：欲求（マズロー＋**老化・寿命**）・裏社会（＋**汚職**）・環境（**天候前線・農の循環・雨宿り**）・
   経済の物理（**銀行・所有権・相続・ケア深化**）・**生態系（家畜）**・歴史的発展・公共事業・長期記憶・統治制度
@@ -87,6 +91,20 @@ python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
 エンドポイントが落ちても persona の `HeuristicBrain` に自動フォールバックします。詳細
 （Groq などホスティング・コードからの利用）は [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
+### 発達脳で動かす（実験的）
+
+凍結モデル（賢いが学習しない）ではなく、**世界の中で経験から育つ脳**に差し替える：
+
+```bash
+pip install .[neural]                                          # torch + 発達脳パッケージ（任意）
+python3 -m emergence.cli --persona claude --neural --llm --maslow --days 30
+#   --neural … 発達脳。--llm を併せると既存LLMが「親（teacher）」になり、子世代も育つ
+```
+
+依存（`torch` / `llm_model_agi`）が無ければ自動で `HeuristicBrain` に縮退するので、既定の
+オフライン体験は変わりません。世界⇄脳の境界は [`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md)
+が正典（行動語彙・観測スキーマ・報酬）。接地が*育つ*かは [`docs/GROUNDING.md`](docs/GROUNDING.md)。
+
 ## ドキュメント
 
 | 文書 | 内容 |
@@ -96,7 +114,8 @@ python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
 | [`docs/OBSERVATORY.md`](docs/OBSERVATORY.md) | 製品方向（観察所＋憑依）・リッチ2D Web UI・ローカルHTTP API |
 | [`docs/PRINCIPLED_MIGRATION.md`](docs/PRINCIPLED_MIGRATION.md) | **エンジン原則の正典**。作り付けの3制度（お金・警察オーラ・法律の魔法）をプリミティブへ溶かした記録 |
 | [`docs/VERB_PRIMITIVES.md`](docs/VERB_PRIMITIVES.md) | 動詞を原始動詞（命令セット）化する設計・現状・畳み込み計画 |
-| [`docs/GROUNDING.md`](docs/GROUNDING.md) | **接地の検証**：反事実世界の転移テスト（LLMが世界の帰結に接地しているか／訓練の再生かを反証可能に測る） |
+| [`docs/GROUNDING.md`](docs/GROUNDING.md) | **接地の検証**：反事実世界の転移テスト（LLMが世界の帰結に接地しているか／訓練の再生かを反証可能に測る）＋ 学習中の接地推移（`GroundingMonitor`） |
+| [`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md) | **発達脳の統合契約 v1.0**：`llm_model_agi`（HierMamba脳）との境界。行動語彙44・param規約・観測スキーマ・target解決・報酬・teacher呼び出し |
 | [`docs/LOCAL.md`](docs/LOCAL.md) | 自分のPC（Ollama など）で動かす最小構成 |
 
 ## ライセンス

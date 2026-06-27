@@ -26,9 +26,14 @@ emergence/
   metrics.py      犯罪件数・生存率・可決率・詐欺・協調などの集計
   simulation.py   メインループ：観測→意思決定→行動適用→エネルギー減衰→死→日次集計
   brains/
-    base.py       AgentBrain インターフェース
-    heuristic.py  オフライン決定論的な脳
-    llm.py        実LLM（OpenAI互換=Llama / Anthropic）アダプタ
+    base.py            AgentBrain インターフェース
+    heuristic.py       オフライン決定論的な脳
+    llm.py             実LLM（OpenAI互換=Llama / Anthropic）アダプタ
+    neural.py          発達脳アダプタ（経験から継続学習；依存任意・失敗時はheuristicへ縮退）
+    _neural_reward.py  観測差分→報酬（純Python・torch不要）
+    neural_contract.py 世界⇄発達脳の契約の真実源（行動語彙・param規約・観測スキーマ・target解決）
+  grounding.py    接地検証器：反事実世界の転移テスト（excess＝ヒューリスティック床超過分）
+  grounding_monitor.py  学習中に接地スコアの推移を記録（GroundingMonitor）
   scenario.py     人口生成とシミュレーション組み立て
   report.py       実行後の人間可読レポート
   cli.py          コマンドライン入口（--compare / --html / --llm …）
@@ -108,6 +113,35 @@ sim.run(verbose=True)
 
 Claude（Anthropic）に向ける場合は `provider="anthropic"`, `model="claude-sonnet-4-6"`,
 `api_key=$ANTHROPIC_API_KEY` を指定します。
+
+## 発達脳で動かす（NeuralDevelopmentalBrain・実験的）
+
+LLM脳が「凍結した賢い人形」なのに対し、`NeuralDevelopmentalBrain` は **世界の中で経験から
+継続学習し、親（teacher）に育てられる脳**です。重い本体（HierMamba/policy/world-model/Titans
+/replay/発達段階）は別パッケージ `llm_model_agi` にあり、本リポジトリは薄い `AgentBrain`
+アダプタだけを持ちます。
+
+- **opt-in・既定OFF**：何も指定しなければ baseline は不変（決定論契約を破らない）
+- **依存は任意**：`pip install .[neural]`（`torch` + `llm_model_agi`）。未導入なら `decide()` は
+  毎回 `HeuristicBrain` に縮退（LLM脳と同じ安全策。一度失敗したら以降はラッチして再試行しない）
+- **新しいエンジン契約を足さない**：実装は `decide(agent, observation)` のみ。報酬はエンジンを
+  変えず、観測の差分（energy/money/reputation）から `_neural_reward.py` が算出
+- **1体1インスタンスを生涯再利用**するので学習状態が累積。`--neural` は新生児にも発達脳を結線し、
+  子世代が「親に育てられる」
+
+```bash
+pip install .[neural]
+python3 -m emergence.cli --persona claude --neural --llm --maslow --days 30
+#   --llm を併用すると既存 LLMBrain が teacher（親）になる
+```
+
+世界⇄脳の境界は **正典 [`NEURAL_CONTRACT.md`](NEURAL_CONTRACT.md)**（行動語彙44・param規約・
+観測スキーマ・target解決・idleクランプ・teacher呼び出し）に固定し、`neural_contract.py` を
+真実源として両側が import します。ドリフトは `tests/test_neural_contract.py` のガードが検知し、
+`[neural]` 導入環境では往復契約テスト（`.github/workflows/neural-integration.yml`）で結合を確認します。
+
+「賢い振る舞いが世界への接地か、訓練データの再生か」を反証可能に測る器が
+[`GROUNDING.md`](GROUNDING.md)。発達脳が *育って接地が伸びるか* は `GroundingMonitor` で追えます。
 
 ## 可視化（HTML）
 
