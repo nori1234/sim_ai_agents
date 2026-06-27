@@ -68,6 +68,29 @@ result = run_grounding_probe("claude", rule="demurrage", days=20)
 print(result.as_dict())   # control_rate, counterfactual_rate, divergence, floor, excess, verdict
 ```
 
+## Tracking grounding *over training* — `GroundingMonitor`
+
+A single probe scores a snapshot. To watch grounding **emerge as a developmental
+brain learns**, `emergence.grounding_monitor.GroundingMonitor` runs the probe on a
+cadence and keeps the `excess` time series — the curve the `llm_model_agi`
+learning loop logs:
+
+```python
+from emergence.grounding_monitor import GroundingMonitor
+
+monitor = GroundingMonitor(persona="claude", every=10, on_result=trainer.log)
+for epoch in range(n_epochs):
+    train_one_epoch(...)
+    # brain_factory must yield brains with the CURRENT trained weights
+    monitor.maybe_probe(epoch, brain_factory=current_brain_factory)
+
+monitor.to_jsonl("grounding.jsonl")
+monitor.improving()    # did excess trend up over training?
+```
+
+The probe runs its own fresh simulations (it never touches the training run), and
+the logged headline is `excess`, never the raw divergence.
+
 ## What it is and is not
 
 * It **is** a falsifiable test: a model that only replays will score ~0 excess,
