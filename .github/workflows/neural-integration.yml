@@ -36,6 +36,20 @@ jobs:
       - name: Install the engine (this repo)
         run: pip install -e .
 
+      # llm_model_agi is private, so the runner cannot clone it anonymously.
+      # Rewrite github.com URLs to use a fine-grained PAT (Contents:read), stored
+      # as the LLM_MODEL_AGI_TOKEN secret. The token is not echoed to logs, and the
+      # ref input below stays a plain https git+ URL.
+      - name: Auth for the private brain repo
+        env:
+          LLM_TOKEN: ${{ secrets.LLM_MODEL_AGI_TOKEN }}
+        run: |
+          if [ -z "$LLM_TOKEN" ]; then
+            echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Install torch + the developmental-brain package
         run: |
           pip install "${{ inputs.torch_spec }}"
