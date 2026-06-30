@@ -76,10 +76,11 @@ def main(argv: list[str] | None = None) -> int:
 
     d = result.as_dict()
     brain = "LLM" if args.llm else "heuristic (offline floor)"
+    behaviour = d["target_behaviour"]
     print(f"Counterfactual transfer test — rule={d['rule']!r}  brain={brain}")
-    print(f"  scored behaviour : {d['target_behaviour']!r} events per agent-day")
-    print(f"  control world    : {d['control_rate']:.4f}   (savings grow)")
-    print(f"  counterfactual   : {d['counterfactual_rate']:.4f}   (savings shrink)")
+    print(f"  scored behaviour : {behaviour!r} events per agent-day")
+    print(f"  control world    : {d['control_rate']:.4f}   (normal rule)")
+    print(f"  counterfactual   : {d['counterfactual_rate']:.4f}   (rule inverted)")
     print(f"  divergence       : {d['divergence']:+.4f}   (control - counterfactual)")
     print(f"  heuristic floor  : {d['floor_divergence']:+.4f}   (mechanical, no learning)")
     print(f"  excess over floor: {d['excess']:+.4f}   ← the grounding signal")
@@ -87,8 +88,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.llm:
         print("\nNote: with heuristic brains the tested brain IS the floor, so the "
               "excess is\nzero by construction. The non-zero divergence is purely "
-              "mechanical feedback\n(shrinking deposits change later choices). Run "
-              "--llm for a real verdict.")
+              f"mechanical feedback\n(an inverted rule changes later {behaviour!r} "
+              "choices). Run --llm for a real verdict.")
     return 0
 
 
