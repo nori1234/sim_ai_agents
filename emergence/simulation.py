@@ -813,7 +813,19 @@ class Simulation:
         if not self.status.enabled:
             return
         rep = self.status.rep_per_feast_coin * fee
+        if self.counterfactual.enabled and self.counterfactual.rule == "vanity":
+            # Counterfactual law (grounding probe): conspicuous spending SHAMES
+            # rather than honours — against the prior that lavish display buys
+            # status. The host loses standing by the same measure, and the loss is
+            # written to memory (the only channel by which it can learn the rule).
+            taker.reputation = max(0.0, taker.reputation - rep)
+            self.world.log("feast", host=taker.id, spent=fee, shamed=True)
+            taker.remember(
+                f"Day {self.world.day}: my lavish feast cost me standing — "
+                f"showing off is shameful here, not admired.")
+            return
         self._recognise(taker, rep, self.status.achievement_relief, "feast")
+        self.world.log("feast", host=taker.id, spent=fee)
 
     @property
     def _service_effects(self):

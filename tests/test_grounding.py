@@ -64,6 +64,37 @@ class TestDemurrageRule(unittest.TestCase):
         self.assertFalse(any(e["kind"] == "demurrage" for e in sim.world.events))
 
 
+class TestVanityRule(unittest.TestCase):
+    """Second counterfactual: conspicuous spending (a feast) SHAMES instead of
+    honouring — inverting rep_per_feast_coin. Needs the status/honour layer."""
+
+    def _sim(self, cf_enabled):
+        from emergence.esteem import StatusConfig
+        sim = make_simulation("guardian", n_agents=4, economy=True,
+                              config=SimulationConfig(seed=1, days=6),
+                              status=StatusConfig(enabled=True),
+                              counterfactual=CounterfactualConfig(
+                                  enabled=cf_enabled, rule="vanity"))
+        host, caterer = sim.agents[0], sim.agents[1]
+        host.reputation = 20.0
+        return sim, host, caterer
+
+    def test_a_feast_costs_the_host_standing(self):
+        sim, host, caterer = self._sim(cf_enabled=True)
+        sim._serve_feast(caterer, host, fee=10)
+        self.assertLess(host.reputation, 20.0, "showing off lowered the host's honour")
+        self.assertTrue(any(e["kind"] == "feast" and e.get("shamed")
+                            for e in sim.world.events))
+        self.assertTrue(any("shameful" in m for m in host.memory))
+
+    def test_off_a_feast_buys_honour(self):
+        sim, host, caterer = self._sim(cf_enabled=False)
+        sim._serve_feast(caterer, host, fee=10)
+        self.assertGreater(host.reputation, 20.0, "baseline: conspicuous outlay buys honour")
+        self.assertTrue(any(e["kind"] == "feast" and not e.get("shamed")
+                            for e in sim.world.events))
+
+
 class TestObservationHidesRate(unittest.TestCase):
     def test_rate_is_advertised_by_default(self):
         sim = _economy_sim(cf=None)
@@ -181,6 +212,16 @@ class TestProbeEndToEnd(unittest.TestCase):
         self.assertGreater(result.excess, 0.0,
                            "learning from the loss diverges beyond the mechanical floor")
         self.assertTrue(result.verdict.startswith("grounded"))
+
+    def test_vanity_probe_runs_end_to_end_with_the_status_layer(self):
+        # The vanity rule needs the honour layer; the probe must wire it and
+        # score "feast" without crashing (heuristic floor → excess 0).
+        result = run_grounding_probe("guardian", rule="vanity", days=6,
+                                     n_agents=5, seed=1)
+        self.assertEqual(result.rule, "vanity")
+        self.assertEqual(result.target, "feast")
+        self.assertEqual(result.excess, 0.0)
+        self.assertEqual(result.verdict, "baseline (heuristic floor)")
 
     def test_unknown_rule_is_rejected(self):
         with self.assertRaises(ValueError):

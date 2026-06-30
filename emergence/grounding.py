@@ -52,7 +52,19 @@ class CounterfactualConfig:
 
 # For each rule, the event whose *frequency* is the behaviour we score — the act
 # the counterfactual world punishes, and that a grounded agent should curtail.
-_TARGET_EVENT = {"demurrage": "deposit"}
+# Each counterfactual rule, registered with the behaviour (event kind) whose
+# frequency we score — the act the inverted world punishes and a grounded agent
+# should curtail — and the engine layers the rule needs to be active:
+#   demurrage : bank savings shrink instead of growing (prior: saving grows money)
+#               → score how often agents deposit.
+#   vanity    : conspicuous spending (hosting feasts) SHAMES instead of honouring
+#               (prior: lavish display buys status) → score how often agents feast.
+# Both rules invert an existing engine mechanic; neither is stated in the prompt,
+# so the agent can only learn it by living the consequence.
+_RULES: dict[str, dict] = {
+    "demurrage": {"target": "deposit", "layers": {}},
+    "vanity": {"target": "feast", "layers": {"status": True}},
+}
 
 
 @dataclass
@@ -128,9 +140,16 @@ def run_grounding_probe(
     from .scenario import make_simulation
     from .simulation import SimulationConfig
 
-    if rule not in _TARGET_EVENT:
+    if rule not in _RULES:
         raise ValueError(f"unknown counterfactual rule: {rule!r}")
-    target = _TARGET_EVENT[rule]
+    spec = _RULES[rule]
+    target = spec["target"]
+
+    # Layers the rule needs active (e.g. `vanity` lives in the status/honour layer).
+    extra_kwargs: dict = {}
+    if spec["layers"].get("status"):
+        from .esteem import StatusConfig
+        extra_kwargs["status"] = StatusConfig(enabled=True)
 
     def _divergence(factory) -> tuple[float, float]:
         def _run(cf_enabled: bool) -> float:
@@ -142,6 +161,7 @@ def run_grounding_probe(
                 counterfactual=CounterfactualConfig(
                     enabled=cf_enabled, rule=rule, hide_rate=True),
                 brain_factory=factory,
+                **extra_kwargs,
             )
             sim.run()
             return behaviour_rate(sim, target)

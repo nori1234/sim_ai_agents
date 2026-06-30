@@ -15,14 +15,20 @@ indistinguishable, so success proves nothing.
 We break the prior. A **counterfactual world** inverts one existing rule into
 something the model has (almost) never read, and we never state the new rule in
 the prompt — the agent can only discover it by living through its consequences.
+The rules are registered in `_RULES` (each pairs the inverted law with the
+behaviour whose frequency is scored, and the engine layers it needs):
 
-The first rule is **demurrage**: money left in a bank *shrinks* (a negative
-interest rate) instead of growing. This contradicts one of the strongest priors
-in any text corpus ("saving grows your money").
+| rule | inverted law (vs the prior) | scored behaviour | needs |
+|---|---|---|---|
+| **demurrage** | money left in a bank *shrinks* — negative interest — instead of growing (prior: "saving grows your money") | `deposit` | economy |
+| **vanity** | hosting a lavish feast *lowers* the host's standing instead of buying honour (prior: conspicuous display buys status) | `feast` | status |
+
+Agreement across several independent rules is far stronger evidence of grounding
+than any single one — a replayer might fluke one, not all.
 
 We then run two otherwise-identical towns (same seed, persona, layers) and score
-how often agents perform the punished behaviour (here, `deposit`), normalised per
-agent-day:
+how often agents perform the punished behaviour, normalised per agent-day. For
+`demurrage`:
 
 | world | rule | a grounded agent | a replaying agent |
 |---|---|---|---|
@@ -98,13 +104,15 @@ the logged headline is `excess`, never the raw divergence.
 * It is **inert when off**. `CounterfactualConfig` defaults to disabled with the
   rate advertised as usual, so the determinism baseline
   (`tests/test_baseline_contract.py`) is byte-identical.
-* It is **conserved**: demurrage shrinks the depositor's *claim* and the bank's
-  liability by the same amount — no coin is minted or burned.
-* It is **one rule, one behaviour** so far. The natural next rules (each a new
-  entry in `_TARGET_EVENT`) are ones equally absent from training: *gifts lower
-  status*, *lying is visible*, *hoarding spoils*. Each gives an independent
-  transfer test, and agreement across several is far stronger evidence than any
-  one.
+* It **respects the engine's primitives**: `demurrage` is conserved (it shrinks
+  the depositor's *claim* and the bank's liability by the same amount — no coin
+  minted or burned); `vanity` adjusts the host's reputation (a non-conserved
+  status score, like any honour change), it does not touch coin.
+* It is **two rules so far** (`demurrage`, `vanity`), each a new entry in
+  `_RULES`. Further rules equally absent from training — *lying is visible*,
+  *hoarding spoils* — are cheap to add (invert one existing mechanic, register the
+  scored behaviour and the layers it needs). Agreement across several independent
+  rules is far stronger evidence of grounding than any one.
 
 ## Why this comes before 3D
 
