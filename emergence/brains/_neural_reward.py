@@ -45,6 +45,26 @@ def _others(obs: Any) -> list:
     return others or []
 
 
+def _economy(obs: Any) -> dict:
+    econ = getattr(obs, "economy", None)
+    if econ is None and isinstance(obs, dict):
+        econ = obs.get("economy")
+    return econ if isinstance(econ, dict) else {}
+
+
+def _wealth(obs: Any) -> float:
+    """Spendable + banked wealth. Bank deposits are *claims* (in
+    ``economy.my_deposits``), not coin in ``self_view.money`` — so a deposit moves
+    wealth between the two without changing it, and a rule that shrinks deposits
+    (demurrage) shows up as a real wealth loss. Counting deposits here is what
+    gives the demurrage counterfactual a reward signal at all; without it the
+    penalty lives only in a memory line and RL has no gradient to learn it."""
+    money = float(_self_view(obs).get("money", 0.0))
+    deposits = sum(float(d.get("amount", 0))
+                   for d in _economy(obs).get("my_deposits", []) or [])
+    return money + deposits
+
+
 def _social_signal(obs: Any) -> float:
     """Standing in the eyes of others: reputation when the status layer surfaces
     it, otherwise the mean trust this agent extends to its neighbours."""
@@ -58,13 +78,13 @@ def _social_signal(obs: Any) -> float:
 def survival_reward(prev: Any, cur: Any, weights: dict | None = None) -> float:
     """The world-grounded reward for the transition ``prev -> cur``.
 
-    A weighted sum of the change in energy, money and social standing. Positive
-    when the agent grew safer, richer or better regarded; negative when it
-    declined. Returns ``0.0`` if either observation lacks the fields, so a missing
-    layer never throws."""
+    A weighted sum of the change in energy, wealth (coin + bank deposits) and
+    social standing. Positive when the agent grew safer, richer or better
+    regarded; negative when it declined. Returns ``0.0`` if either observation
+    lacks the fields, so a missing layer never throws."""
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     psv, csv = _self_view(prev), _self_view(cur)
     d_energy = float(csv.get("energy", 0.0)) - float(psv.get("energy", 0.0))
-    d_money = float(csv.get("money", 0.0)) - float(psv.get("money", 0.0))
+    d_wealth = _wealth(cur) - _wealth(prev)        # coin + deposits, so demurrage bites
     d_social = _social_signal(cur) - _social_signal(prev)
-    return w["energy"] * d_energy + w["money"] * d_money + w["social"] * d_social
+    return w["energy"] * d_energy + w["money"] * d_wealth + w["social"] * d_social
