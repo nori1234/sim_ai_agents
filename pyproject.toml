@@ -15,12 +15,16 @@ license = { text = "MIT" }
 # (it speaks HTTP via urllib).
 dependencies = []
 
-# Optional: the developmental, continually-learning brain
-# (emergence.brains.neural.NeuralDevelopmentalBrain). Heavy ML deps live here so
-# the engine and the offline baseline stay dependency-free; absent these, the
-# neural brain degrades to the heuristic brain. Install with: pip install .[neural]
+# Optional: the runtime for the developmental, continually-learning brain
+# (emergence.brains.neural.NeuralDevelopmentalBrain). Only torch is on PyPI, so
+# that is all this extra carries. The brain itself lives in the *private* repo
+# `llm_model_agi` (not on PyPI) and is installed separately from git, e.g.:
+#     pip install .[neural]
+#     pip install "git+https://github.com/nori1234/llm_model_agi@<ref>"
+# Absent either, the neural brain degrades to the heuristic brain, so the engine
+# and the offline baseline stay dependency-free.
 [project.optional-dependencies]
-neural = ["torch", "llm_model_agi"]
+neural = ["torch"]
 
 [project.scripts]
 emergence = "emergence.cli:main"

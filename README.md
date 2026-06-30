@@ -96,14 +96,17 @@ python3 -m emergence.cli --persona claude --llm --memory --environment --days 5
 凍結モデル（賢いが学習しない）ではなく、**世界の中で経験から育つ脳**に差し替える：
 
 ```bash
-pip install .[neural]                                          # torch + 発達脳パッケージ（任意）
+pip install .[neural]                                  # torch（発達脳の実行基盤。これだけPyPI）
+pip install "git+https://github.com/nori1234/llm_model_agi@<ref>"   # 発達脳本体（private repo・要アクセス権）
 python3 -m emergence.cli --persona claude --neural --llm --maslow --days 30
 #   --neural … 発達脳。--llm を併せると既存LLMが「親（teacher）」になり、子世代も育つ
 ```
 
-依存（`torch` / `llm_model_agi`）が無ければ自動で `HeuristicBrain` に縮退するので、既定の
-オフライン体験は変わりません。世界⇄脳の境界は [`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md)
-が正典（行動語彙・観測スキーマ・報酬）。接地が*育つ*かは [`docs/GROUNDING.md`](docs/GROUNDING.md)。
+依存（`torch` / `llm_model_agi`）が**無ければ自動で `HeuristicBrain` に縮退**するので、既定の
+オフライン体験は変わりません（`llm_model_agi` は private のため PyPI に無く、`[neural]` extra は
+torch のみ。脳本体は上記の git から別途入れます）。世界⇄脳の境界は
+[`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md) が正典（行動語彙・観測スキーマ・報酬）。
+接地が*育つ*かは [`docs/GROUNDING.md`](docs/GROUNDING.md)。
 
 ## ドキュメント
 
