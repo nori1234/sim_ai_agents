@@ -122,15 +122,17 @@ LLM脳が「凍結した賢い人形」なのに対し、`NeuralDevelopmentalBra
 アダプタだけを持ちます。
 
 - **opt-in・既定OFF**：何も指定しなければ baseline は不変（決定論契約を破らない）
-- **依存は任意**：`pip install .[neural]`（`torch` + `llm_model_agi`）。未導入なら `decide()` は
-  毎回 `HeuristicBrain` に縮退（LLM脳と同じ安全策。一度失敗したら以降はラッチして再試行しない）
+- **依存は任意**：`pip install .[neural]` が `torch`（PyPI上はこれだけ）を入れ、脳本体 `llm_model_agi`
+  は private repo のため `pip install "git+https://github.com/nori1234/llm_model_agi@<ref>"` で別途導入。
+  未導入なら `decide()` は毎回 `HeuristicBrain` に縮退（LLM脳と同じ安全策。一度失敗したら以降はラッチして再試行しない）
 - **新しいエンジン契約を足さない**：実装は `decide(agent, observation)` のみ。報酬はエンジンを
   変えず、観測の差分（energy/money/reputation）から `_neural_reward.py` が算出
 - **1体1インスタンスを生涯再利用**するので学習状態が累積。`--neural` は新生児にも発達脳を結線し、
   子世代が「親に育てられる」
 
 ```bash
-pip install .[neural]
+pip install .[neural]                                  # torch（PyPI上はこれだけ）
+pip install "git+https://github.com/nori1234/llm_model_agi@<ref>"   # 脳本体（private・要アクセス権）
 python3 -m emergence.cli --persona claude --neural --llm --maslow --days 30
 #   --llm を併用すると既存 LLMBrain が teacher（親）になる
 ```

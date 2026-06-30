@@ -20,9 +20,9 @@ the engine changes out from under it.
 | **Engine** (`sim_ai_agents`, this repo) | `NeuralDevelopmentalBrain` adapter, the survival reward (`_neural_reward.py`), this contract + its drift guards, the round-trip contract test |
 | **Brain** (`llm_model_agi`) | the `agent` package: `DevelopmentalAgent` (HierMamba/policy/value/world-model/Titans/replay/L0–L3) **and** `agent.adapters.emergence`: `build_brain`, `to_engine_action`, `EmergenceObsTokenizer` |
 
-The dependency points one way: the engine imports the brain (lazily, behind the
-`[neural]` extra) and **never** the reverse. Absent the extra, the engine runs
-unchanged on the heuristic.
+The dependency points one way: the engine imports the brain lazily (the `[neural]`
+extra carries `torch`; the brain package `llm_model_agi` is a private git install)
+and **never** the reverse. Absent either, the engine runs unchanged on the heuristic.
 
 ## The interface the brain side provides
 
