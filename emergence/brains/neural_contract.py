@@ -73,8 +73,13 @@ PARAM_SPEC: dict[str, dict] = {
     "rebel": {},
     "preach": {},
     "worship": {},
+    # offer has three alternative param-sets (| marks each boundary):
+    #   swap    : give_item, give_qty, want_item, want_qty
+    #   service : service, want_item, want_qty (the fee; 0 = charity)
+    #   loan    : item, principal, repay
     "offer": {"give_item": "str", "give_qty": "int", "want_item": "str", "want_qty": "int",
-              "|service": "str (e.g. healing/feast)", "want_item ": "money", "want_qty ": "int (0=free)"},
+              "|service": "str (a service you perform, e.g. healing/feast)",
+              "|item": "str (loan: the lent item)", "|principal": "int", "|repay": "int"},
     "accept": {"offer_id": "int"},
     "craft": {"item": "str (a recipe output)"},
     "lend": {"to": "agent_id", "item": "money", "qty": "int", "repay": "int", "due_in_days": "int"},

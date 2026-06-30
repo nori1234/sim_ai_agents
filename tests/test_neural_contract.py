@@ -66,6 +66,19 @@ class TestContractInSync(unittest.TestCase):
         self.assertEqual(C.ACTION_VOCAB[0], C.IDLE_ACTION,
                          "the clamp fallback ACTION_VOCAB[0] must be idle")
 
+    def test_every_vocab_action_is_dispatchable_without_raising(self):
+        # The engine must have a handler for every verb a policy can emit, and an
+        # action with empty params must degrade gracefully (never raise). This is
+        # the safety net the idle/out-of-vocab clamp and any partial spec rely on.
+        sim = make_simulation("guardian", n_agents=4,
+                              config=SimulationConfig(seed=1), economy=True)
+        agent = sim.agents[0]
+        for verb in C.ACTION_VOCAB:
+            try:
+                sim._apply(agent, Action(ActionType(verb), {}))
+            except Exception as exc:                       # pragma: no cover
+                self.fail(f"action {verb!r} raised on empty params: {exc!r}")
+
     def test_target_key_maps_reference_only_real_actions(self):
         for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY}:
             self.assertIn(verb, C.ACTION_VOCAB, f"{verb!r} is not an engine action")
