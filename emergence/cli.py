@@ -76,9 +76,30 @@ def _llm_factory(args):
     return factory
 
 
+def _neural_factory(args):
+    """A brain_factory of developmental, continually-learning brains. The teacher
+    (parent) is an LLMBrain when --llm is also given, else None (heuristic-parented).
+    Falls back to the heuristic per agent if torch/llm_model_agi aren't installed."""
+    from .brains.neural import NeuralDevelopmentalBrain
+    teacher_factory = _llm_factory(args) if getattr(args, "llm", False) else None
+
+    def factory(agent, persona, rng):
+        teacher = teacher_factory(agent, persona, rng) if teacher_factory else None
+        return NeuralDevelopmentalBrain(
+            persona, teacher=teacher,
+            checkpoint=getattr(args, "neural_ckpt", None))
+
+    return factory
+
+
 def _run_one(persona_mix, args, governance: str = "direct"):
     config = SimulationConfig(days=args.days, ticks_per_day=args.ticks, seed=args.seed)
-    brain_factory = _llm_factory(args) if getattr(args, "llm", False) else None
+    if getattr(args, "neural", False):
+        brain_factory = _neural_factory(args)
+    elif getattr(args, "llm", False):
+        brain_factory = _llm_factory(args)
+    else:
+        brain_factory = None
     sim = make_simulation(persona_mix, n_agents=args.agents, config=config,
                           governance=governance, drives=_drives_from_args(args),
                           status=_status_from_args(args),
@@ -93,6 +114,12 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           memory_path=getattr(args, "memory_db", None) or ":memory:",
                           individuals=bool(getattr(args, "individuals", False)),
                           brain_factory=brain_factory)
+    if getattr(args, "neural", False):
+        # The same factory mints newborn brains too, so the next generation is
+        # raised on the developmental brain (it accepts persona as a key string,
+        # which is what the newborn path passes). Without this, children default
+        # to the heuristic.
+        sim.newborn_brain_factory = brain_factory
     sim.run(verbose=args.verbose and not args.json)
     return sim
 
@@ -217,6 +244,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="OpenAI-compatible base URL (env: LLM_BASE_URL)")
     parser.add_argument("--llm-key", default=None,
                         help="API key if the endpoint needs one (env: LLM_API_KEY)")
+    parser.add_argument("--neural", action="store_true",
+                        help="drive agents with the developmental continually-learning "
+                             "brain (needs pip install .[neural]; pair with --llm to give "
+                             "it an LLM teacher); degrades to heuristic if deps are absent")
+    parser.add_argument("--neural-ckpt", dest="neural_ckpt", default=None,
+                        metavar="PATH", help="checkpoint to warm-start the neural brain")
     parser.add_argument("--json", action="store_true", help="emit JSON metrics only")
     parser.add_argument("--verbose", action="store_true", help="print daily summaries")
     parser.add_argument("--html", metavar="PATH", help="write HTML visualization")

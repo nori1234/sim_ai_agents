@@ -15,6 +15,13 @@ license = { text = "MIT" }
 # (it speaks HTTP via urllib).
 dependencies = []
 
+# Optional: the developmental, continually-learning brain
+# (emergence.brains.neural.NeuralDevelopmentalBrain). Heavy ML deps live here so
+# the engine and the offline baseline stay dependency-free; absent these, the
+# neural brain degrades to the heuristic brain. Install with: pip install .[neural]
+[project.optional-dependencies]
+neural = ["torch", "llm_model_agi"]
+
 [project.scripts]
 emergence = "emergence.cli:main"
 

@@ -14,6 +14,7 @@ from .affordances import affordances_at, gather_multiplier, gather_specialty, ro
 from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicitation
 from .esteem import StatusConfig, esteem_urge
 from .ecology import EcologyConfig
+from .grounding import CounterfactualConfig
 from .psyche import PsycheConfig, actualization_pull, fear_level
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
@@ -113,6 +114,9 @@ class Simulation:
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
     society: SocietyConfig = field(default_factory=SocietyConfig)
     ecology: EcologyConfig = field(default_factory=EcologyConfig)
+    # Counterfactual-world transfer test (grounding falsification probe); opt-in.
+    # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
+    counterfactual: CounterfactualConfig = field(default_factory=CounterfactualConfig)
     gangs: list = field(default_factory=list)        # list[Gang]
     religions: list = field(default_factory=list)    # list[Religion]
     # Optional external-world layer (environment.Environment); opt-in.
@@ -356,7 +360,11 @@ class Simulation:
                       # and the deposit-receipts you currently hold (claims a bank
                       # owes you). Withdrawing can come up short if the bank spent it.
                       "bank_here": self._banker_near(agent),
-                      "deposit_rate": MK.DEPOSIT_INTEREST_PER_DAY,
+                      # The advertised rate is suppressed under the grounding
+                      # probe (hide_rate) so the agent must *experience* the
+                      # bank's behaviour, not read the rule off the prompt.
+                      "deposit_rate": (None if self.counterfactual.hide_rate
+                                       else MK.DEPOSIT_INTEREST_PER_DAY),
                       "my_deposits": [d.as_dict() for d in self.deposits
                                       if d.holder == agent.id and d.amount > 0]}
                      if self.economy else {}),
@@ -1705,7 +1713,13 @@ class Simulation:
         its reserves — conserved, no money minted. A bank funds this by lending
         those reserves at a higher rate (the spread is its profit); one that has
         lent out too much can't cover the interest, an early tremor before a run.
-        Savings that visibly grow are what draw deposits in (the missing demand)."""
+        Savings that visibly grow are what draw deposits in (the missing demand).
+
+        Under the counterfactual `demurrage` rule (the grounding probe) the law is
+        inverted: savings shrink instead of growing — handled separately below."""
+        if self.counterfactual.enabled and self.counterfactual.rule == "demurrage":
+            self._apply_demurrage()
+            return
         for dep in self.deposits:
             if dep.amount <= 0:
                 continue
@@ -1719,6 +1733,28 @@ class Simulation:
             bank.take("money", paid)
             holder.add("money", paid)
             self.world.log("interest", bank=bank.id, holder=holder.id, amount=paid)
+
+    def _apply_demurrage(self) -> None:
+        """Counterfactual law (grounding probe): money left with a bank evaporates
+        daily, against the strong training-data prior that savings grow. Conserved
+        in coin — the depositor's *claim* shrinks and the bank's liability falls by
+        the same amount; no coin is minted or burned (the coin already sits in the
+        bank's hands). The loss is logged and written into the holder's memory,
+        which is the only channel by which an agent can discover the rule."""
+        rate = self.counterfactual.demurrage_per_day
+        for dep in self.deposits:
+            if dep.amount <= 0:
+                continue
+            lost = round(dep.amount * rate)
+            if lost <= 0:
+                continue
+            dep.amount -= lost
+            self.world.log("demurrage", bank=dep.bank, holder=dep.holder, amount=lost)
+            holder = self._by_id.get(dep.holder)
+            if holder is not None and holder.alive:
+                holder.remember(
+                    f"Day {self.world.day}: {lost} coin of my bank savings "
+                    f"vanished — money left in a bank shrinks here, it doesn't grow.")
 
     def _religion_of(self, rid: str):
         for r in self.religions:

@@ -1,0 +1,56 @@
+name: neural-integration
+
+# The engine⇄developmental-brain round-trip contract (tests/test_neural_contract.py
+# :: TestRoundTripContract) can only run where the [neural] extra is installed —
+# torch + the external llm_model_agi package, which the normal `tests` workflow
+# deliberately omits (there the round-trip skips). This manually-triggered job is
+# the shared green-check both teams agreed on: it installs the brain package, then
+# runs the contract, and FAILS LOUDLY if the adapter can't even be imported (so a
+# skipped test never masquerades as a pass).
+
+on:
+  workflow_dispatch:
+    inputs:
+      llm_model_agi_ref:
+        description: >-
+          pip install spec for the brain package providing agent.adapters.emergence
+          (e.g. a git ref: git+https://github.com/nori1234/llm_model_agi@<branch>,
+          or a PyPI name). The sibling repo is not assumed to be on PyPI, so pass
+          the source explicitly.
+        required: true
+        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+      torch_spec:
+        description: "pip install spec for torch (CPU wheel is fine)"
+        required: false
+        default: "torch"
+
+jobs:
+  round-trip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the engine (this repo)
+        run: pip install -e .
+
+      - name: Install torch + the developmental-brain package
+        run: |
+          pip install "${{ inputs.torch_spec }}"
+          pip install "${{ inputs.llm_model_agi_ref }}"
+
+      - name: Guard — the adapter must actually import (a skip is NOT a pass)
+        run: |
+          python - <<'PY'
+          import importlib.util, sys
+          spec = importlib.util.find_spec("agent.adapters.emergence")
+          if spec is None:
+              sys.exit("agent.adapters.emergence did not install — the round-trip "
+                       "would skip and falsely pass. Check llm_model_agi_ref.")
+          print("agent.adapters.emergence importable — running the round-trip.")
+          PY
+
+      - name: Run the round-trip contract (and the always-on drift guards)
+        run: python -m unittest tests.test_neural_contract -v
