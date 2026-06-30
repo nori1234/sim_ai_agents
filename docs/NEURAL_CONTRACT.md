@@ -111,12 +111,22 @@ enum, so it cannot drift). Categories:
 `emergence/brains/_neural_reward.py`:
 
 ```
-survival = wₑ·Δenergy + wₘ·Δmoney + w_s·Δsocial      # defaults: 0.02 / 0.05 / 0.10
+survival = wₑ·Δenergy + wₘ·Δwealth + w_s·Δsocial      # defaults: 0.02 / 0.05 / 0.10
+   wealth = self_view.money + Σ economy.my_deposits[*].amount   (coin + bank claims)
+   social = self_view.reputation, else mean(others[*].trust)
 ```
 
 Curiosity / prediction-error is added **inside** the brain against its
 world-model; the engine supplies only this world-grounded extrinsic term. No
 reward API is added to the engine — it is derived from the observation delta.
+
+> **Reward-visibility invariant (for grounding probes).** A counterfactual rule
+> can only be learned by RL if its punished consequence lands in one of these
+> reward terms. `wealth` counts bank deposits precisely so the `demurrage` rule
+> (which shrinks a deposit *claim*, not `money`) produces a gradient — otherwise
+> the penalty lives only in a memory line and there is nothing for RL to descend.
+> `vanity` is already visible via `reputation`. When adding a rule, route its
+> consequence through energy / wealth / social, or it will read as "ungroundable".
 
 ## 5. Persistence & memory
 

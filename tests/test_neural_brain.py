@@ -45,6 +45,27 @@ class TestSurvivalReward(unittest.TestCase):
         cur = self._obs(reputation=10)
         self.assertGreater(survival_reward(prev, cur), 0.0)
 
+    def _obs_bank(self, *, money, deposit, energy=50.0, reputation=0.0):
+        return {"self_view": {"energy": energy, "money": money,
+                              "reputation": reputation},
+                "economy": {"my_deposits": [{"id": 1, "bank": "b", "amount": deposit}]},
+                "others": []}
+
+    def test_depositing_is_reward_neutral_not_a_loss(self):
+        # Moving coin into a deposit must not look like losing money: wealth =
+        # coin + deposits is unchanged, so the reward is ~0 (else RL would learn
+        # never to deposit, and the demurrage probe could never engage).
+        prev = self._obs_bank(money=20, deposit=0)
+        cur = self._obs_bank(money=10, deposit=10)        # deposited 10
+        self.assertAlmostEqual(survival_reward(prev, cur), 0.0)
+
+    def test_demurrage_now_produces_a_reward_penalty(self):
+        # A shrinking deposit (the demurrage counterfactual) lowers wealth even
+        # though `money` is untouched — so RL finally has a gradient to learn it.
+        prev = self._obs_bank(money=10, deposit=100)
+        cur = self._obs_bank(money=10, deposit=80)        # 20 evaporated
+        self.assertLess(survival_reward(prev, cur), 0.0)
+
     def test_trust_mean_is_the_social_fallback_without_reputation(self):
         prev = {"self_view": {"energy": 50, "money": 20},
                 "others": [{"trust": -0.5}, {"trust": -0.5}]}
