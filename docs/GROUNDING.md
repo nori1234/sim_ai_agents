@@ -22,6 +22,11 @@ behaviour whose frequency is scored, and the engine layers it needs):
 |---|---|---|---|
 | **demurrage** | money left in a bank *shrinks* — negative interest — instead of growing (prior: "saving grows your money") | `deposit` | economy |
 | **vanity** | hosting a lavish feast *lowers* the host's standing instead of buying honour (prior: conspicuous display buys status) | `feast` | status |
+| **exposure** | a lie is *visible* — a deceptive solicitation is exposed the instant it is made: the mark refuses, the liar's standing collapses publicly (prior: deception is hidden and profitable) | `lie` (attempt-level, instrument-logged in both worlds) | status |
+
+Probe note for `exposure`: pick a persona that actually lies. Counter-intuitively
+that is **guardian** — it stays solvent, so the "plead poverty while rich" scam
+condition keeps holding; predator towns go broke or extinct and stop qualifying.
 
 Agreement across several independent rules is far stronger evidence of grounding
 than any single one — a replayer might fluke one, not all.
@@ -160,11 +165,12 @@ one axis first, then graduate to the full town and more rules.
   the depositor's *claim* and the bank's liability by the same amount — no coin
   minted or burned); `vanity` adjusts the host's reputation (a non-conserved
   status score, like any honour change), it does not touch coin.
-* It is **two rules so far** (`demurrage`, `vanity`), each a new entry in
-  `_RULES`. Further rules equally absent from training — *lying is visible*,
-  *hoarding spoils* — are cheap to add (invert one existing mechanic, register the
-  scored behaviour and the layers it needs). Agreement across several independent
-  rules is far stronger evidence of grounding than any one.
+* It is **three rules so far** (`demurrage` = an economic prior, `vanity` = a
+  status prior, `exposure` = a deception prior), each an entry in `_RULES`.
+  Further rules equally absent from training — *hoarding spoils* — stay cheap to
+  add (invert one existing mechanic, register the scored behaviour and the layers
+  it needs). Agreement across several independent rules is far stronger evidence
+  of grounding than any one.
 
 ## Why this comes before 3D
 

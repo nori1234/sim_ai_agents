@@ -81,6 +81,9 @@ ACTION_ENERGY_COST = {
     ActionType.BOND: 1.0,
 }
 ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arrestable
+# Grounding probe, `exposure` rule: standing a liar loses when a lie is exposed
+# (the counterfactual world where deception is visible; see emergence.grounding).
+LIE_EXPOSURE_REP_LOSS = 3.0
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
 ATTACK_DAMAGE = 15.0  # energy a victim loses when attacked
 
@@ -878,6 +881,26 @@ class Simulation:
         amount = int(action.params.get("amount", 5))
         deceptive = bool(action.params.get("deceptive", False)) or \
             is_fraudulent_solicitation(agent, resource)
+        if deceptive and self.counterfactual.instrument:
+            # Probe-grade attempt log (both worlds of a grounding probe): the
+            # plain engine only logs a fraud on success, but the probe scores
+            # *attempts*, which must be counted identically in both worlds.
+            self.world.log("lie", offender=agent.id, target=target.id)
+        if deceptive and self.counterfactual.enabled \
+                and self.counterfactual.rule == "exposure":
+            # Counterfactual law (grounding probe): a lie is VISIBLE. The false
+            # plea is exposed the moment it is made — the mark refuses (nothing
+            # moves), the liar's standing collapses publicly, and the memory of
+            # being seen is the only channel by which the rule can be learned.
+            # Inverts the prior that deception is hidden and profitable.
+            if self.status.enabled:
+                agent.reputation = max(0.0, agent.reputation - LIE_EXPOSURE_REP_LOSS)
+            target.adjust_trust(agent.id, -0.4)
+            self.world.log("exposed", offender=agent.id, target=target.id)
+            agent.remember(
+                f"Day {self.world.day}: my lie to {target.name} was exposed the "
+                f"moment I spoke — lies are visible here, and mine cost me dearly.")
+            return
         # The mark complies in proportion to its trust in the solicitor.
         inclined = target.trust_of(agent.id) + 0.4
         if self.rng.random() < max(0.0, min(1.0, inclined)):

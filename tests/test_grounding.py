@@ -95,6 +95,73 @@ class TestVanityRule(unittest.TestCase):
                             for e in sim.world.events))
 
 
+class TestExposureRule(unittest.TestCase):
+    """Third counterfactual: a lie is VISIBLE — a deceptive solicitation is
+    exposed the moment it is made, inverting the prior that deception is hidden
+    and profitable. Scored on attempt-level "lie" events (instrument-logged in
+    both worlds, since the plain engine only logs a fraud on success)."""
+
+    def _sim(self, *, cf_enabled, instrument=True):
+        from emergence.esteem import StatusConfig
+        sim = make_simulation("predator", n_agents=4, economy=True,
+                              config=SimulationConfig(seed=1, days=6),
+                              status=StatusConfig(enabled=True),
+                              counterfactual=CounterfactualConfig(
+                                  enabled=cf_enabled, rule="exposure",
+                                  instrument=instrument))
+        liar, mark = sim.agents[0], sim.agents[1]
+        liar.money = 50                     # pleads poverty while holding plenty
+        liar.reputation = 10.0
+        mark.money = 30
+        mark.adjust_trust(liar.id, 1.0)     # a trusting mark: the con WOULD land
+        return sim, liar, mark
+
+    def _lie(self, sim, liar, mark):
+        sim._do_solicit(liar, Action(ActionType.SOLICIT,
+                                     {"target": mark.id, "resource": "money",
+                                      "amount": 5, "deceptive": True}))
+
+    def test_a_lie_is_exposed_and_costs_standing(self):
+        sim, liar, mark = self._sim(cf_enabled=True)
+        self._lie(sim, liar, mark)
+        self.assertEqual(liar.money, 50, "the exposed con moves nothing")
+        self.assertEqual(mark.money, 30)
+        self.assertLess(liar.reputation, 10.0, "lying in the open costs standing")
+        self.assertLess(mark.trust_of(liar.id), 1.0)
+        kinds = [e["kind"] for e in sim.world.events]
+        self.assertIn("lie", kinds)
+        self.assertIn("exposed", kinds)
+        self.assertNotIn("fraud", kinds)
+        self.assertTrue(any("visible" in m for m in liar.memory))
+
+    def test_off_the_con_lands_as_before(self):
+        sim, liar, mark = self._sim(cf_enabled=False)
+        self._lie(sim, liar, mark)
+        self.assertGreater(liar.money, 50, "control world: the trusting mark pays")
+        self.assertEqual(liar.reputation, 10.0, "no public exposure in control")
+        kinds = [e["kind"] for e in sim.world.events]
+        self.assertIn("lie", kinds, "the attempt is instrument-logged in BOTH worlds")
+        self.assertIn("fraud", kinds)
+        self.assertNotIn("exposed", kinds)
+
+    def test_uninstrumented_baseline_logs_no_lie_events(self):
+        sim, liar, mark = self._sim(cf_enabled=False, instrument=False)
+        self._lie(sim, liar, mark)
+        kinds = [e["kind"] for e in sim.world.events]
+        self.assertNotIn("lie", kinds, "the true offline baseline is untouched")
+        self.assertIn("fraud", kinds, "the plain success-only fraud log remains")
+
+    def test_an_honest_plea_is_not_exposed(self):
+        sim, liar, mark = self._sim(cf_enabled=True)
+        liar.money = 0                       # genuinely poor → not deceptive
+        sim._do_solicit(liar, Action(ActionType.SOLICIT,
+                                     {"target": mark.id, "resource": "money",
+                                      "amount": 5}))
+        kinds = [e["kind"] for e in sim.world.events]
+        self.assertNotIn("exposed", kinds)
+        self.assertNotIn("lie", kinds)
+
+
 class TestObservationHidesRate(unittest.TestCase):
     def test_rate_is_advertised_by_default(self):
         sim = _economy_sim(cf=None)
@@ -300,6 +367,19 @@ class TestProbeEndToEnd(unittest.TestCase):
                                      n_agents=5, seed=1)
         self.assertEqual(result.rule, "vanity")
         self.assertEqual(result.target, "feast")
+        self.assertEqual(result.excess, 0.0)
+        self.assertEqual(result.verdict, "baseline (heuristic floor)")
+
+    def test_exposure_probe_runs_end_to_end_and_lies_occur(self):
+        # Counter-intuitively guardian is the right floor persona here: it stays
+        # solvent (money >= 10), so the "plead poverty while rich" scam condition
+        # keeps holding — predator towns go broke/extinct and never qualify.
+        result = run_grounding_probe("guardian", rule="exposure", days=14,
+                                     n_agents=6, seed=1)
+        self.assertEqual(result.rule, "exposure")
+        self.assertEqual(result.target, "lie")
+        self.assertGreater(result.control_rate, 0.0,
+                           "the scored behaviour actually occurs in the control world")
         self.assertEqual(result.excess, 0.0)
         self.assertEqual(result.verdict, "baseline (heuristic floor)")
 
