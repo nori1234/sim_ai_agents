@@ -108,6 +108,27 @@ noisy (e.g. a real run: excess flat at −0.75 for a long stretch, then rising t
 +0.20–0.25, with one wobble mid-training before settling — `is_stable(window=5)`
 only turns true once the wobble is behind it).
 
+## One world is not enough — the seed sweep
+
+A positive excess measured in a single world (one seed = one town layout, one
+event stream) could still be the brain having memorised *that world* rather than
+the rule. `run_grounding_sweep` repeats the probe across several world seeds and
+aggregates — report `fraction_grounded` and `min_excess`, not one world's number:
+
+```python
+from emergence.grounding import run_grounding_sweep
+
+sweep = run_grounding_sweep("claude", rule="demurrage", seeds=(42, 43, 44, 45, 46),
+                            brain_factory=current_brain_factory)
+sweep.fraction_grounded   # worlds where excess cleared the threshold
+sweep.min_excess          # the weakest world — the honest headline
+```
+
+Note the distinction from *training*-seed variance (whether the learner converges
+run-to-run, the brain side's axis): world seeds vary the town the same brain is
+*measured* in. A rule-grounded brain clears the bar in nearly every world; a
+layout memoriser does not.
+
 ## The minimal sandbox — a curriculum rung
 
 Learning a counterfactual contingency inside the full 40-facility, 44-action town
