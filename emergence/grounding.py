@@ -341,3 +341,71 @@ def run_grounding_sweep(
         min_excess=min(excesses),
         n_grounded=sum(1 for x in excesses if x > threshold),
         n_worlds=len(seeds))
+
+
+@dataclass
+class BatteryResult:
+    """The full acceptance test: every counterfactual rule × every world seed.
+
+    One brain, one call, one verdict. ``replay_inexplicable`` is True only when
+    the brain cleared the bar in **every world of every rule** — the strongest
+    claim this instrument can make: no training-data replay explains behaviour
+    that adapts, in the right direction, to several independent inverted priors
+    (economic, status, deception) across towns it never trained in. ``weakest``
+    names the rule and excess of the weakest link, which is the honest headline
+    to report alongside the verdict.
+    """
+
+    rules: tuple
+    sweeps: dict                  # rule -> SweepResult
+    replay_inexplicable: bool
+    weakest_rule: str
+    weakest_excess: float
+
+    def as_dict(self) -> dict:
+        return {
+            "rules": list(self.rules),
+            "replay_inexplicable": self.replay_inexplicable,
+            "weakest_rule": self.weakest_rule,
+            "weakest_excess": round(self.weakest_excess, 4),
+            "per_rule": {r: s.as_dict() for r, s in self.sweeps.items()},
+        }
+
+
+def run_grounding_battery(
+    persona: str = "guardian",
+    *,
+    rules: tuple = ("demurrage", "vanity", "exposure"),
+    seeds: tuple = (42, 43, 44, 45, 46),
+    days: int = 20,
+    n_agents: int = 6,
+    threshold: float = 0.0,
+    brain_factory=None,
+    sweep=None,
+) -> BatteryResult:
+    """Run the whole grounding battery — every rule, swept across world seeds.
+
+    This is the one-call acceptance test for a trained brain: pass the stable
+    checkpoint's ``brain_factory`` and read ``replay_inexplicable`` off the
+    result. The default persona is ``guardian`` because it exercises all three
+    scored behaviours on the heuristic floor (it deposits, feasts, and — staying
+    solvent — keeps qualifying for the plead-poverty scam; predator towns go
+    broke or extinct). ``sweep`` is injectable for tests and defaults to
+    :func:`run_grounding_sweep`."""
+    if not rules:
+        raise ValueError("rules must be non-empty")
+    for r in rules:
+        if r not in _RULES:
+            raise ValueError(f"unknown counterfactual rule: {r!r}")
+    sweep = sweep or run_grounding_sweep
+    sweeps = {r: sweep(persona, rule=r, seeds=seeds, days=days,
+                       n_agents=n_agents, threshold=threshold,
+                       brain_factory=brain_factory)
+              for r in rules}
+    weakest_rule = min(sweeps, key=lambda r: sweeps[r].min_excess)
+    return BatteryResult(
+        rules=tuple(rules), sweeps=sweeps,
+        replay_inexplicable=all(s.n_grounded == s.n_worlds
+                                for s in sweeps.values()),
+        weakest_rule=weakest_rule,
+        weakest_excess=sweeps[weakest_rule].min_excess)

@@ -134,6 +134,35 @@ run-to-run, the brain side's axis): world seeds vary the town the same brain is
 *measured* in. A rule-grounded brain clears the bar in nearly every world; a
 layout memoriser does not.
 
+## The acceptance test — `run_grounding_battery`
+
+The strongest claim this instrument can make is a conjunction: positive excess on
+**every rule** (independent inverted priors: economic, status, deception) in
+**every world** (seeds the brain never trained in). `run_grounding_battery` runs
+that whole matrix in one call:
+
+```python
+from emergence.grounding import run_grounding_battery
+
+battery = run_grounding_battery("guardian", brain_factory=stable_checkpoint_factory)
+battery.replay_inexplicable   # True only if every world of every rule cleared
+battery.weakest_rule, battery.weakest_excess   # the honest headline
+```
+
+Two distinct claims, keep them separate when reporting:
+
+* **Existence** — *this* checkpoint's behaviour cannot be explained by
+  training-data replay (`replay_inexplicable=True` for one brain). One brain
+  suffices.
+* **Reproducibility** — how often training *produces* such a brain (the fraction
+  of training seeds whose final checkpoint passes the battery). A training
+  question, not an instrument question; expect it to drop as rules are added,
+  since the bar is a conjunction.
+
+The default persona is `guardian`: it exercises all three scored behaviours on
+the heuristic floor (it deposits, feasts, and — staying solvent — keeps
+qualifying for the plead-poverty scam).
+
 ## The minimal sandbox — a curriculum rung
 
 Learning a counterfactual contingency inside the full 40-facility, 44-action town

@@ -321,6 +321,67 @@ class TestGroundingSweep(unittest.TestCase):
         self.assertEqual(sweep.mean_excess, 0.0)
 
 
+class TestGroundingBattery(unittest.TestCase):
+    """The one-call acceptance test: every rule × every world. The strongest
+    verdict (replay_inexplicable) only when the brain clears the bar everywhere."""
+
+    def _fake_sweep(self, excess_by_rule):
+        from emergence.grounding import SweepResult, GroundingResult
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory):
+            xs = excess_by_rule[rule]
+            results = [GroundingResult(
+                rule=rule, target="t", control_rate=0.5,
+                counterfactual_rate=0.5 - x, divergence=x, floor_divergence=0.0,
+                excess=x, verdict="", days=days, n_agents=n_agents) for x in xs]
+            return SweepResult(
+                rule=rule, results=results, seeds=tuple(seeds[:len(xs)]),
+                mean_excess=sum(xs) / len(xs), min_excess=min(xs),
+                n_grounded=sum(1 for x in xs if x > threshold), n_worlds=len(xs))
+
+        return sweep
+
+    def test_replay_inexplicable_only_when_every_world_of_every_rule_clears(self):
+        from emergence.grounding import run_grounding_battery
+        battery = run_grounding_battery(
+            "guardian", seeds=(1, 2),
+            sweep=self._fake_sweep({"demurrage": [0.25, 0.20],
+                                    "vanity": [0.18, 0.22],
+                                    "exposure": [0.30, 0.21]}))
+        self.assertTrue(battery.replay_inexplicable)
+        self.assertEqual(battery.weakest_rule, "vanity")
+        self.assertAlmostEqual(battery.weakest_excess, 0.18)
+
+    def test_one_failed_world_in_one_rule_denies_the_verdict(self):
+        from emergence.grounding import run_grounding_battery
+        battery = run_grounding_battery(
+            "guardian", seeds=(1, 2),
+            sweep=self._fake_sweep({"demurrage": [0.25, 0.20],
+                                    "vanity": [0.20, 0.22],
+                                    "exposure": [0.30, -0.70]}))
+        self.assertFalse(battery.replay_inexplicable)
+        self.assertEqual(battery.weakest_rule, "exposure")
+        self.assertAlmostEqual(battery.weakest_excess, -0.70)
+        d = battery.as_dict()
+        self.assertIn("per_rule", d)
+        self.assertEqual(set(d["per_rule"]), {"demurrage", "vanity", "exposure"})
+
+    def test_unknown_or_empty_rules_rejected(self):
+        from emergence.grounding import run_grounding_battery
+        with self.assertRaises(ValueError):
+            run_grounding_battery("guardian", rules=())
+        with self.assertRaises(ValueError):
+            run_grounding_battery("guardian", rules=("no_such_rule",))
+
+    def test_real_battery_runs_on_the_heuristic_floor(self):
+        from emergence.grounding import run_grounding_battery
+        battery = run_grounding_battery("guardian", seeds=(1,), days=5, n_agents=4)
+        self.assertFalse(battery.replay_inexplicable,
+                         "the non-learning floor never earns the verdict")
+        self.assertEqual(set(battery.sweeps), {"demurrage", "vanity", "exposure"})
+
+
 class TestProbeEndToEnd(unittest.TestCase):
     def test_offline_probe_runs_and_is_well_formed(self):
         result = run_grounding_probe("guardian", days=6, n_agents=5, seed=1)
