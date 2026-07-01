@@ -97,6 +97,26 @@ monitor.improving()    # did excess trend up over training?
 The probe runs its own fresh simulations (it never touches the training run), and
 the logged headline is `excess`, never the raw divergence.
 
+## The minimal sandbox — a curriculum rung
+
+Learning a counterfactual contingency inside the full 40-facility, 44-action town
+is hard for a small policy: the scored decision is rare and drowned in noise.
+`make_grounding_sandbox()` strips the world to just what the decision needs — for
+`demurrage`, a bank (staffed by a banker), a farm and a house — with funded savers
+standing at the bank. Depositing becomes the dominant choice (~20× denser than in
+the town), so the demurrage signal is clean.
+
+```python
+from emergence.grounding import make_grounding_sandbox, run_grounding_probe
+
+sim = make_grounding_sandbox("claude", rule="demurrage", n_savers=3, cf_enabled=True)
+sim.run()                                   # or step it, for training episodes
+run_grounding_probe("claude", sandbox=True) # measure in the same minimal world
+```
+
+It is a rung between a trivial bandit and the real world: nail grounding here on
+one axis first, then graduate to the full town and more rules.
+
 ## What it is and is not
 
 * It **is** a falsifiable test: a model that only replays will score ~0 excess,

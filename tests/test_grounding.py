@@ -174,6 +174,41 @@ class TestProbeDiscriminates(unittest.TestCase):
                                msg="ignoring experience → identical behaviour, no grounding")
 
 
+class TestGroundingSandbox(unittest.TestCase):
+    """The minimal deposit-decision world — a curriculum rung between a trivial
+    bandit and the full town, so a small policy can learn the demurrage contingency
+    without 40 facilities and 44 actions of noise."""
+
+    def test_builds_a_minimal_world_with_a_staffed_bank(self):
+        from emergence.grounding import make_grounding_sandbox
+        from emergence.world import FacilityType
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=6)
+        ftypes = {f.ftype for f in sim.world.facilities}
+        self.assertEqual(ftypes, {FacilityType.BANK, FacilityType.FARM,
+                                  FacilityType.HOUSE})
+        self.assertEqual(len(sim.agents), 4)                 # 1 banker + 3 savers
+        bank = next(f for f in sim.world.facilities if f.ftype is FacilityType.BANK)
+        self.assertEqual(sim.agents[0].pos, bank.pos, "the banker staffs the bank")
+        self.assertTrue(all(s.money > 0 for s in sim.agents[1:]), "savers are funded")
+
+    def test_the_deposit_decision_is_dense(self):
+        from emergence.grounding import make_grounding_sandbox
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=12)
+        sim.run()
+        deposits = sum(1 for e in sim.world.events if e["kind"] == "deposit")
+        self.assertGreater(deposits, 0, "the isolated world exercises depositing")
+
+    def test_probe_runs_in_the_sandbox(self):
+        result = run_grounding_probe("guardian", sandbox=True, days=8, n_agents=4,
+                                     seed=1)
+        self.assertEqual(result.target, "deposit")
+        self.assertEqual(result.excess, 0.0)                 # heuristic is its own floor
+
+    def test_sandbox_rejects_non_demurrage_rules(self):
+        with self.assertRaises(ValueError):
+            run_grounding_probe("guardian", rule="vanity", sandbox=True, days=4)
+
+
 class TestProbeEndToEnd(unittest.TestCase):
     def test_offline_probe_runs_and_is_well_formed(self):
         result = run_grounding_probe("guardian", days=6, n_agents=5, seed=1)
