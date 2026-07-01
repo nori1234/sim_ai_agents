@@ -91,11 +91,22 @@ for epoch in range(n_epochs):
     monitor.maybe_probe(epoch, brain_factory=current_brain_factory)
 
 monitor.to_jsonl("grounding.jsonl")
-monitor.improving()    # did excess trend up over training?
+monitor.improving()          # did excess trend up over training?
+monitor.is_stable(window=5)  # AND is it holding now, not just spiking once?
+monitor.streak_above_threshold()  # how many consecutive recent probes cleared it
 ```
 
 The probe runs its own fresh simulations (it never touches the training run), and
 the logged headline is `excess`, never the raw divergence.
+
+`improving()` is a coarse trend check (mean of the second half of the series vs
+the first half) — a run that spikes positive and then wobbles back down can still
+read as "improving". **Report `is_stable()`, not just a final-epoch number or
+`improving()` alone**, when claiming grounding: it asks whether the last `window`
+probes *all* cleared the threshold, which is the sharper question when training is
+noisy (e.g. a real run: excess flat at −0.75 for a long stretch, then rising to
++0.20–0.25, with one wobble mid-training before settling — `is_stable(window=5)`
+only turns true once the wobble is behind it).
 
 ## The minimal sandbox — a curriculum rung
 

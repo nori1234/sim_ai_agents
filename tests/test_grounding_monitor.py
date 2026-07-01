@@ -72,6 +72,56 @@ class TestRecordingAndTrend(unittest.TestCase):
             mon.probe(e, brain_factory=None)
         self.assertFalse(mon.improving())
 
+
+class TestStability(unittest.TestCase):
+    """Distinguishes "reached positive excess once" from "reached it and stayed" —
+    exactly the gap between a single final-epoch number and a real training curve
+    (a spike-then-wobble can still look like 'improving' under the coarse
+    first-half/second-half trend check)."""
+
+    def test_is_stable_true_when_the_recent_window_all_clears_the_bar(self):
+        xs = [-0.75, -0.75, 0.1, 0.2, 0.25, 0.22, 0.24]
+        mon = GroundingMonitor(probe=lambda *a, **k: None)
+        for x in xs:
+            mon.history.append({"excess": x})
+        self.assertTrue(mon.is_stable(window=3))
+        self.assertFalse(mon.is_stable(window=len(xs)), "the early flat -0.75s spoil a longer window")
+
+    def test_is_stable_false_on_a_wobble_back_down(self):
+        # Spiked positive then dipped at the most recent probe (the "2000-step
+        # wobble" case) — improving() can still be true, is_stable() must not be.
+        xs = [-0.75, 0.1, 0.3, 0.28, -0.05]
+        mon = GroundingMonitor(probe=lambda *a, **k: None)
+        for x in xs:
+            mon.history.append({"excess": x})
+        self.assertTrue(mon.improving())
+        self.assertFalse(mon.is_stable(window=3))
+
+    def test_is_stable_needs_enough_history(self):
+        mon = GroundingMonitor(probe=lambda *a, **k: None)
+        mon.history.append({"excess": 0.5})
+        self.assertFalse(mon.is_stable(window=3))
+
+    def test_streak_above_threshold(self):
+        xs = [-0.75, -0.1, 0.2, 0.3, 0.25]
+        mon = GroundingMonitor(probe=lambda *a, **k: None)
+        for x in xs:
+            mon.history.append({"excess": x})
+        self.assertEqual(mon.streak_above_threshold(), 3)
+
+    def test_streak_is_zero_when_latest_is_not_above(self):
+        mon = GroundingMonitor(probe=lambda *a, **k: None)
+        for x in [0.3, 0.2, -0.1]:
+            mon.history.append({"excess": x})
+        self.assertEqual(mon.streak_above_threshold(), 0)
+
+    def test_custom_threshold_overrides_the_monitor_default(self):
+        mon = GroundingMonitor(probe=lambda *a, **k: None, threshold=0.0)
+        for x in [0.1, 0.15, 0.2]:
+            mon.history.append({"excess": x})
+        self.assertTrue(mon.is_stable(window=3, threshold=0.0))
+        self.assertFalse(mon.is_stable(window=3, threshold=0.5))
+
     def test_improving_needs_at_least_two_probes(self):
         mon = GroundingMonitor(probe=_RisingProbe())
         mon.probe(0, brain_factory=None)
