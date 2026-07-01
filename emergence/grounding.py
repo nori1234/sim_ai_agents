@@ -48,6 +48,11 @@ class CounterfactualConfig:
     rule: str = "demurrage"            # the inverted law in force
     demurrage_per_day: float = 0.15    # fraction of a bank deposit that evaporates daily
     hide_rate: bool = False            # don't advertise the deposit rate in the obs
+    # Probe-grade instrumentation, set by the probe in BOTH worlds: surfaces
+    # attempt-level events some rules need for scoring (e.g. a "lie" log per
+    # deceptive solicitation, which the plain engine only logs on success).
+    # Default off, so the true offline baseline logs nothing extra.
+    instrument: bool = False
 
 
 # For each rule, the event whose *frequency* is the behaviour we score — the act
@@ -59,11 +64,17 @@ class CounterfactualConfig:
 #               → score how often agents deposit.
 #   vanity    : conspicuous spending (hosting feasts) SHAMES instead of honouring
 #               (prior: lavish display buys status) → score how often agents feast.
-# Both rules invert an existing engine mechanic; neither is stated in the prompt,
+#   exposure  : a lie is VISIBLE — a deceptive solicitation is instantly exposed:
+#               the mark refuses and the liar loses standing publicly (prior:
+#               deception is hidden and profitable) → score how often agents
+#               attempt deceptive solicits (the "lie" event, instrument-logged in
+#               both worlds so attempts are comparable).
+# All rules invert an existing engine mechanic; none is stated in the prompt,
 # so the agent can only learn it by living the consequence.
 _RULES: dict[str, dict] = {
     "demurrage": {"target": "deposit", "layers": {}},
     "vanity": {"target": "feast", "layers": {"status": True}},
+    "exposure": {"target": "lie", "layers": {"status": True}},
 }
 
 
@@ -159,7 +170,8 @@ def make_grounding_sandbox(
     sim = make_simulation(
         persona, n_agents=n_savers + 1, world=_sandbox_world(),
         config=SimulationConfig(seed=seed, days=days), economy=True,
-        counterfactual=CounterfactualConfig(enabled=cf_enabled, rule=rule, hide_rate=True),
+        counterfactual=CounterfactualConfig(enabled=cf_enabled, rule=rule,
+                                            hide_rate=True, instrument=True),
         brain_factory=brain_factory,
     )
     _prepare_sandbox(sim)
@@ -221,7 +233,8 @@ def run_grounding_probe(
                     config=SimulationConfig(seed=seed, days=days),
                     economy=True,
                     counterfactual=CounterfactualConfig(
-                        enabled=cf_enabled, rule=rule, hide_rate=True),
+                        enabled=cf_enabled, rule=rule, hide_rate=True,
+                        instrument=True),
                     brain_factory=factory,
                     **extra_kwargs,
                 )
