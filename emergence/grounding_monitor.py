@@ -19,6 +19,7 @@ Usage (on the training side)::
 
     monitor.to_jsonl("grounding.jsonl")
     assert monitor.improving()        # grounding excess trended up over training
+    assert monitor.is_stable(window=5)   # AND it's holding, not just spiking once
 
 The probe runs its own fresh control/counterfactual simulations (it does not
 touch the training run), and the headline metric logged is ``excess`` — the
@@ -99,13 +100,42 @@ class GroundingMonitor:
 
     def improving(self) -> bool:
         """True if grounding strengthened over training: the mean ``excess`` of the
-        second half of the series exceeds that of the first half. Needs >= 2 probes."""
+        second half of the series exceeds that of the first half. Needs >= 2 probes.
+
+        This is a coarse trend check — it can be True even if excess later wobbled
+        back down, since it only compares two block means. Use :meth:`is_stable`
+        to ask the sharper question of whether grounding is *currently* holding."""
         xs = self.excess_series()
         if len(xs) < 2:
             return False
         mid = len(xs) // 2
         first, second = xs[:mid] or xs[:1], xs[mid:]
         return (sum(second) / len(second)) > (sum(first) / len(first))
+
+    def is_stable(self, window: int = 3, threshold: Optional[float] = None) -> bool:
+        """True iff the last ``window`` probes ALL exceeded ``threshold`` (default:
+        ``self.threshold``) — i.e. grounding isn't just trending up, it is *holding*
+        right now. Distinguishes "reached positive excess once" from "reached it and
+        stayed there", which a single final-epoch number or ``improving()`` alone
+        cannot: a series that spikes positive then wobbles back down can still have
+        a rising second-half mean. Needs >= ``window`` probes, else False."""
+        xs = self.excess_series()
+        if len(xs) < window:
+            return False
+        cutoff = self.threshold if threshold is None else threshold
+        return all(x > cutoff for x in xs[-window:])
+
+    def streak_above_threshold(self, threshold: Optional[float] = None) -> int:
+        """Length of the current run of consecutive probes (counting back from the
+        most recent) with ``excess`` above ``threshold`` (default ``self.threshold``).
+        0 if the latest probe itself is not above it."""
+        cutoff = self.threshold if threshold is None else threshold
+        streak = 0
+        for x in reversed(self.excess_series()):
+            if x <= cutoff:
+                break
+            streak += 1
+        return streak
 
     def to_jsonl(self, path: str) -> None:
         """Write the history as one JSON object per line (a training-log artifact)."""
