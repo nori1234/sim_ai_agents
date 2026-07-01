@@ -254,3 +254,77 @@ def run_grounding_probe(
         counterfactual_rate=counterfactual_rate, divergence=divergence,
         floor_divergence=floor, excess=excess, verdict=verdict,
         days=days, n_agents=n_agents)
+
+
+@dataclass
+class SweepResult:
+    """A grounding probe repeated across several *world* seeds.
+
+    One world is a single town layout and event stream; a positive excess there
+    could still be the brain having memorised that particular world rather than
+    the rule. A brain grounded in the *rule* shows positive excess across many
+    worlds it has never trained in — so the sweep's fraction-grounded, not any
+    single world's excess, is the robust claim. (This is orthogonal to the
+    brain side's *training*-seed variance: their seeds vary the learner, these
+    seeds vary the world it is measured in.)
+    """
+
+    rule: str
+    results: list                 # list[GroundingResult], one per world seed
+    seeds: tuple
+    mean_excess: float
+    min_excess: float
+    n_grounded: int               # worlds where excess cleared the threshold
+    n_worlds: int
+
+    @property
+    def fraction_grounded(self) -> float:
+        return self.n_grounded / self.n_worlds if self.n_worlds else 0.0
+
+    def as_dict(self) -> dict:
+        return {
+            "rule": self.rule,
+            "seeds": list(self.seeds),
+            "mean_excess": round(self.mean_excess, 4),
+            "min_excess": round(self.min_excess, 4),
+            "n_grounded": self.n_grounded,
+            "n_worlds": self.n_worlds,
+            "fraction_grounded": round(self.fraction_grounded, 3),
+            "per_world": [r.as_dict() for r in self.results],
+        }
+
+
+def run_grounding_sweep(
+    persona: str = "claude",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = (42, 43, 44, 45, 46),
+    days: int = 20,
+    n_agents: int = 6,
+    threshold: float = 0.0,
+    sandbox: bool = False,
+    brain_factory=None,
+    probe=None,
+) -> SweepResult:
+    """Run the grounding probe in several different *worlds* and aggregate.
+
+    Same brain, same rule, different world seeds — each seed is a different town
+    (agent starting positions, RNG stream, event history). Report
+    ``fraction_grounded`` and ``min_excess`` rather than a single world's excess:
+    a rule-grounded brain clears the bar in (nearly) every world, a layout
+    memoriser does not. ``probe`` is injectable for tests; it defaults to
+    :func:`run_grounding_probe`."""
+    if not seeds:
+        raise ValueError("seeds must be non-empty")
+    probe = probe or run_grounding_probe
+    results = [probe(persona, rule=rule, days=days, n_agents=n_agents,
+                     seed=s, threshold=threshold, sandbox=sandbox,
+                     brain_factory=brain_factory)
+               for s in seeds]
+    excesses = [r.excess for r in results]
+    return SweepResult(
+        rule=rule, results=results, seeds=tuple(seeds),
+        mean_excess=sum(excesses) / len(excesses),
+        min_excess=min(excesses),
+        n_grounded=sum(1 for x in excesses if x > threshold),
+        n_worlds=len(seeds))

@@ -209,6 +209,51 @@ class TestGroundingSandbox(unittest.TestCase):
             run_grounding_probe("guardian", rule="vanity", sandbox=True, days=4)
 
 
+class TestGroundingSweep(unittest.TestCase):
+    """Robustness across *worlds*: one seed's excess could be layout memorisation;
+    the sweep's fraction-grounded / min-excess is the claim that travels."""
+
+    def _fake_probe(self, excess_by_seed):
+        from emergence.grounding import GroundingResult
+
+        def probe(persona, *, rule, days, n_agents, seed, threshold,
+                  sandbox, brain_factory):
+            x = excess_by_seed[seed]
+            return GroundingResult(
+                rule=rule, target="deposit", control_rate=0.5,
+                counterfactual_rate=0.5 - x, divergence=x, floor_divergence=0.0,
+                excess=x, verdict="grounded" if x > threshold else "replay",
+                days=days, n_agents=n_agents)
+
+        return probe
+
+    def test_aggregates_fraction_and_min_excess_across_worlds(self):
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep(
+            "guardian", seeds=(1, 2, 3),
+            probe=self._fake_probe({1: 0.25, 2: 0.20, 3: -0.05}))
+        self.assertEqual(sweep.n_worlds, 3)
+        self.assertEqual(sweep.n_grounded, 2)
+        self.assertAlmostEqual(sweep.fraction_grounded, 2 / 3)
+        self.assertAlmostEqual(sweep.min_excess, -0.05)
+        self.assertAlmostEqual(sweep.mean_excess, (0.25 + 0.20 - 0.05) / 3)
+        d = sweep.as_dict()
+        self.assertEqual(len(d["per_world"]), 3)
+        self.assertEqual(d["n_grounded"], 2)
+
+    def test_empty_seeds_rejected(self):
+        from emergence.grounding import run_grounding_sweep
+        with self.assertRaises(ValueError):
+            run_grounding_sweep("guardian", seeds=())
+
+    def test_real_sweep_runs_on_the_heuristic_floor(self):
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep("guardian", seeds=(1, 2), days=5, n_agents=4)
+        self.assertEqual(sweep.n_worlds, 2)
+        self.assertEqual(sweep.n_grounded, 0, "heuristic is its own floor everywhere")
+        self.assertEqual(sweep.mean_excess, 0.0)
+
+
 class TestProbeEndToEnd(unittest.TestCase):
     def test_offline_probe_runs_and_is_well_formed(self):
         result = run_grounding_probe("guardian", days=6, n_agents=5, seed=1)
