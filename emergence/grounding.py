@@ -113,6 +113,59 @@ def behaviour_rate(sim, kind: str) -> float:
     return n / agent_days
 
 
+def _sandbox_world():
+    """A tiny world that isolates the deposit decision: a bank, a farm (food) and
+    a house (rest), packed close together — no market, crime, disasters or 40
+    other facilities to distract a small policy."""
+    from .world import World, Facility, FacilityType
+    w = World(width=6, height=6)
+    w.add_facility(Facility(name="Bank", ftype=FacilityType.BANK, x=2, y=2))
+    w.add_facility(Facility(name="Farm", ftype=FacilityType.FARM, x=3, y=2))
+    w.add_facility(Facility(name="House", ftype=FacilityType.HOUSE, x=2, y=3))
+    return w
+
+
+def _prepare_sandbox(sim) -> None:
+    from .world import FacilityType
+    bank = next(f for f in sim.world.facilities if f.ftype is FacilityType.BANK)
+    banker, *savers = sim.agents
+    banker.pos = bank.pos
+    banker.add("money", 200)          # reserves, so control-world interest can be paid
+    for s in savers:
+        s.pos = bank.pos              # already within a banker's reach
+        s.money = 50                  # coin to (choose whether to) deposit
+        s.add("food", 40)             # so survival isn't the dominant pressure
+
+
+def make_grounding_sandbox(
+    persona: str = "claude",
+    *,
+    rule: str = "demurrage",
+    n_savers: int = 3,
+    seed: int = 42,
+    days: int = 20,
+    cf_enabled: bool = True,
+    brain_factory=None,
+):
+    """A minimal world that isolates the scored decision so a small model can
+    learn the counterfactual contingency without the full town's confounds — a
+    curriculum rung between a trivial bandit and the real world. The returned
+    :class:`Simulation` can be run for training episodes *or* measured with the
+    probe. Deposit-focused (the ``demurrage`` axis)."""
+    from .scenario import make_simulation
+    from .simulation import SimulationConfig
+    if rule != "demurrage":
+        raise ValueError("the sandbox currently isolates the demurrage (deposit) decision")
+    sim = make_simulation(
+        persona, n_agents=n_savers + 1, world=_sandbox_world(),
+        config=SimulationConfig(seed=seed, days=days), economy=True,
+        counterfactual=CounterfactualConfig(enabled=cf_enabled, rule=rule, hide_rate=True),
+        brain_factory=brain_factory,
+    )
+    _prepare_sandbox(sim)
+    return sim
+
+
 def run_grounding_probe(
     persona: str = "claude",
     *,
@@ -121,6 +174,7 @@ def run_grounding_probe(
     n_agents: int = 6,
     seed: int = 42,
     threshold: float = 0.0,
+    sandbox: bool = False,
     brain_factory=None,
 ) -> GroundingResult:
     """Run the control and counterfactual worlds and score the divergence.
@@ -151,18 +205,26 @@ def run_grounding_probe(
         from .esteem import StatusConfig
         extra_kwargs["status"] = StatusConfig(enabled=True)
 
+    if sandbox and rule != "demurrage":
+        raise ValueError("the sandbox currently supports only the demurrage rule")
+
     def _divergence(factory) -> tuple[float, float]:
         def _run(cf_enabled: bool) -> float:
-            sim = make_simulation(
-                persona,
-                n_agents=n_agents,
-                config=SimulationConfig(seed=seed, days=days),
-                economy=True,
-                counterfactual=CounterfactualConfig(
-                    enabled=cf_enabled, rule=rule, hide_rate=True),
-                brain_factory=factory,
-                **extra_kwargs,
-            )
+            if sandbox:
+                sim = make_grounding_sandbox(
+                    persona, rule=rule, n_savers=n_agents - 1, seed=seed,
+                    days=days, cf_enabled=cf_enabled, brain_factory=factory)
+            else:
+                sim = make_simulation(
+                    persona,
+                    n_agents=n_agents,
+                    config=SimulationConfig(seed=seed, days=days),
+                    economy=True,
+                    counterfactual=CounterfactualConfig(
+                        enabled=cf_enabled, rule=rule, hide_rate=True),
+                    brain_factory=factory,
+                    **extra_kwargs,
+                )
             sim.run()
             return behaviour_rate(sim, target)
 

@@ -78,6 +78,7 @@ def make_simulation(
     memory_path: str = ":memory:",
     library: bool = False,
     individuals: bool = False,
+    world: "World | None" = None,
     brain_factory=None,
 ) -> Simulation:
     """Build a ready-to-run :class:`Simulation`.
@@ -103,8 +104,11 @@ def make_simulation(
     else:
         gov_cfg = governance
     rng = random.Random(config.seed)
+    # A caller-supplied world (e.g. the grounding sandbox) wins over the presets.
+    if world is not None:
+        pass
     # A founding town starts sparse and develops itself through public works.
-    if founding:
+    elif founding:
         from .development import founding_world
         world = founding_world()
         public_works = True
