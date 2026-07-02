@@ -1,0 +1,113 @@
+name: neural-train-battery
+
+# The #130 milestone runner: train a developmental brain IN the real engine
+# (running --neural towns is the training), checkpoint once grounding is stable,
+# then run the acceptance battery (all rules x all worlds) and publish
+# battery.json. This exists because the brain repo's environment cannot reach
+# this engine, and mirror-scale checkpoints are shape-incompatible with the real
+# build_brain — so real-config training must happen where the engine lives.
+
+on:
+  workflow_dispatch:
+    inputs:
+      llm_model_agi_ref:
+        description: pip spec for the brain package (agent.adapters.emergence)
+        required: true
+        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+      torch_spec:
+        description: pip spec for torch (CPU wheel is fine)
+        required: false
+        default: "torch"
+      episodes:
+        description: max training episodes
+        required: false
+        default: "60"
+      days:
+        description: days per training episode
+        required: false
+        default: "20"
+      agents:
+        description: agents per town
+        required: false
+        default: "6"
+      seed:
+        description: base seed (episode i uses seed+i)
+        required: false
+        default: "42"
+      probe_every:
+        description: probe cadence (episodes)
+        required: false
+        default: "5"
+      window:
+        description: is_stable window (probes)
+        required: false
+        default: "3"
+
+jobs:
+  train-and-battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the engine (this repo)
+        run: pip install -e .
+
+      - name: Auth for the private brain repo
+        env:
+          LLM_TOKEN: ${{ secrets.LLM_MODEL_AGI_TOKEN }}
+        run: |
+          if [ -z "$LLM_TOKEN" ]; then
+            echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install torch + the developmental-brain package
+        run: |
+          pip install "${{ inputs.torch_spec }}"
+          pip install "${{ inputs.llm_model_agi_ref }}"
+
+      - name: Guard — the adapter must actually import (a fallback run trains nothing)
+        run: |
+          python - <<'PY'
+          import importlib.util, sys
+          if importlib.util.find_spec("agent.adapters.emergence") is None:
+              sys.exit("agent.adapters.emergence did not install — training would "
+                       "silently fall back to the heuristic. Check llm_model_agi_ref.")
+          print("adapter importable — training for real.")
+          PY
+
+      - name: Train in the real engine, then run the acceptance battery
+        run: |
+          python scripts/train_neural_grounding.py \
+            --episodes "${{ inputs.episodes }}" \
+            --days "${{ inputs.days }}" \
+            --agents "${{ inputs.agents }}" \
+            --seed "${{ inputs.seed }}" \
+            --probe-every "${{ inputs.probe_every }}" \
+            --window "${{ inputs.window }}" \
+            --out grounding_out
+
+      - name: Publish the battery result to the job summary
+        if: always()
+        run: |
+          if [ -f grounding_out/battery.json ]; then
+            echo '## #130 acceptance battery' >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat grounding_out/battery.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'battery.json was not produced (training aborted?)' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload artifacts (checkpoint, monitors, battery)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grounding-battery-${{ github.run_number }}
+          path: grounding_out/
+          if-no-files-found: warn
