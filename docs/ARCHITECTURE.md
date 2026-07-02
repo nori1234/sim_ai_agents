@@ -1,6 +1,8 @@
 # アーキテクチャと内部
 
-エンジンの構造・1ティックの流れ・実LLMの差し込み方・HTML可視化・ベンチマークとしての意義。
+エンジンの構造・1ティックの流れ・実LLM／発達脳の差し込み方・HTML可視化。
+（接地検証の設計と道具は [`GROUNDING.md`](GROUNDING.md)、発達脳との統合契約は
+[`NEURAL_CONTRACT.md`](NEURAL_CONTRACT.md) が正典。）
 
 ## ファイル構成
 

@@ -1,14 +1,23 @@
-# Grounding probe — the counterfactual-world transfer test
+# Grounding — the counterfactual-world transfer test
 
 > *Is the agent grounded in this world's consequences, or replaying its training?*
 
-This is the project's first **validation instrument**, not a new mechanic. It
-exists to answer the question the panel (#118) kept returning to: when an LLM
-agent does something sensible here — saving in a bank, repaying a loan, taking
-shelter — is that behaviour **grounded** in the consequences it has lived
-through, or is it **replaying** a pattern memorised from training data? In a
-world whose rules already match the training prior, the two are
-indistinguishable, so success proves nothing.
+This is the project's central **validation instrument**, not a game mechanic
+(the question was first framed in #118). When an agent does something sensible
+here — saving in a bank, repaying a loan, taking shelter — is that behaviour
+**grounded** in the consequences it has lived through, or is it **replaying** a
+pattern memorised from training data? In a world whose rules already match the
+training prior, the two are indistinguishable, so success proves nothing.
+
+## The instrument suite at a glance
+
+| tool | question it answers | one call |
+|---|---|---|
+| probe (`run_grounding_probe`) | does behaviour diverge between a normal and a rule-inverted world, beyond the non-learning floor? | one rule × one world |
+| sweep (`run_grounding_sweep`) | does that hold across *worlds* the brain never trained in (not layout memorisation)? | one rule × N world seeds |
+| **battery** (`run_grounding_battery`) | **the acceptance test**: does it hold for *every* rule in *every* world? | all rules × N world seeds |
+| monitor (`GroundingMonitor`) | does grounding *emerge and stay* as a brain trains? (`improving` / `is_stable` / `streak`) | probe repeated over training epochs |
+| sandbox (`make_grounding_sandbox`) | a minimal world to *learn* the contingency in (a curriculum rung, ~20× denser signal) | training episodes + probe |
 
 ## The design
 
@@ -200,6 +209,26 @@ one axis first, then graduate to the full town and more rules.
   add (invert one existing mechanic, register the scored behaviour and the layers
   it needs). Agreement across several independent rules is far stronger evidence
   of grounding than any one.
+
+## Current status (2026-07)
+
+Measured with the developmental brain (`NeuralDevelopmentalBrain` ⇄
+`llm_model_agi`, see `NEURAL_CONTRACT.md`), on the brain side's contract-faithful
+local mirror:
+
+* **Existence: established (on the mirror).** One trained checkpoint cleared all
+  three rules across all five held-out worlds (`min_excess` +0.20) — behaviour no
+  training-data replay explains. Three independent fixes were each necessary to
+  get here: an encoder bug (the brain effectively couldn't see the observation),
+  reward visibility (deposits had to count as wealth or demurrage had no
+  gradient), and RL tuning (competence had been measuring the teacher, not the
+  student).
+* **Reproducibility: open.** 1/3 training seeds currently passes the full
+  three-rule battery (it was 2/3 at two rules — the bar is a conjunction, so it
+  tightens as rules are added). Training-side work (longer runs, more seeds).
+* **Next milestone:** run `run_grounding_battery` with the stable checkpoint's
+  weights in this real engine (not the mirror). `replay_inexplicable=True` there
+  is the claim made good.
 
 ## Why this comes before 3D
 
