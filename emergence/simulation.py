@@ -383,7 +383,17 @@ class Simulation:
         handler = getattr(self, f"_do_{action.type.value}", None)
         if handler is None:
             return
-        handler(agent, action)
+        try:
+            handler(agent, action)
+        except (TypeError, ValueError, KeyError) as exc:
+            # The module contract: invalid actions degrade gracefully. External
+            # brains (LLM / neural policies) emit malformed params — pos=None,
+            # string amounts, list targets — and no handler should be able to
+            # crash the world over the *shape* of a request. Engine-state errors
+            # are not shaped like these; anything else still raises.
+            self.world.log("invalid_action", agent=agent.id,
+                           action=action.type.value, error=type(exc).__name__)
+            return
         self._remember_action(agent, action)
 
     # The actions worth committing to long-term memory (the "story" beats);
@@ -666,9 +676,17 @@ class Simulation:
             agent.pos = self.world.step_towards(agent.pos, target)
 
     def _resolve_destination(self, agent: Agent, action: Action) -> Optional[tuple[int, int]]:
-        if "pos" in action.params:
-            pos = tuple(action.params["pos"])  # type: ignore[arg-type]
-            return pos if self.world.in_bounds(pos) else None
+        raw = action.params.get("pos")
+        if raw is not None:
+            # External brains send pos in many broken shapes (None, strings,
+            # wrong arity); a malformed pos falls through to facility_type
+            # rather than crashing or dead-ending the move.
+            try:
+                pos = (int(raw[0]), int(raw[1]))
+                if len(raw) == 2:
+                    return pos if self.world.in_bounds(pos) else None
+            except (TypeError, ValueError, KeyError, IndexError):
+                pass
         ftype = action.params.get("facility_type")
         if ftype:
             try:

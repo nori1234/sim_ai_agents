@@ -67,17 +67,43 @@ class TestContractInSync(unittest.TestCase):
                          "the clamp fallback ACTION_VOCAB[0] must be idle")
 
     def test_every_vocab_action_is_dispatchable_without_raising(self):
-        # The engine must have a handler for every verb a policy can emit, and an
-        # action with empty params must degrade gracefully (never raise). This is
-        # the safety net the idle/out-of-vocab clamp and any partial spec rely on.
-        sim = make_simulation("guardian", n_agents=4,
-                              config=SimulationConfig(seed=1), economy=True)
+        # The engine must have a handler for every verb a policy can emit, and a
+        # malformed action must degrade gracefully (never raise) — the module's
+        # stated contract, and what external LLM/neural brains lean on. Sweep
+        # every verb with empty params, then with every documented param key set
+        # to None / a junk string / a junk list (real shapes a policy emitted in
+        # the first #130 training run: pos=None crashed a whole CI run).
+        from emergence.esteem import StatusConfig
+        junk_sweeps = (
+            ("empty", lambda keys: {}),
+            ("none", lambda keys: {k: None for k in keys}),
+            ("junk-str", lambda keys: {k: "xyz" for k in keys}),
+            ("junk-list", lambda keys: {k: [9, 9, 9] for k in keys}),
+        )
+        for label, build in junk_sweeps:
+            for verb in C.ACTION_VOCAB:
+                sim = make_simulation("guardian", n_agents=4, economy=True,
+                                      status=StatusConfig(enabled=True),
+                                      config=SimulationConfig(seed=1))
+                keys = [k.lstrip("|").strip() for k in C.PARAM_SPEC[verb]]
+                try:
+                    sim._apply(sim.agents[0], Action(ActionType(verb), build(keys)))
+                except Exception as exc:                   # pragma: no cover
+                    self.fail(f"{verb!r} raised on {label} params: {exc!r}")
+
+    def test_malformed_move_still_honours_facility_type(self):
+        # The common sloppy-policy shape: pos present-but-broken alongside a
+        # valid facility_type — the move should use the facility, not no-op.
+        from emergence.world import FacilityType
+        sim = make_simulation("guardian", n_agents=2,
+                              config=SimulationConfig(seed=1))
         agent = sim.agents[0]
-        for verb in C.ACTION_VOCAB:
-            try:
-                sim._apply(agent, Action(ActionType(verb), {}))
-            except Exception as exc:                       # pragma: no cover
-                self.fail(f"action {verb!r} raised on empty params: {exc!r}")
+        market = sim.world.nearest(agent.pos, FacilityType.MARKET)
+        before = agent.pos
+        sim._apply(agent, Action(ActionType.MOVE,
+                                 {"pos": None, "facility_type": "market"}))
+        if before != market.pos:
+            self.assertNotEqual(agent.pos, before, "moved toward the market anyway")
 
     def test_target_key_maps_reference_only_real_actions(self):
         for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY}:
