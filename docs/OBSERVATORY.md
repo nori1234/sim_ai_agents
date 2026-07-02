@@ -1,30 +1,32 @@
-# The Observatory — product direction & API
+# The Observatory — the window onto the world (UI & API)
 
-The commercial direction for Emergence World: an **observatory** where you watch
-an AI society emerge from above and can **possess any citizen** to live their
-story from the inside. Watching (the god view) and immersion (a single life) in
-one product.
+The **observatory** is how humans look at an Emergence World: watch an AI
+society emerge from above, and **possess any citizen** to live their story from
+the inside. Watching (the god view) and immersion (a single life) in one
+interface. The project's primary direction is the research substrate
+(grounding/agency — see `GROUNDING.md`); the observatory is its observation and
+experience layer — how you *see* what the instruments measure — and doubles as
+the inspection tool for research runs.
 
-**What it actually is.** A **single LLM**, individuated into distinct citizens by
-**external scaffolding** — a per-agent character (its prompt/persona) and an
-external, per-agent **memory** (its lived history) — let loose in the engine's
-world (its physics, affordances and motives) so that a **society emerges** from
-their interaction, reproducibly. The appeal is not "different models"; it is *one*
-model becoming *many* individuals through what we bolt onto it, and the society
-that grows out of them.
+**What you are looking at.** A **single LLM**, individuated into distinct
+citizens by **external scaffolding** — a per-agent character (its prompt/persona)
+and an external, per-agent **memory** (its lived history) — let loose in the
+engine's world (its physics, affordances and motives) so that a **society
+emerges** from their interaction, reproducibly. The appeal is not "different
+models"; it is *one* model becoming *many* individuals through what we bolt onto
+it, and the society that grows out of them.
 
 > **Note on "the four societies".** The four personas (Guardian/Philosopher/
 > Idealist/Predator) are a **legacy of the original experiment**, which compared
-> AI *models*. They are **not** the product's concept. They survive only as (a)
-> the **free/heuristic tier's** caricatures and (b) a **reproducible reference
-> benchmark** (`test_baseline_contract.py`). Real diversity in an LLM world should
-> come from each agent's own character + memory, not from being one of four
-> archetypes. *State today:* per-agent **memory** is already external and
-> individual; per-agent **character** is still drawn from the four presets
-> (`llm.py: _build_system_prompt`) — generating a distinct character per citizen
-> is the next step (the implementation of this concept).
+> AI *models*. They survive only as (a) the **free/heuristic** caricatures and
+> (b) a **reproducible reference benchmark** (`test_baseline_contract.py`). Real
+> diversity in an LLM world should come from each agent's own character + memory,
+> not from being one of four archetypes. *State today:* per-agent **memory** is
+> already external and individual; per-agent **character** is still drawn from
+> the four presets (`llm.py: _build_system_prompt`) — generating a distinct
+> character per citizen is the natural next step for this layer.
 
-## Decisions so far
+## Design decisions (still in force)
 
 - **Concept:** observatory + possess (a fused overview/first-person experience),
   with the engine's metrics available underneath as the "why".
@@ -34,25 +36,22 @@ that grows out of them.
   for any possessed citizen (`emergence/chronicle.py`); the spatial map is a
   light supporting view. (A later layer can hand these grounded beats to an LLM
   for flowing prose.)
-- **Distribution:** **local-first, hostable later** ("B → A"). Ship a
-  local/desktop experience first (cheap, low-risk, the user brings their own LLM
-  key or uses the free offline brain), architected so the *same* code becomes a
-  hosted SaaS once validated. The dev-only "sell the API/platform" path (C) is
-  out — it contradicts an experience-first product.
-- **Why local-first:** the strategic risk is **LLM cost**. An entertainment sim
-  that runs forever would wreck SaaS unit economics if we paid for inference, so
-  the offline `HeuristicBrain` (free, deterministic) and bring-your-own-key are
-  the default; hosted inference is an opt-in we add later behind quotas.
-- **The brain, and what the product *is*.** The soul is **LLM-driven
+- **Local-first, hostable later.** Everything runs on one machine with zero
+  dependencies (the user brings their own LLM key or uses the free offline
+  brain), architected so the *same* code can be hosted later if ever needed —
+  hosting is a transport/ops change, not a rewrite. The driver is **LLM cost**:
+  a sim that runs for weeks must not depend on paid inference, so the offline
+  `HeuristicBrain` (free, deterministic) and bring-your-own-key are the default.
+- **Three brain modes, selectable per world.** The soul is **LLM-driven
   emergence** — one model individuated by per-agent character + memory into many
-  citizens, whose interaction grows a society. So the product is **LLM-forward**,
-  with three brain modes selectable per world:
-  - `heuristic` — free, instant, deterministic; the **test + demo/preview tier**
-    (caricatured personas, *not* real AI — never sold as the AI).
-  - `local` — a local LLM (Llama via Ollama); the **main** mode: private,
-    ~free, real reasoning.
+  citizens, whose interaction grows a society:
+  - `heuristic` — free, instant, deterministic; the demo/preview and floor/bench
+    layer (caricatured personas, *not* real AI).
+  - `local` — a local LLM (Llama via Ollama): private, ~free, real reasoning.
   - `api` — an ad-hoc hosted model (OpenAI-compatible or Anthropic).
   LLM brains fall back to the heuristic per-agent if the model is unreachable.
+  (The developmental brain, `--neural`, is a CLI/engine feature; wiring it into
+  the observatory's brain selector is future work.)
 - **Reproducibility = engine seed + record/replay (not temperature=0).** The
   engine is already deterministic from its `seed`; the only non-determinism is
   the LLM call. We do **not** chase determinism with `temperature=0` — that
@@ -63,7 +62,8 @@ that grows out of them.
   and shippable alongside a paper. Temperature stays a plain knob (sensible
   default for richness; set 0 only to *study* modal behaviour), not a "mode".
   Sweep seeds for the *space* of societies; each seed stays reproducible.
-  *(record/replay client: planned next.)*
+  (Shipped: every LLM run records by default and replays bit-exactly — roadmap
+  step 5 below.)
 
 ## Architecture
 
@@ -121,7 +121,7 @@ Built in from the start, sized to a local single-user app:
   day we accept free-text personas, they must be sanitised before reaching
   prompts or HTML.
 
-To add when hosting (A): server-side LLM keys + cost quotas/rate limits, auth +
+To add if hosting ever happens: server-side LLM keys + cost quotas/rate limits, auth +
 authz, per-tenant isolation, and runaway-sim limits.
 
 ## Roadmap
@@ -160,5 +160,6 @@ authz, per-tenant isolation, and runaway-sim limits.
    canvas 2D (no WebGL/deps) — enough for ≤40 figures. The chronicle and
    possessed life read on the right. ✅ (Toward a richer, "Steam-grade" look —
    next: better sprites, juice/particles, camera, audio; see #42.)
-9. **Hosting (A)** — auth, quotas, multi-tenant, optional hosted inference;
-   swap the stdlib transport for ASGI.
+9. **Hosting (optional, future)** — auth, quotas, multi-tenant, optional hosted
+   inference; swap the stdlib transport for ASGI. Not the current direction —
+   the research substrate comes first.
