@@ -144,8 +144,13 @@ def main(argv=None) -> int:
         json.dump(result, fh, indent=2)
 
     print(json.dumps(result, indent=2))
+    note = ""
+    if battery.inconclusive_rules:
+        note = (f"  [INCONCLUSIVE: {', '.join(battery.inconclusive_rules)} — the "
+                "behaviour never occurred, so excess there is floor noise, not a "
+                "verdict]")
     print(f"\n[done] replay_inexplicable={battery.replay_inexplicable}  "
-          f"weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f})  "
+          f"weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
           f"→ paste {args.out}/battery.json to issue #130")
     return 0
 

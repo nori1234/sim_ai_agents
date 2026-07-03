@@ -101,6 +101,17 @@ class GroundingResult:
     days: int
     n_agents: int
 
+    @property
+    def conclusive(self) -> bool:
+        """False when the tested brain never exercised the behaviour in either
+        world (control_rate == counterfactual_rate == 0). Then divergence is 0 and
+        the excess is just the negated heuristic floor — pure noise, not evidence.
+        Such a result is *inconclusive* (the transfer test could not discriminate),
+        not a verdict of replay, and must not be counted as either. The first
+        real-engine battery hit exactly this for vanity/exposure: the freshly
+        trained policy never feasts or lies in the full 44-action town."""
+        return (self.control_rate > 0.0) or (self.counterfactual_rate > 0.0)
+
     def as_dict(self) -> dict:
         return {
             "rule": self.rule,
@@ -110,6 +121,7 @@ class GroundingResult:
             "divergence": round(self.divergence, 4),
             "floor_divergence": round(self.floor_divergence, 4),
             "excess": round(self.excess, 4),
+            "conclusive": self.conclusive,
             "verdict": self.verdict,
             "days": self.days,
             "n_agents": self.n_agents,
@@ -256,7 +268,12 @@ def run_grounding_probe(
         counterfactual_rate = control - divergence
 
     excess = divergence - floor
-    if brain_factory is None:
+    tested_did_behaviour = (control > 0.0) or (counterfactual_rate > 0.0)
+    if not tested_did_behaviour:
+        # The brain never performed the scored behaviour in either world, so the
+        # excess is just the negated heuristic floor — nothing to read.
+        verdict = "inconclusive (behaviour never occurred)"
+    elif brain_factory is None:
         verdict = "baseline (heuristic floor)"
     elif excess > threshold:
         verdict = "grounded (exceeds heuristic floor)"
@@ -287,12 +304,19 @@ class SweepResult:
     seeds: tuple
     mean_excess: float
     min_excess: float
-    n_grounded: int               # worlds where excess cleared the threshold
+    n_grounded: int               # worlds that were conclusive AND cleared the threshold
     n_worlds: int
+    n_conclusive: int             # worlds where the behaviour actually occurred
 
     @property
     def fraction_grounded(self) -> float:
         return self.n_grounded / self.n_worlds if self.n_worlds else 0.0
+
+    @property
+    def conclusive(self) -> bool:
+        """The sweep measured something in every world — else fraction_grounded
+        is not a grounding statement (the behaviour simply never happened)."""
+        return self.n_conclusive == self.n_worlds
 
     def as_dict(self) -> dict:
         return {
@@ -301,8 +325,10 @@ class SweepResult:
             "mean_excess": round(self.mean_excess, 4),
             "min_excess": round(self.min_excess, 4),
             "n_grounded": self.n_grounded,
+            "n_conclusive": self.n_conclusive,
             "n_worlds": self.n_worlds,
             "fraction_grounded": round(self.fraction_grounded, 3),
+            "conclusive": self.conclusive,
             "per_world": [r.as_dict() for r in self.results],
         }
 
@@ -339,7 +365,10 @@ def run_grounding_sweep(
         rule=rule, results=results, seeds=tuple(seeds),
         mean_excess=sum(excesses) / len(excesses),
         min_excess=min(excesses),
-        n_grounded=sum(1 for x in excesses if x > threshold),
+        # A world only counts as grounded if it was conclusive AND cleared the bar
+        # — an inconclusive world's excess is floor noise that can drift positive.
+        n_grounded=sum(1 for r in results if r.conclusive and r.excess > threshold),
+        n_conclusive=sum(1 for r in results if r.conclusive),
         n_worlds=len(seeds))
 
 
@@ -361,11 +390,21 @@ class BatteryResult:
     replay_inexplicable: bool
     weakest_rule: str
     weakest_excess: float
+    inconclusive_rules: tuple     # rules whose behaviour never occurred in some world
+
+    @property
+    def conclusive(self) -> bool:
+        """Every rule measured something in every world. When False, a
+        ``replay_inexplicable=False`` verdict may just mean the behaviours never
+        happened (e.g. a policy that never feasts in the full town) — not replay."""
+        return not self.inconclusive_rules
 
     def as_dict(self) -> dict:
         return {
             "rules": list(self.rules),
             "replay_inexplicable": self.replay_inexplicable,
+            "conclusive": self.conclusive,
+            "inconclusive_rules": list(self.inconclusive_rules),
             "weakest_rule": self.weakest_rule,
             "weakest_excess": round(self.weakest_excess, 4),
             "per_rule": {r: s.as_dict() for r, s in self.sweeps.items()},
@@ -403,9 +442,13 @@ def run_grounding_battery(
                        brain_factory=brain_factory)
               for r in rules}
     weakest_rule = min(sweeps, key=lambda r: sweeps[r].min_excess)
+    inconclusive = tuple(r for r, s in sweeps.items() if not s.conclusive)
     return BatteryResult(
         rules=tuple(rules), sweeps=sweeps,
-        replay_inexplicable=all(s.n_grounded == s.n_worlds
-                                for s in sweeps.values()),
+        # The strongest claim needs every rule conclusive AND every world grounded.
+        # An inconclusive rule can never earn it — nothing was measured there.
+        replay_inexplicable=(not inconclusive and
+                             all(s.n_grounded == s.n_worlds for s in sweeps.values())),
         weakest_rule=weakest_rule,
-        weakest_excess=sweeps[weakest_rule].min_excess)
+        weakest_excess=sweeps[weakest_rule].min_excess,
+        inconclusive_rules=inconclusive)
