@@ -419,6 +419,7 @@ def run_grounding_battery(
     days: int = 20,
     n_agents: int = 6,
     threshold: float = 0.0,
+    sandbox: bool = False,
     brain_factory=None,
     sweep=None,
 ) -> BatteryResult:
@@ -429,8 +430,9 @@ def run_grounding_battery(
     result. The default persona is ``guardian`` because it exercises all three
     scored behaviours on the heuristic floor (it deposits, feasts, and — staying
     solvent — keeps qualifying for the plead-poverty scam; predator towns go
-    broke or extinct). ``sweep`` is injectable for tests and defaults to
-    :func:`run_grounding_sweep`."""
+    broke or extinct). ``sandbox=True`` measures in the minimal world where the
+    behaviour is dense enough to be conclusive (currently ``demurrage`` only).
+    ``sweep`` is injectable for tests and defaults to :func:`run_grounding_sweep`."""
     if not rules:
         raise ValueError("rules must be non-empty")
     for r in rules:
@@ -438,7 +440,7 @@ def run_grounding_battery(
             raise ValueError(f"unknown counterfactual rule: {r!r}")
     sweep = sweep or run_grounding_sweep
     sweeps = {r: sweep(persona, rule=r, seeds=seeds, days=days,
-                       n_agents=n_agents, threshold=threshold,
+                       n_agents=n_agents, threshold=threshold, sandbox=sandbox,
                        brain_factory=brain_factory)
               for r in rules}
     weakest_rule = min(sweeps, key=lambda r: sweeps[r].min_excess)

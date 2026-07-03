@@ -42,6 +42,12 @@ on:
         description: is_stable window (probes)
         required: false
         default: "3"
+      sandbox:
+        description: >-
+          train + measure in the minimal sandbox (dense behaviour → conclusive;
+          demurrage only). "true" or "false".
+        required: false
+        default: "false"
 
 jobs:
   train-and-battery:
@@ -90,6 +96,7 @@ jobs:
             --seed "${{ inputs.seed }}" \
             --probe-every "${{ inputs.probe_every }}" \
             --window "${{ inputs.window }}" \
+            ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             --out grounding_out
 
       - name: Publish the battery result to the job summary

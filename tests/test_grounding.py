@@ -284,7 +284,7 @@ class TestGroundingSweep(unittest.TestCase):
         from emergence.grounding import GroundingResult
 
         def probe(persona, *, rule, days, n_agents, seed, threshold,
-                  sandbox, brain_factory):
+                  brain_factory, sandbox=False):
             x = excess_by_seed[seed]
             return GroundingResult(
                 rule=rule, target="deposit", control_rate=0.5,
@@ -329,7 +329,7 @@ class TestGroundingBattery(unittest.TestCase):
         from emergence.grounding import SweepResult, GroundingResult
 
         def sweep(persona, *, rule, seeds, days, n_agents, threshold,
-                  brain_factory):
+                  brain_factory, sandbox=False):
             xs = excess_by_rule[rule]
             results = [GroundingResult(
                 rule=rule, target="t", control_rate=0.5,
@@ -375,7 +375,7 @@ class TestGroundingBattery(unittest.TestCase):
         # be counted as grounded even if the noise drifts positive.
         from emergence.grounding import SweepResult, GroundingResult, run_grounding_battery
 
-        def sweep(persona, *, rule, seeds, days, n_agents, threshold, brain_factory):
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold, brain_factory, sandbox=False):
             if rule == "vanity":                       # behaviour never happened
                 results = [GroundingResult(
                     rule=rule, target="feast", control_rate=0.0,
