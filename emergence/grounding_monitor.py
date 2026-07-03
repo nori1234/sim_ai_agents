@@ -49,6 +49,7 @@ class GroundingMonitor:
         seed: int = 42,
         every: int = 1,
         threshold: float = 0.0,
+        sandbox: bool = False,
         on_result: Optional[Callable[[dict], None]] = None,
         probe: Callable[..., GroundingResult] = run_grounding_probe,
     ):
@@ -61,6 +62,7 @@ class GroundingMonitor:
         self.seed = seed
         self.every = every
         self.threshold = threshold
+        self.sandbox = sandbox
         self._on_result = on_result
         self._probe = probe
         self.history: list[dict] = []
@@ -84,7 +86,8 @@ class GroundingMonitor:
         trained state, so the curve tracks learning."""
         result = self._probe(
             self.persona, rule=self.rule, days=self.days, n_agents=self.n_agents,
-            seed=self.seed, threshold=self.threshold, brain_factory=brain_factory)
+            seed=self.seed, threshold=self.threshold, sandbox=self.sandbox,
+            brain_factory=brain_factory)
         entry = {"epoch": epoch, **result.as_dict()}
         self.history.append(entry)
         if self._on_result is not None:

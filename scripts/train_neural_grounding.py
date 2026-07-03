@@ -37,6 +37,7 @@ from emergence.brains.neural import NeuralDevelopmentalBrain   # noqa: E402
 from emergence.esteem import StatusConfig                      # noqa: E402
 from emergence.grounding import (                              # noqa: E402
     CounterfactualConfig,
+    make_grounding_sandbox,
     run_grounding_battery,
 )
 from emergence.grounding_monitor import GroundingMonitor       # noqa: E402
@@ -59,8 +60,14 @@ def main(argv=None) -> int:
     ap.add_argument("--probe-every", type=int, default=5, help="probe cadence (episodes)")
     ap.add_argument("--window", type=int, default=3, help="is_stable window (probes)")
     ap.add_argument("--threshold", type=float, default=0.0)
+    ap.add_argument("--sandbox", action="store_true",
+                    help="train + measure in the minimal sandbox (dense behaviour, "
+                         "conclusive). demurrage only — the sandbox's supported rule.")
     ap.add_argument("--out", default="grounding_out", help="output dir (ckpt, logs, battery.json)")
     args = ap.parse_args(argv)
+
+    # The sandbox isolates one decision; it currently supports demurrage only.
+    rules = ("demurrage",) if args.sandbox else RULES
 
     os.makedirs(args.out, exist_ok=True)
     ckpt = os.path.join(args.out, "agent.pt")
@@ -84,16 +91,21 @@ def main(argv=None) -> int:
     monitors = {
         r: GroundingMonitor(args.persona, rule=r, days=args.days,
                             n_agents=args.agents, seed=args.seed,
-                            threshold=args.threshold)
-        for r in RULES
+                            threshold=args.threshold, sandbox=args.sandbox)
+        for r in rules
     }
 
-    print(f"[train] up to {args.episodes} episodes x {args.days} days, "
-          f"{args.agents} agents, persona={args.persona}", flush=True)
-    stable = False
-    for ep in range(args.episodes):
+    def build_episode(ep: int):
+        """One training episode. In sandbox mode, alternate the control and
+        demurrage worlds in the minimal deposit-decision town (dense behaviour);
+        in full-town mode, rotate control + each of the three inverted worlds."""
+        if args.sandbox:
+            return make_grounding_sandbox(
+                args.persona, rule="demurrage", n_savers=args.agents - 1,
+                seed=args.seed + ep, days=args.days,
+                cf_enabled=(ep % 2 == 1), brain_factory=training_factory)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
-        sim = make_simulation(
+        return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
             status=StatusConfig(enabled=True),
             config=SimulationConfig(seed=args.seed + ep, days=args.days),
@@ -102,6 +114,14 @@ def main(argv=None) -> int:
                 hide_rate=True, instrument=True),
             brain_factory=training_factory,
         )
+
+    where = "sandbox" if args.sandbox else "full town"
+    print(f"[train] up to {args.episodes} episodes x {args.days} days, "
+          f"{args.agents} agents, persona={args.persona}, {where}, "
+          f"rules={','.join(rules)}", flush=True)
+    stable = False
+    for ep in range(args.episodes):
+        sim = build_episode(ep)
         sim.run()
 
         first = brains[next(iter(brains))]
@@ -110,8 +130,7 @@ def main(argv=None) -> int:
                      "heuristic). Install torch + llm_model_agi and retry — a "
                      "heuristic-only run would train nothing.")
 
-        world = rule or "control"
-        print(f"[train] episode {ep + 1}/{args.episodes} done ({world})", flush=True)
+        print(f"[train] episode {ep + 1}/{args.episodes} done", flush=True)
 
         if (ep + 1) % args.probe_every != 0:
             continue
@@ -135,9 +154,11 @@ def main(argv=None) -> int:
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
-    print("[battery] running the acceptance battery (all rules x all worlds)...",
-          flush=True)
-    battery = run_grounding_battery(args.persona, threshold=args.threshold,
+    print(f"[battery] running the acceptance battery ({','.join(rules)} x all "
+          f"worlds, {where})...", flush=True)
+    battery = run_grounding_battery(args.persona, rules=rules,
+                                    threshold=args.threshold,
+                                    sandbox=args.sandbox,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
