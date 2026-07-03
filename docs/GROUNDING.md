@@ -210,6 +210,19 @@ one axis first, then graduate to the full town and more rules.
   it needs). Agreement across several independent rules is far stronger evidence
   of grounding than any one.
 
+## Conclusive vs inconclusive — the behaviour must actually occur
+
+A transfer test only measures grounding if the tested brain **performs the scored
+behaviour**. If it never deposits / feasts / lies in *either* world, its
+divergence is 0 and the "excess" is just the negated heuristic floor — noise, not
+a signal. Every result therefore carries `conclusive` (True iff the behaviour
+occurred), the probe verdict becomes `"inconclusive (behaviour never occurred)"`,
+an inconclusive world is **never** counted as grounded (positive floor noise
+doesn't sneak through), and `battery.replay_inexplicable` requires every rule
+conclusive. Report `min_excess` **and** `conclusive` — a `replay_inexplicable=False`
+can mean "the behaviour never happened here", which is a measurement gap, not a
+verdict of replay. This is exactly what the first real-engine battery hit (below).
+
 ## Current status (2026-07)
 
 Measured with the developmental brain (`NeuralDevelopmentalBrain` ⇄
@@ -226,9 +239,19 @@ local mirror:
 * **Reproducibility: open.** 1/3 training seeds currently passes the full
   three-rule battery (it was 2/3 at two rules — the bar is a conjunction, so it
   tightens as rules are added). Training-side work (longer runs, more seeds).
-* **Next milestone:** run `run_grounding_battery` with the stable checkpoint's
-  weights in this real engine (not the mirror). `replay_inexplicable=True` there
-  is the claim made good.
+* **First real-engine battery: inconclusive, not a verdict.** A brain trained in
+  the real engine (`neural-train-battery` CI, ~10 min, guardian, 3 rules × 5
+  worlds) returned `replay_inexplicable=False` — but the honest reading is
+  *inconclusive*: the freshly trained policy **never feasts or lies in the full
+  44-action town** (`control_rate == counterfactual_rate == 0` for `vanity` and
+  `exposure`), so their "excess" is only floor noise. This is precisely why the
+  sandbox exists (behaviours are ~20× denser there). The result validated the
+  plumbing end-to-end (train → checkpoint → battery in the real engine) and
+  forced the `conclusive` guard above.
+* **Next milestone:** get a battery where the behaviours actually occur — run each
+  rule in a behaviour-eliciting setup (sandbox for `demurrage`; sandbox variants
+  or much longer full-town training for `vanity`/`exposure`) so `conclusive=True`,
+  then read `replay_inexplicable`.
 
 ## Why this comes before 3D
 

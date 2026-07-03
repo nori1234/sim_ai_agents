@@ -338,7 +338,8 @@ class TestGroundingBattery(unittest.TestCase):
             return SweepResult(
                 rule=rule, results=results, seeds=tuple(seeds[:len(xs)]),
                 mean_excess=sum(xs) / len(xs), min_excess=min(xs),
-                n_grounded=sum(1 for x in xs if x > threshold), n_worlds=len(xs))
+                n_grounded=sum(1 for r in results if r.conclusive and r.excess > threshold),
+                n_conclusive=sum(1 for r in results if r.conclusive), n_worlds=len(xs))
 
         return sweep
 
@@ -367,6 +368,40 @@ class TestGroundingBattery(unittest.TestCase):
         self.assertIn("per_rule", d)
         self.assertEqual(set(d["per_rule"]), {"demurrage", "vanity", "exposure"})
 
+    def test_a_rule_whose_behaviour_never_occurs_is_inconclusive_not_replay(self):
+        # The real-engine battery hit this: the trained policy never feasts/lies in
+        # the full town, so control==counterfactual==0 and "excess" is floor noise.
+        # That must read as inconclusive, never earn replay_inexplicable, and never
+        # be counted as grounded even if the noise drifts positive.
+        from emergence.grounding import SweepResult, GroundingResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold, brain_factory):
+            if rule == "vanity":                       # behaviour never happened
+                results = [GroundingResult(
+                    rule=rule, target="feast", control_rate=0.0,
+                    counterfactual_rate=0.0, divergence=0.0, floor_divergence=-0.08,
+                    excess=0.08, verdict="", days=days, n_agents=n_agents)
+                    for _ in seeds]
+            else:
+                results = [GroundingResult(
+                    rule=rule, target="t", control_rate=0.5, counterfactual_rate=0.3,
+                    divergence=0.2, floor_divergence=0.0, excess=0.2, verdict="",
+                    days=days, n_agents=n_agents) for _ in seeds]
+            return SweepResult(
+                rule=rule, results=results, seeds=tuple(seeds),
+                mean_excess=sum(r.excess for r in results) / len(results),
+                min_excess=min(r.excess for r in results),
+                n_grounded=sum(1 for r in results if r.conclusive and r.excess > threshold),
+                n_conclusive=sum(1 for r in results if r.conclusive),
+                n_worlds=len(seeds))
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertFalse(battery.replay_inexplicable, "an inconclusive rule can't earn it")
+        self.assertFalse(battery.conclusive)
+        self.assertIn("vanity", battery.inconclusive_rules)
+        self.assertEqual(battery.sweeps["vanity"].n_grounded, 0,
+                         "positive floor noise must not count as grounded")
+
     def test_unknown_or_empty_rules_rejected(self):
         from emergence.grounding import run_grounding_battery
         with self.assertRaises(ValueError):
@@ -384,16 +419,27 @@ class TestGroundingBattery(unittest.TestCase):
 
 class TestProbeEndToEnd(unittest.TestCase):
     def test_offline_probe_runs_and_is_well_formed(self):
-        result = run_grounding_probe("guardian", days=6, n_agents=5, seed=1)
+        # Use the sandbox so depositing actually occurs (dense) — else the probe
+        # is (correctly) inconclusive, which wouldn't exercise the floor path.
+        result = run_grounding_probe("guardian", days=12, n_agents=4, seed=1,
+                                     sandbox=True)
         self.assertIsInstance(result, GroundingResult)
         self.assertEqual(result.target, "deposit")
-        self.assertGreaterEqual(result.control_rate, 0.0)
-        self.assertGreaterEqual(result.counterfactual_rate, 0.0)
+        self.assertGreater(result.control_rate, 0.0, "deposits occur in the sandbox")
+        self.assertTrue(result.conclusive)
         # With no brain_factory the tested brain *is* the heuristic floor, so the
         # excess is zero by construction and the verdict says so.
         self.assertEqual(result.excess, 0.0)
         self.assertEqual(result.verdict, "baseline (heuristic floor)")
         self.assertEqual(result.as_dict()["rule"], "demurrage")
+
+    def test_a_probe_where_the_behaviour_never_occurs_is_inconclusive(self):
+        # Full town, short run, guardian: deposits are too rare to register — the
+        # probe must say inconclusive, not dress up the floor noise as a verdict.
+        result = run_grounding_probe("guardian", days=4, n_agents=4, seed=1)
+        if result.control_rate == 0.0 and result.counterfactual_rate == 0.0:
+            self.assertFalse(result.conclusive)
+            self.assertEqual(result.verdict, "inconclusive (behaviour never occurred)")
 
     def test_a_learning_brain_shows_positive_excess_over_the_floor(self):
         # A brain that wraps the heuristic but stops depositing once it has lived
