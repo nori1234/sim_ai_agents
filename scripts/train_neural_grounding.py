@@ -64,7 +64,15 @@ def main(argv=None) -> int:
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
     ap.add_argument("--out", default="grounding_out", help="output dir (ckpt, logs, battery.json)")
+    ap.add_argument("--hparams", default=None,
+                    help='JSON dict forwarded to build_brain, e.g. '
+                         '\'{"batch_every": 64, "lr_decay_steps": 4000}\' — the '
+                         "brain side's late-training-oscillation damper knobs "
+                         "(batch_every/lr/lr_min/lr_decay_steps/entropy_weight/"
+                         "self_attempt_base/bc_weight). Unset means their defaults.")
     args = ap.parse_args(argv)
+
+    hparams = json.loads(args.hparams) if args.hparams else None
 
     # The sandbox isolates one decision; it currently supports demurrage only.
     rules = ("demurrage",) if args.sandbox else RULES
@@ -78,7 +86,8 @@ def main(argv=None) -> int:
     def training_factory(agent, persona, rng):
         b = brains.get(agent.id)
         if b is None:
-            b = NeuralDevelopmentalBrain(persona, teacher=HeuristicBrain(persona))
+            b = NeuralDevelopmentalBrain(persona, teacher=HeuristicBrain(persona),
+                                         hparams=hparams)
             brains[agent.id] = b
         else:
             b._prev_obs = None            # a new episode is a fresh trajectory
@@ -86,7 +95,8 @@ def main(argv=None) -> int:
 
     # -- frozen evaluation factory: load the checkpoint, never learn ----------
     def probe_factory(agent, persona, rng):
-        return NeuralDevelopmentalBrain(persona, learn=False, checkpoint=ckpt)
+        return NeuralDevelopmentalBrain(persona, learn=False, checkpoint=ckpt,
+                                        hparams=hparams)
 
     monitors = {
         r: GroundingMonitor(args.persona, rule=r, days=args.days,
@@ -118,7 +128,7 @@ def main(argv=None) -> int:
     where = "sandbox" if args.sandbox else "full town"
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}, "
-          f"rules={','.join(rules)}", flush=True)
+          f"rules={','.join(rules)}, hparams={hparams}", flush=True)
     stable = False
     for ep in range(args.episodes):
         sim = build_episode(ep)

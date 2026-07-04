@@ -42,7 +42,8 @@ class NeuralDevelopmentalBrain(AgentBrain):
     def __init__(self, persona, *, learn: bool = True,
                  teacher: Optional[AgentBrain] = None,
                  checkpoint: Optional[str] = None,
-                 reward_weights: Optional[dict] = None):
+                 reward_weights: Optional[dict] = None,
+                 hparams: Optional[dict] = None):
         # The two factory paths pass persona differently — a Persona object for
         # initial agents, a plain key string for newborns — so normalise to a key
         # string and hand build_brain a single, stable type.
@@ -52,6 +53,11 @@ class NeuralDevelopmentalBrain(AgentBrain):
         self._learn = learn
         self._ckpt = checkpoint
         self._reward_weights = reward_weights
+        # Forwarded to build_brain's optional AgentConfig overrides (e.g.
+        # batch_every, lr, lr_min, lr_decay_steps, entropy_weight,
+        # self_attempt_base, bc_weight) — the brain side's late-training-
+        # oscillation damper. None/{} means "use their defaults".
+        self._hparams = hparams
         self._dev = None                 # the DevelopmentalAgent; lazy-built
         self._broken = False             # latched once deps/build fail → straight to fallback
         self._prev_obs = None            # last observation, for the reward delta
@@ -63,7 +69,11 @@ class NeuralDevelopmentalBrain(AgentBrain):
         # Imported here, never at module load, so the engine and the offline
         # baseline have zero dependency on torch or llm_model_agi.
         from agent.adapters.emergence import build_brain  # type: ignore
-        self._dev = build_brain(self._persona, self._teacher, self._ckpt)
+        if self._hparams:
+            self._dev = build_brain(self._persona, self._teacher, self._ckpt,
+                                    hparams=self._hparams)
+        else:
+            self._dev = build_brain(self._persona, self._teacher, self._ckpt)
 
     # -- the only engine contract -------------------------------------------
     def decide(self, agent: Agent, observation) -> Action:

@@ -27,10 +27,20 @@ and **never** the reverse. Absent either, the engine runs unchanged on the heuri
 ## The interface the brain side provides
 
 ```
-agent.adapters.emergence.build_brain(persona, teacher, checkpoint) -> DevelopmentalAgent
+agent.adapters.emergence.build_brain(persona, teacher, checkpoint, hparams=None) -> DevelopmentalAgent
 agent.adapters.emergence.to_engine_action(spec, agent, observation) -> emergence.actions.Action
 agent.adapters.emergence.EmergenceObsTokenizer                       # observation -> token ids
 ```
+
+`hparams` (optional keyword) is a dict of `AgentConfig` overrides — e.g.
+`batch_every` / `lr` / `lr_min` / `lr_decay_steps` / `entropy_weight` /
+`self_attempt_base` / `bc_weight`. The engine's `NeuralDevelopmentalBrain` only
+forwards it when non-empty, so `None`/default behaviour is unaffected. This is
+the knob for late-training instability (a real run oscillated: excess climbed
+across several probes then collapsed before `is_stable` was reached) — the
+trainer (`scripts/train_neural_grounding.py --hparams '{"batch_every": 64, ...}'`)
+and the `neural-train-battery` workflow's `hparams` input both plumb this
+straight through.
 
 `DevelopmentalAgent` must expose:
 

@@ -141,8 +141,9 @@ class TestLearningPathWiring(unittest.TestCase):
             def learn(self, obs, reward):
                 calls["learn"].append(reward)
 
-        def build_brain(persona, teacher, ckpt):
+        def build_brain(persona, teacher, ckpt, hparams=None):
             calls["build"] += 1
+            calls["hparams"] = hparams
             return _FakeDev()
 
         def to_engine_action(spec, agent, obs):
@@ -182,6 +183,23 @@ class TestLearningPathWiring(unittest.TestCase):
         brain.decide(agent, sim._observe(agent))
         self.assertEqual(len(self.calls["learn"]), 1, "turn 2 learns from turn 1")
         self.assertFalse(brain._broken, "the ON path must not latch to fallback")
+
+    def test_hparams_are_forwarded_to_build_brain(self):
+        sim = make_simulation("guardian", n_agents=2,
+                              config=SimulationConfig(seed=1))
+        agent = sim.agents[0]
+        hparams = {"batch_every": 64, "lr_decay_steps": 4000}
+        brain = NeuralDevelopmentalBrain("guardian", hparams=hparams)
+        brain.decide(agent, sim._observe(agent))
+        self.assertEqual(self.calls["hparams"], hparams)
+
+    def test_no_hparams_means_build_brain_sees_none(self):
+        sim = make_simulation("guardian", n_agents=2,
+                              config=SimulationConfig(seed=1))
+        agent = sim.agents[0]
+        brain = NeuralDevelopmentalBrain("guardian")
+        brain.decide(agent, sim._observe(agent))
+        self.assertIsNone(self.calls["hparams"])
 
 
 class TestBaselineUntouched(unittest.TestCase):
