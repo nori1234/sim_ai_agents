@@ -201,6 +201,42 @@ class TestLearningPathWiring(unittest.TestCase):
         brain.decide(agent, sim._observe(agent))
         self.assertIsNone(self.calls["hparams"])
 
+    def test_last_learn_info_is_none_when_learn_returns_nothing(self):
+        # The fake's learn() returns None (the common/legacy case) — must not
+        # crash, and last_learn_info stays None (nothing to report).
+        sim = make_simulation("guardian", n_agents=2,
+                              config=SimulationConfig(seed=1))
+        agent = sim.agents[0]
+        brain = NeuralDevelopmentalBrain("guardian")
+        brain.decide(agent, sim._observe(agent))
+        agent.energy -= 5
+        brain.decide(agent, sim._observe(agent))       # this turn calls learn()
+        self.assertIsNone(brain.last_learn_info)
+
+    def test_last_learn_info_captures_an_optional_diagnostics_dict(self):
+        # If the brain side's learn() returns {"grad_steps": ..., "lr": ...} for
+        # hparam calibration (e.g. tuning lr_decay_steps), the engine adapter
+        # must surface it on the instance for a trainer script to read.
+        import sys
+        sys.modules["agent.adapters.emergence"].build_brain = \
+            lambda persona, teacher, ckpt, hparams=None: _DevWithInfo()
+
+        class _DevWithInfo:
+            def act(self, obs, agent=None):
+                return {"verb": "rest"}
+
+            def learn(self, obs, reward):
+                return {"grad_steps": 42, "lr": 0.0003}
+
+        sim = make_simulation("guardian", n_agents=2,
+                              config=SimulationConfig(seed=1))
+        agent = sim.agents[0]
+        brain = NeuralDevelopmentalBrain("guardian")
+        brain.decide(agent, sim._observe(agent))
+        agent.energy -= 5
+        brain.decide(agent, sim._observe(agent))       # this turn calls learn()
+        self.assertEqual(brain.last_learn_info, {"grad_steps": 42, "lr": 0.0003})
+
 
 class TestBaselineUntouched(unittest.TestCase):
     """The whole point of opt-in: the neural backend existing changes nothing for
