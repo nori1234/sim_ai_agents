@@ -61,6 +61,12 @@ class NeuralDevelopmentalBrain(AgentBrain):
         self._dev = None                 # the DevelopmentalAgent; lazy-built
         self._broken = False             # latched once deps/build fail → straight to fallback
         self._prev_obs = None            # last observation, for the reward delta
+        # The brain side's learn() may optionally return a diagnostics dict (e.g.
+        # {"grad_steps": int, "lr": float}) for hparam tuning (the lr-decay
+        # schedule needs the actual per-agent step count to calibrate
+        # lr_decay_steps). Purely informational — never required, never used by
+        # engine logic; a trainer script may read it off the brain instance.
+        self.last_learn_info: Optional[dict] = None
 
     # -- lazy build: import torch / llm_model_agi only on first real use -----
     def _ensure(self) -> None:
@@ -86,7 +92,9 @@ class NeuralDevelopmentalBrain(AgentBrain):
                 from ._neural_reward import survival_reward
                 reward = survival_reward(self._prev_obs, observation,
                                          self._reward_weights)
-                self._dev.learn(observation, reward)   # curiosity is added internally
+                info = self._dev.learn(observation, reward)  # curiosity is added internally
+                if isinstance(info, dict):
+                    self.last_learn_info = info
             # 2) Choose an action (early stages imitate the teacher; later autonomous).
             #    `agent` is passed so the brain's EngineTeacher can call
             #    teacher.decide(agent, obs) for imitation (contract decision (a)).

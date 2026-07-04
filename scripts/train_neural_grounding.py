@@ -140,7 +140,12 @@ def main(argv=None) -> int:
                      "heuristic). Install torch + llm_model_agi and retry — a "
                      "heuristic-only run would train nothing.")
 
-        print(f"[train] episode {ep + 1}/{args.episodes} done", flush=True)
+        # Surface the brain side's optional per-step diagnostics (grad_steps, lr,
+        # ...) if learn() returns them — the calibration signal for hparams like
+        # lr_decay_steps. None if their build doesn't report it.
+        info = getattr(first, "last_learn_info", None)
+        info_str = f" | {info}" if info else ""
+        print(f"[train] episode {ep + 1}/{args.episodes} done{info_str}", flush=True)
 
         if (ep + 1) % args.probe_every != 0:
             continue
