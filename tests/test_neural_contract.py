@@ -106,12 +106,24 @@ class TestContractInSync(unittest.TestCase):
             self.assertNotEqual(agent.pos, before, "moved toward the market anyway")
 
     def test_target_key_maps_reference_only_real_actions(self):
-        for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY}:
+        for verb in {**C.COUNTERPARTY_KEY, **C.FACILITY_TARGET_KEY, **C.BANK_KEY}:
             self.assertIn(verb, C.ACTION_VOCAB, f"{verb!r} is not an engine action")
         # strike is the one agent-OR-facility verb; arson is facility-only.
         self.assertIn("strike", C.COUNTERPARTY_KEY)
         self.assertIn("strike", C.FACILITY_TARGET_KEY)
         self.assertEqual(C.STRIKE_DEFAULT_TARGET, "agent")
+
+    def test_bank_key_covers_every_verb_whose_param_spec_has_a_bank_key(self):
+        # Regression guard: deposit/withdraw/endorse each carry an agent-id param
+        # named "bank" that is neither a facility nor the primary counterparty —
+        # a real integration missed this once (params never got a bank id filled,
+        # so every deposit was silently clamped to idle). Any PARAM_SPEC entry
+        # with a literal "bank" key must be resolvable via BANK_KEY.
+        verbs_with_bank_param = {v for v, spec in C.PARAM_SPEC.items() if "bank" in spec}
+        self.assertEqual(verbs_with_bank_param, set(C.BANK_KEY),
+                         "BANK_KEY drifted from PARAM_SPEC's bank-carrying verbs")
+        for verb in C.BANK_KEY:
+            self.assertEqual(C.BANK_KEY[verb], "bank")
 
 
 @unittest.skipUnless(_HAS_NEURAL,

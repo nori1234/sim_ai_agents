@@ -79,6 +79,17 @@ assume `"target"` everywhere: `take`→`from`, `give`/`lend`/`endorse`→`to`,
    when the spec explicitly named one. (`bond` is proposal-vs-agent, not
    facility-vs-agent — your facility-first rule doesn't apply to it: prefer a
    `proposal_id` vote-commit if a proposal is open, else a `with` pact.)
+4. **Some verbs carry a SECOND agent-id param: `BANK_KEY`.** `deposit` and
+   `withdraw` need an agent id under `"bank"` (the banker standing at a BANK
+   facility) — not `"target"`, not the primary counterparty. `endorse` needs
+   *both*: `"to"` (COUNTERPARTY_KEY, who receives the note) and `"bank"`
+   (BANK_KEY, whose deposit it draws on). **This was missed once**: an adapter
+   that filled agent-id params by matching the *key name* against a fixed list
+   never matched `"bank"`, so it was left empty on every `deposit` — the engine
+   clamped the action, deposits silently never happened, and a whole training
+   run's grounding probe came back inconclusive because of it. Resolve agent-id
+   params by the param's **type hint in `PARAM_SPEC`** (`"agent_id"`), not by key
+   name, and check `BANK_KEY` in addition to `COUNTERPARTY_KEY`.
 
 ## 2. Action vocabulary (44)
 

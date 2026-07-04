@@ -120,9 +120,15 @@ OBSERVATION_FIELDS: frozenset[str] = frozenset({
 
 
 #: For each verb that references another agent, the ``params`` key that holds the
-#: agent id (= ``observation.others[i]["id"]``). Verbs not listed take no agent
-#: counterparty. The adapter should resolve the key per this map, not assume
-#: "target" everywhere.
+#: agent id (= ``observation.others[i]["id"]``). Verbs not listed here AND not in
+#: ``BANK_KEY`` take no agent counterparty. The adapter should resolve keys from
+#: these maps, not from a single "assume target everywhere" rule OR by name-
+#: matching the key against a fixed list — some verbs (``deposit``/``withdraw``/
+#: ``endorse``) need an agent id under a key ("bank") that isn't "target" and
+#: isn't the primary counterparty, and a first integration missed exactly this,
+#: silently dropping every deposit (the agent id was never filled, so the engine
+#: clamped the action). Resolve by the param's type hint in ``PARAM_SPEC``
+#: ("agent_id"), not by key name, and consult both maps below.
 COUNTERPARTY_KEY: dict[str, str] = {
     "mate": "target", "praise": "target", "attack": "target", "steal": "target",
     "arrest": "target", "report_crime": "target", "transfer": "target",
@@ -130,6 +136,13 @@ COUNTERPARTY_KEY: dict[str, str] = {
     "take": "from", "give": "to", "lend": "to", "endorse": "to", "bond": "with",
     "strike": "target",          # strike also has a facility form — see below
 }
+
+#: The banker-role agent id, a SECOND agent-id param some verbs carry alongside
+#: (or instead of) ``COUNTERPARTY_KEY`` — e.g. ``endorse`` has both ``to``
+#: (COUNTERPARTY_KEY) and ``bank`` (here). Also an agent id (still
+#: ``observation.others[i]["id"]``); it just names a different role (the banker
+#: standing at a BANK facility), not the mark/target/partner.
+BANK_KEY: dict[str, str] = {"deposit": "bank", "withdraw": "bank", "endorse": "bank"}
 
 #: Verbs that target a facility *by name* (= ``observation.nearby_facilities[i]["name"]``
 #: or ``observation.here["name"]``). ``strike`` is the only verb that is agent-OR-
