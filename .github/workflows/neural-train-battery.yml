@@ -48,6 +48,14 @@ on:
           demurrage only). "true" or "false".
         required: false
         default: "false"
+      hparams:
+        description: >-
+          JSON dict forwarded to build_brain — the brain side's late-training-
+          oscillation damper (batch_every/lr/lr_min/lr_decay_steps/
+          entropy_weight/self_attempt_base/bc_weight), e.g.
+          {"batch_every": 64, "lr_decay_steps": 4000}. Empty = their defaults.
+        required: false
+        default: ""
 
 jobs:
   train-and-battery:
@@ -97,6 +105,7 @@ jobs:
             --probe-every "${{ inputs.probe_every }}" \
             --window "${{ inputs.window }}" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
+            --hparams '${{ inputs.hparams }}' \
             --out grounding_out
 
       - name: Publish the battery result to the job summary
