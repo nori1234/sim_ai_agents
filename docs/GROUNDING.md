@@ -139,7 +139,10 @@ monitor.streak_above_threshold()  # how many consecutive recent probes cleared i
 ```
 
 The probe runs its own fresh simulations (it never touches the training run), and
-the logged headline is `excess`, never the raw divergence.
+the logged headline is `excess`, never the raw divergence. `GroundingMonitor`
+also accepts `floor_rollouts` (forwarded to every probe, same semantics and
+same default of 1/no-ensemble as `run_grounding_probe`) if you want the
+cross-check ensemble read logged alongside the training curve too.
 
 `improving()` is a coarse trend check (mean of the second half of the series vs
 the first half) — a run that spikes positive and then wobbles back down can still
