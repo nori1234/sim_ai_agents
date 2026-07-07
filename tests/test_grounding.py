@@ -756,10 +756,15 @@ class TestFloorRegressionAsATiebreaker(unittest.TestCase):
         self.assertTrue(sweep.floor_regression_grounded)
 
     def test_no_residual_signal_is_not_floor_regression_grounded(self):
-        floors = [-0.3, -0.1, 0.0, 0.2, 0.4]
-        extra = [0.1, -0.2, 0.15, -0.1, 0.05]          # no consistent direction
+        # n=6, floor spread ~0.29 -- comfortably powered, so a False here is a
+        # real "not significant" verdict, not an underpowered None in disguise
+        # (assertFalse(None) would also pass, which is why this specifically
+        # asserts `is False`, not just falsy).
+        floors = [-0.4, -0.3, -0.1, 0.1, 0.3, 0.4]
+        extra = [0.10, -0.20, 0.15, -0.10, 0.05, -0.05]  # no consistent direction
         sweep = self._sweep_with_residuals("demurrage", floors, extra)
-        self.assertFalse(sweep.floor_regression_grounded)
+        self.assertTrue(sweep.floor_regression["powered"])
+        self.assertIs(sweep.floor_regression_grounded, False)
 
     def test_too_few_conclusive_worlds_is_undetermined_not_false(self):
         from emergence.grounding import SweepResult
@@ -775,7 +780,23 @@ class TestFloorRegressionAsATiebreaker(unittest.TestCase):
         def sweep(persona, *, rule, seeds, days, n_agents, threshold,
                   brain_factory, sandbox=False, **kwargs):
             fr = ({"note": "too few"} if rule == "vanity"
-                 else {"residual_wilcoxon_p": 0.01})
+                 else {"residual_wilcoxon_p": 0.01, "powered": True})
+            return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
+                               mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
+                               n_worlds=len(seeds), n_conclusive=len(seeds),
+                               floor_regression=fr)
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertIsNone(battery.replay_inexplicable_floor_regression)
+
+    def test_battery_conjunction_is_none_when_a_rule_is_unpowered_even_with_a_low_p(self):
+        # An underpowered fit's p-value must not count as "significant" just
+        # because it happens to be small -- it's not trustworthy evidence.
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            fr = {"residual_wilcoxon_p": 0.001, "powered": rule != "vanity"}
             return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
                                mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
                                n_worlds=len(seeds), n_conclusive=len(seeds),
@@ -793,10 +814,79 @@ class TestFloorRegressionAsATiebreaker(unittest.TestCase):
             return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
                                mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
                                n_worlds=len(seeds), n_conclusive=len(seeds),
-                               floor_regression={"residual_wilcoxon_p": p})
+                               floor_regression={"residual_wilcoxon_p": p, "powered": True})
 
         battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
         self.assertFalse(battery.replay_inexplicable_floor_regression)
+
+
+class TestGroundedConfirmedAndGate(unittest.TestCase):
+    """The pre-registered verdict is a strict AND gate, not a tiebreaker: a
+    single test disagreeing withholds "grounded" (2026-07 review — an earlier
+    draft's wording implied floor_regression could override a failing
+    grounded_paired, which contradicted the AND semantics actually coded)."""
+
+    def _sweep(self, *, wilcoxon_p, fr_p, fr_powered=True):
+        from emergence.grounding import SweepResult
+        fr = {"powered": fr_powered}
+        if fr_powered:
+            fr["residual_wilcoxon_p"] = fr_p
+        else:
+            fr["note"] = "underpowered"
+        return SweepResult(rule="demurrage", results=[], seeds=(1, 2),
+                           mean_excess=0.2, min_excess=0.1, n_grounded=2,
+                           n_worlds=2, n_conclusive=2,
+                           wilcoxon_p=wilcoxon_p, floor_regression=fr)
+
+    def test_both_significant_is_confirmed(self):
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.01)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertTrue(sweep.floor_regression_grounded)
+        self.assertTrue(sweep.grounded_confirmed)
+
+    def test_paired_significant_but_regression_not_is_NOT_confirmed(self):
+        # This is exactly the quadrant the AND gate exists for: a floor
+        # confound that grounded_paired alone would miss must be able to veto.
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.30)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertFalse(sweep.floor_regression_grounded)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_regression_significant_but_paired_not_is_NOT_confirmed(self):
+        # The other quadrant: floor_regression is not a unilateral arbiter
+        # either -- it needs grounded_paired's agreement too.
+        sweep = self._sweep(wilcoxon_p=0.30, fr_p=0.01)
+        self.assertFalse(sweep.grounded_paired)
+        self.assertTrue(sweep.floor_regression_grounded)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_neither_significant_is_not_confirmed(self):
+        sweep = self._sweep(wilcoxon_p=0.30, fr_p=0.30)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_underpowered_regression_makes_confirmed_undetermined(self):
+        # Even if grounded_paired is significant, an underpowered regression
+        # can't confirm OR deny -- the AND gate can't be evaluated.
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.01, fr_powered=False)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertIsNone(sweep.floor_regression_grounded)
+        self.assertIsNone(sweep.grounded_confirmed)
+
+    def test_battery_confirmed_requires_every_rule_confirmed(self):
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            wilcoxon_p = 0.30 if rule == "vanity" else 0.01
+            return SweepResult(
+                rule=rule, results=[], seeds=tuple(seeds), mean_excess=0.2,
+                min_excess=0.1, n_grounded=len(seeds), n_worlds=len(seeds),
+                n_conclusive=len(seeds), wilcoxon_p=wilcoxon_p,
+                floor_regression={"residual_wilcoxon_p": 0.01, "powered": True})
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertFalse(battery.replay_inexplicable_confirmed,
+                         "vanity's grounded_paired failed, so the AND gate must fail overall")
 
 
 if __name__ == "__main__":

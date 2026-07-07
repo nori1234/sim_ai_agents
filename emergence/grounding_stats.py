@@ -136,3 +136,28 @@ def linear_regression(xs: list, ys: list) -> tuple:
     sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
     slope = sxy / sxx
     return (slope, mean_y - slope * mean_x)
+
+
+def regression_slope_bootstrap_ci(xs: list, ys: list, *, n_boot: int = 2000,
+                                  alpha: float = 0.05, seed: int = 0) -> tuple:
+    """A percentile bootstrap CI for the OLS slope of ``y`` on ``x``, resampling
+    ``(x, y)`` pairs jointly with replacement. This is how a caller checks
+    whether a fitted slope is actually identified rather than an artifact of a
+    handful of points — a wide or degenerate CI (e.g. spanning both signs, or
+    collapsing to a point because the resampled ``x`` values keep landing on
+    the same value) is the signal that a regression-based verdict from this
+    fit shouldn't be trusted, however small the point-estimate residual test's
+    p-value looks."""
+    n = len(xs)
+    if n < 2:
+        return (0.0, 0.0)
+    rng = random.Random(seed)
+    slopes = []
+    for _ in range(n_boot):
+        idx = [rng.randrange(n) for _ in range(n)]
+        slope, _ = linear_regression([xs[i] for i in idx], [ys[i] for i in idx])
+        slopes.append(slope)
+    slopes.sort()
+    lo = slopes[max(0, int((alpha / 2) * n_boot))]
+    hi = slopes[min(n_boot - 1, int((1 - alpha / 2) * n_boot))]
+    return (lo, hi)

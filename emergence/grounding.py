@@ -36,6 +36,7 @@ from typing import Optional
 from .grounding_stats import (
     linear_regression,
     paired_bootstrap_ci,
+    regression_slope_bootstrap_ci,
     sign_test_p,
     wilcoxon_signed_rank_p,
 )
@@ -80,6 +81,20 @@ class CounterfactualConfig:
 #               both worlds so attempts are comparable).
 # All rules invert an existing engine mechanic; none is stated in the prompt,
 # so the agent can only learn it by living the consequence.
+#
+# Sign-orientation invariant (verified across all three rules; keep it when
+# adding a new one): `target` must always be the behaviour the COUNTERFACTUAL
+# world punishes, never rewards. That makes "grounded" the SAME direction for
+# every rule -- control_rate > counterfactual_rate, i.e. divergence > 0 -- so
+# excess > 0 always means "pulled back from the punished act", never the
+# opposite for some rule. A rule registered backwards (target rewarded, not
+# punished, in the counterfactual world) would flip that rule's grounded
+# signature to divergence < 0 and the one-sided H1 (excess > 0) in
+# grounding_stats/SweepResult would silently miss it. Confirmed by the engine
+# mechanics each rule inverts: demurrage shrinks the depositor's claim,
+# vanity's `_serve_feast` shames instead of honouring (test_a_feast_costs_
+# the_host_standing), exposure's solicit is exposed and costs standing
+# (test_a_lie_is_exposed_and_costs_standing) -- see tests/test_grounding.py.
 _RULES: dict[str, dict] = {
     "demurrage": {"target": "deposit", "layers": {}},
     "vanity": {"target": "feast", "layers": {"status": True}},
@@ -422,15 +437,33 @@ class SweepResult:
     def floor_regression_grounded(self) -> Optional[bool]:
         """The floor-regression diagnostic's own verdict: True iff the residual
         of divergence-regressed-on-floor_divergence is significantly positive
-        (one-sided Wilcoxon, p < 0.05). Unlike `grounded_paired`, this is immune
-        to a floor confound of any linear form (slope or additive offset), not
-        just the one `excess` corrects for — the tiebreaker when floor
-        convention (world-matched vs. ensemble) might otherwise change the
-        verdict. `None` when floor_regression couldn't fit (< 3 conclusive
-        worlds) — undetermined, not a verdict either way."""
-        if "residual_wilcoxon_p" not in self.floor_regression:
+        (one-sided Wilcoxon, p < 0.05) AND the fit is `powered` (see
+        floor_regression_diagnostic — enough conclusive worlds, with enough
+        spread in their floor_divergence, that the fitted slope is actually
+        identified). Unlike `grounded_paired`, this is immune to a floor
+        confound of any linear form (slope or additive offset), not just the
+        one `excess` corrects for. `None` when underpowered (including < 3
+        conclusive worlds) — undetermined, not a verdict either way; an
+        underpowered "significant" p-value is not trustworthy evidence."""
+        if not self.floor_regression.get("powered", False):
             return None
         return self.floor_regression["residual_wilcoxon_p"] < 0.05
+
+    @property
+    def grounded_confirmed(self) -> Optional[bool]:
+        """The pre-registered verdict (docs/GROUNDING.md): a strict AND gate,
+        not a tiebreaker — `grounded_paired` (world-matched excess, Wilcoxon)
+        AND `floor_regression_grounded` (immune to any linear floor confound)
+        must BOTH be True. Either test disagreeing withholds "grounded"; the
+        more conservative read wins on purpose, so a floor confound of either
+        the additive kind (which `grounded_paired` alone can miss) or a kind
+        `floor_regression` alone would miss cannot slip a false positive
+        through. `None` when floor_regression is undetermined (too few/too
+        clustered conclusive worlds) — genuinely unknown, not a "no"."""
+        fr = self.floor_regression_grounded
+        if fr is None:
+            return None
+        return self.grounded_paired and fr
 
     def as_dict(self) -> dict:
         return {
@@ -450,11 +483,13 @@ class SweepResult:
                                         round(self.bootstrap_ci_mean_excess[1], 4)],
             "floor_regression": self.floor_regression,
             "floor_regression_grounded": self.floor_regression_grounded,
+            "grounded_confirmed": self.grounded_confirmed,
             "per_world": [r.as_dict() for r in self.results],
         }
 
 
-def floor_regression_diagnostic(results: list) -> dict:
+def floor_regression_diagnostic(results: list, *, min_conclusive: int = 6,
+                                min_floor_spread: float = 0.01) -> dict:
     """Regress each *conclusive* world's raw ``divergence`` on its
     ``floor_divergence`` and test the residual against zero (one-sided,
     excess > 0).
@@ -465,26 +500,50 @@ def floor_regression_diagnostic(results: list) -> dict:
     worlds. The residual of this regression is orthogonal to
     ``floor_divergence`` *by construction*, regardless of the fitted slope —
     it is the one statistic in this module that is immune to a floor
-    confound of any linear form, not just an additive offset. Needs >= 3
-    conclusive worlds to fit a meaningful line; fewer returns a note instead
-    of a spurious fit.
+    confound of any linear form, not just an additive offset.
+
+    A fit is only as trustworthy as the data behind it: ``powered`` is True
+    only when there are at least ``min_conclusive`` conclusive worlds AND the
+    conclusive worlds' ``floor_divergence`` values actually spread out (their
+    population std exceeds ``min_floor_spread``) — clustered floor values make
+    the slope statistically unidentifiable (division-by-near-zero variance),
+    so a "significant" residual test off such a fit is not trustworthy evidence
+    either way. ``slope_ci`` (a pair bootstrap CI on the fitted slope) is
+    reported regardless of ``powered``, so a caller can see *how* unidentified
+    the slope is, not just a pass/fail flag. Needs >= 3 conclusive worlds to
+    attempt a fit at all; fewer returns a note and no fit.
     """
     conclusive = [r for r in results if r.conclusive]
-    if len(conclusive) < 3:
-        return {"n": len(conclusive),
+    n = len(conclusive)
+    if n < 3:
+        return {"n": n, "powered": False,
                 "note": "too few conclusive worlds for a regression (need >= 3)"}
     xs = [r.floor_divergence for r in conclusive]
     ys = [r.divergence for r in conclusive]
     slope, intercept = linear_regression(xs, ys)
     residuals = [y - (slope * x + intercept) for x, y in zip(xs, ys)]
-    return {
-        "n": len(conclusive),
+    floor_mean = sum(xs) / n
+    floor_spread_std = math.sqrt(sum((x - floor_mean) ** 2 for x in xs) / n)
+    slope_lo, slope_hi = regression_slope_bootstrap_ci(xs, ys)
+    powered = (n >= min_conclusive) and (floor_spread_std > min_floor_spread)
+    out = {
+        "n": n,
         "slope": round(slope, 4),
         "intercept": round(intercept, 4),
+        "slope_ci": [round(slope_lo, 4), round(slope_hi, 4)],
+        "floor_spread_std": round(floor_spread_std, 4),
+        "powered": powered,
         "residuals": [round(r, 4) for r in residuals],
         "residual_sign_p": round(sign_test_p(residuals), 4),
         "residual_wilcoxon_p": round(wilcoxon_signed_rank_p(residuals), 4),
     }
+    if not powered:
+        out["note"] = (
+            f"underpowered: n_conclusive={n} (need >= {min_conclusive}) and/or "
+            f"floor spread too small (std={floor_spread_std:.4f}, need > "
+            f"{min_floor_spread}) — the fitted slope may be unidentifiable; "
+            "see slope_ci")
+    return out
 
 
 def run_grounding_sweep(
@@ -570,12 +629,17 @@ class BatteryResult:
     replay_inexplicable_paired: bool = False
     # The floor-regression diagnostic's own conjunction across rules: True iff
     # every rule's residual test (divergence regressed on the world-matched
-    # floor_divergence, tested against zero) is significant. This is the
-    # tiebreaker — immune to a floor confound of any linear form, and
-    # independent of whether excess/grounded_paired used floor_rollouts.
-    # `None` if any rule had too few conclusive worlds to fit a regression
-    # (undetermined, not a verdict of either kind).
+    # floor_divergence, tested against zero) is significant AND powered (see
+    # SweepResult.floor_regression_grounded). Immune to a floor confound of
+    # any linear form, and independent of whether excess/grounded_paired used
+    # floor_rollouts. `None` if any rule is underpowered (undetermined, not a
+    # verdict of either kind).
     replay_inexplicable_floor_regression: Optional[bool] = None
+    # THE pre-registered verdict (docs/GROUNDING.md): a strict AND gate across
+    # rules of SweepResult.grounded_confirmed — every rule's grounded_paired
+    # AND floor_regression_grounded must both be True. `None` if any rule's
+    # grounded_confirmed is undetermined.
+    replay_inexplicable_confirmed: Optional[bool] = None
 
     @property
     def conclusive(self) -> bool:
@@ -590,6 +654,7 @@ class BatteryResult:
             "replay_inexplicable": self.replay_inexplicable,
             "replay_inexplicable_paired": self.replay_inexplicable_paired,
             "replay_inexplicable_floor_regression": self.replay_inexplicable_floor_regression,
+            "replay_inexplicable_confirmed": self.replay_inexplicable_confirmed,
             "conclusive": self.conclusive,
             "inconclusive_rules": list(self.inconclusive_rules),
             "weakest_rule": self.weakest_rule,
@@ -638,11 +703,16 @@ def run_grounding_battery(
               for r in rules}
     weakest_rule = min(sweeps, key=lambda r: sweeps[r].min_excess)
     inconclusive = tuple(r for r, s in sweeps.items() if not s.conclusive)
-    fr_verdicts = [s.floor_regression_grounded for s in sweeps.values()]
-    if inconclusive or any(v is None for v in fr_verdicts):
-        fr_battery_verdict = None      # undetermined: missing data, not a "no"
-    else:
-        fr_battery_verdict = all(fr_verdicts)
+
+    def _conjunction(verdicts) -> Optional[bool]:
+        # None (undetermined) propagates: missing data is never silently
+        # treated as either a pass or a fail.
+        if inconclusive or any(v is None for v in verdicts):
+            return None
+        return all(verdicts)
+
+    fr_battery_verdict = _conjunction([s.floor_regression_grounded for s in sweeps.values()])
+    confirmed_battery_verdict = _conjunction([s.grounded_confirmed for s in sweeps.values()])
     return BatteryResult(
         rules=tuple(rules), sweeps=sweeps,
         # The strongest claim needs every rule conclusive AND every world grounded.
@@ -652,6 +722,7 @@ def run_grounding_battery(
         replay_inexplicable_paired=(not inconclusive and
                                     all(s.grounded_paired for s in sweeps.values())),
         replay_inexplicable_floor_regression=fr_battery_verdict,
+        replay_inexplicable_confirmed=confirmed_battery_verdict,
         weakest_rule=weakest_rule,
         weakest_excess=sweeps[weakest_rule].min_excess,
         inconclusive_rules=inconclusive)

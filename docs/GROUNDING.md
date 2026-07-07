@@ -200,12 +200,18 @@ cancels an *additive* floor effect; a *slope* relationship between
   `floor_divergence` *by construction*, regardless of the fitted slope — the
   one statistic here immune to a floor confound of **any** linear form, not
   just the additive one `excess` assumes, and independent of the world-matched-
-  vs-ensemble floor question above. Needs ≥ 3 conclusive worlds; fewer reports
-  a note instead of a spurious fit. `floor_regression_grounded` (per-rule) and
-  `BatteryResult.replay_inexplicable_floor_regression` (all-rules conjunction,
-  `None` if any rule lacks enough data) surface it as a verdict — the
-  **tiebreaker**: promoted alongside `grounded_paired` specifically because it
-  doesn't depend on which floor convention `excess` used.
+  vs-ensemble floor question above.
+
+  A fit is only as good as its power: `floor_regression` also reports
+  `slope_ci` (a bootstrap CI on the fitted slope — wide or sign-crossing means
+  the slope isn't actually identified, whatever the residual test's p-value
+  says), `floor_spread_std` (population std of the conclusive worlds'
+  `floor_divergence` — clustered floor values make the slope unidentifiable),
+  and `powered` (`True` only when `n_conclusive >= 6` **and**
+  `floor_spread_std > 0.01`). `floor_regression_grounded` (per rule) is `None`
+  — not `False` — whenever `powered` is `False` (including the < 3 conclusive
+  case, which can't even attempt a fit): an underpowered "significant"
+  p-value is not trustworthy evidence either way.
 
 None of this replaces `fraction_grounded` / `min_excess` — `replay_inexplicable`
 still gates on them. These are additional, harder-to-Goodhart reads of the
@@ -213,13 +219,22 @@ still gates on them. These are additional, harder-to-Goodhart reads of the
 alone reduces sampling error but does nothing about a systematic floor
 confound.
 
-**Pre-registration, fixed before the next expanded battery run** (so a
-disappointing result can't quietly get re-cut until something clears the bar):
-co-primary metrics, per rule, on `BATTERY_SEEDS` as currently defined (20
-held-out worlds) — `wilcoxon_p < 0.05` (`grounded_paired`, world-matched floor)
-**and** `floor_regression_grounded` (the tiebreaker if the two floor reads
-computed via `--floor-rollouts` disagree with each other). `fraction_grounded`
-is reported alongside as required context, not an alternate path to a pass. A
+**The pre-registered verdict — `grounded_confirmed` (per rule) /
+`BatteryResult.replay_inexplicable_confirmed` (all-rules conjunction) — is a
+strict AND gate, fixed before the next expanded battery run** (so a
+disappointing result can't quietly get re-cut until something clears the
+bar): **both** `grounded_paired` (`wilcoxon_p < 0.05` on the world-matched
+excess) **and** `floor_regression_grounded` (the residual test, immune to any
+linear floor confound) must be `True`. Either one disagreeing withholds
+"grounded" — this is deliberately conservative, not a tiebreaker where one
+test can override the other in either direction: a floor confound that
+`grounded_paired` alone would miss (a non-additive one) must be able to veto,
+and `floor_regression` alone is not a unilateral arbiter either, since its own
+power depends on how the conclusive worlds happen to be spread. `None` when
+`floor_regression` is underpowered for any rule — genuinely undetermined, not
+a "no". `fraction_grounded` and the two component verdicts
+(`replay_inexplicable_paired`, `replay_inexplicable_floor_regression`) are
+reported alongside as required context, never an alternate path to a pass. A
 negative result — including `mean_excess < 0` on all three rules, as every run
 so far has shown — is a real, reportable outcome, not a reason to keep
 changing the metric.
@@ -380,19 +395,31 @@ local mirror:
   borderline world than a threshold count) and `floor_regression` (a residual
   test immune to a floor confound of *any* linear form, not just the additive
   one `excess` assumes, and independent of the world-matched-vs-ensemble
-  question above) — promoted to co-primary/tiebreaker
-  (`floor_regression_grounded` / `replay_inexplicable_floor_regression`).
-  `BATTERY_SEEDS` widened 5→20 for the statistical power the paired tests need
-  — this alone does not de-bias anything, which is the whole reason the other
-  two exist.
+  question above). `BATTERY_SEEDS` widened 5→20 for the statistical power the
+  paired tests need — this alone does not de-bias anything, which is the whole
+  reason the other two exist.
+* **Review round 2: the pre-registration's gate wording contradicted itself
+  (fixed before it was used on a run), and the regression needed its own power
+  check.** The first draft said "co-primary" pass on `wilcoxon_p < 0.05` AND
+  `floor_regression_grounded`, but also said floor_regression "wins" if they
+  disagree — those two statements conflict in exactly the quadrant that
+  matters (paired test fails, regression passes): an AND gate always fails
+  there, it does not let regression override. Fixed by naming a single
+  explicit verdict, `grounded_confirmed`, as a strict AND with no override in
+  either direction — floor_regression is not a unilateral arbiter any more
+  than `grounded_paired` alone was. Separately, `floor_regression` now reports
+  whether it's actually `powered` (≥ 6 conclusive worlds AND enough spread in
+  their `floor_divergence` that the slope is identified) plus a bootstrap CI
+  on the fitted slope, so an underpowered fit's low p-value can't masquerade
+  as evidence — `floor_regression_grounded` is `None`, not `False` or `True`,
+  when unpowered.
 * **Next milestone:** an expanded battery run (20 held-out worlds, optionally
-  `--floor-rollouts` as a cross-check) read through `grounded_paired` **and**
-  `floor_regression_grounded` per the pre-registration — if they disagree, the
-  latter wins. If the floor-regression residual still shows no rule-aligned
-  signal once the world-matched floor's linear contribution is removed, the
-  standing hypothesis (a single training world doesn't generalize) is
-  falsified and the real bottleneck is something else (e.g. the rule isn't
-  learnable from the observation as given).
+  `--floor-rollouts` as a cross-check) read through `grounded_confirmed` per
+  the pre-registration. If the floor-regression residual still shows no
+  rule-aligned signal once the world-matched floor's linear contribution is
+  removed, the standing hypothesis (a single training world doesn't
+  generalize) is falsified and the real bottleneck is something else (e.g. the
+  rule isn't learnable from the observation as given).
 
 ## Why this comes before 3D
 

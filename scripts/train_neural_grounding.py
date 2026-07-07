@@ -59,14 +59,29 @@ core excess means):
      bootstrap CI) over the conclusive worlds' world-matched excess —
      SweepResult.sign_test_p/wilcoxon_p/bootstrap_ci_mean_excess — a harder-to-
      Goodhart read than the hard-threshold fraction_grounded, not a replacement
-     for it.
+     for it. SweepResult.grounded_paired = wilcoxon_p < 0.05.
   2. SweepResult.floor_regression regresses each world's raw divergence on its
      (world-matched) floor_divergence and tests the residual against zero —
      immune to a floor confound of ANY linear form (slope or offset), not just
      the additive one `excess` assumes, and independent of the floor convention
-     debate above. Promoted to the tiebreaker:
-     SweepResult.floor_regression_grounded /
-     BatteryResult.replay_inexplicable_floor_regression.
+     debate above. Only trustworthy when `powered` (>= 6 conclusive worlds AND
+     enough spread in their floor_divergence that the slope is identifiable;
+     see floor_regression_diagnostic's min_conclusive/min_floor_spread) —
+     an underpowered fit's p-value is not evidence either way, so
+     SweepResult.floor_regression_grounded is None rather than guessing.
+
+THE pre-registered verdict (fixed before the next expanded run, per
+docs/GROUNDING.md) is SweepResult.grounded_confirmed / BatteryResult.
+replay_inexplicable_confirmed — a STRICT AND GATE: grounded_paired AND
+floor_regression_grounded must BOTH be True, per rule. Either disagreeing
+withholds "grounded"; this is not a tiebreaker where floor_regression
+overrides grounded_paired (an earlier draft's wording implied that, which
+contradicted the AND actually coded — floor_regression alone missing the
+signal grounded_paired found is just as disqualifying as the reverse). None
+if floor_regression is underpowered for any rule — genuinely undetermined,
+not a "no". fraction_grounded/replay_inexplicable remain reported as
+required context, never an alternate path to a pass.
+
 BATTERY_SEEDS was also widened (5 -> 20 held-out worlds) for the statistical
 power (1)-(2) need; by itself this does not de-bias anything.
 
@@ -290,24 +305,38 @@ def main(argv=None) -> int:
                 "verdict]")
     print(f"\n[done] replay_inexplicable={battery.replay_inexplicable}  "
           f"replay_inexplicable_paired={battery.replay_inexplicable_paired}  "
-          f"replay_inexplicable_floor_regression={battery.replay_inexplicable_floor_regression}"
+          f"replay_inexplicable_floor_regression={battery.replay_inexplicable_floor_regression}  "
+          f"replay_inexplicable_CONFIRMED={battery.replay_inexplicable_confirmed}"
           f"  weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
           f"→ paste {args.out}/battery.json to issue #130")
     print("\n[paired stats + floor-regression diagnostic per rule] (one-sided "
           "H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED "
           "heuristic floor -- floor_rollouts only adds a side-by-side ensemble "
-          "read, never moves these; see docs/GROUNDING.md)")
+          "read, never moves these. The PRE-REGISTERED verdict is grounded_confirmed "
+          "-- a strict AND of grounded_paired and floor_regression_grounded, per "
+          "docs/GROUNDING.md; the two below it are context, not alternate passes.)")
     for r, sweep in battery.sweeps.items():
         fr = sweep.floor_regression
-        fr_str = (fr["note"] if "note" in fr else
-                 f"slope={fr['slope']:+.3f} residual_sign_p={fr['residual_sign_p']:.4f} "
-                 f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f} "
-                 f"grounded={sweep.floor_regression_grounded}")
+        if "slope" in fr:
+            slope_lo, slope_hi = fr["slope_ci"]
+            fr_str = (f"slope={fr['slope']:+.3f} (CI [{slope_lo:+.3f}, {slope_hi:+.3f}]) "
+                     f"n={fr['n']} floor_spread_std={fr['floor_spread_std']:.4f} "
+                     f"powered={fr['powered']} "
+                     f"residual_sign_p={fr['residual_sign_p']:.4f} "
+                     f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f} "
+                     f"grounded={sweep.floor_regression_grounded}")
+            if not fr["powered"]:
+                fr_str += f"  [{fr['note']}]"
+        else:
+            fr_str = fr["note"]
         lo, hi = sweep.bootstrap_ci_mean_excess
         print(f"  {r:>10}: fraction_grounded={sweep.fraction_grounded:.2f}  "
               f"sign_p={sweep.sign_test_p:.4f}  wilcoxon_p={sweep.wilcoxon_p:.4f}  "
               f"grounded_paired={sweep.grounded_paired}  "
-              f"bootstrap_ci=[{lo:+.4f}, {hi:+.4f}]  floor_regression: {fr_str}")
+              f"bootstrap_ci=[{lo:+.4f}, {hi:+.4f}]")
+        print(f"             floor_regression: {fr_str}")
+        print(f"             grounded_CONFIRMED (pre-registered verdict): "
+              f"{sweep.grounded_confirmed}")
         if args.floor_rollouts > 1:
             ens = [r2.ensemble_excess for r2 in sweep.results
                   if r2.ensemble_excess is not None]

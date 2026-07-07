@@ -11,6 +11,7 @@ import unittest
 from emergence.grounding_stats import (
     linear_regression,
     paired_bootstrap_ci,
+    regression_slope_bootstrap_ci,
     sign_test_p,
     wilcoxon_signed_rank_p,
 )
@@ -103,6 +104,32 @@ class TestLinearRegression(unittest.TestCase):
         slope, intercept = linear_regression([1.0], [4.0])
         self.assertAlmostEqual(slope, 0.0)
         self.assertAlmostEqual(intercept, 4.0)
+
+
+class TestRegressionSlopeBootstrapCI(unittest.TestCase):
+    def test_a_clean_line_gives_a_tight_ci_around_the_true_slope(self):
+        xs = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+        ys = [1.0, 3.0, 5.0, 7.0, 9.0, 11.0]      # exactly y = 2x + 1, no noise
+        lo, hi = regression_slope_bootstrap_ci(xs, ys, n_boot=2000, seed=1)
+        self.assertLessEqual(lo, 2.0)
+        self.assertGreaterEqual(hi, 2.0)
+        self.assertLess(hi - lo, 0.5, "a noiseless line should bootstrap to a tight CI")
+
+    def test_a_handful_of_scattered_points_gives_a_wide_ci(self):
+        xs = [0.0, 1.0, 2.0]
+        ys = [5.0, -3.0, 8.0]                     # no real linear relationship
+        lo, hi = regression_slope_bootstrap_ci(xs, ys, n_boot=2000, seed=1)
+        self.assertGreater(hi - lo, 1.0, "noisy, tiny-n data should bootstrap wide")
+
+    def test_is_reproducible_for_a_fixed_seed(self):
+        xs, ys = [0.0, 1.0, 2.0, 3.0], [1.0, 2.5, 2.0, 4.0]
+        a = regression_slope_bootstrap_ci(xs, ys, n_boot=500, seed=3)
+        b = regression_slope_bootstrap_ci(xs, ys, n_boot=500, seed=3)
+        self.assertEqual(a, b)
+
+    def test_too_few_points_returns_zero_interval(self):
+        self.assertEqual(regression_slope_bootstrap_ci([], []), (0.0, 0.0))
+        self.assertEqual(regression_slope_bootstrap_ci([1.0], [2.0]), (0.0, 0.0))
 
 
 if __name__ == "__main__":
