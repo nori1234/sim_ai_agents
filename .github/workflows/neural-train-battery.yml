@@ -1,11 +1,13 @@
 name: neural-train-battery
 
 # The #130 milestone runner: train a developmental brain IN the real engine
-# (running --neural towns is the training), checkpoint once grounding is stable,
-# then run the acceptance battery (all rules x all worlds) and publish
-# battery.json. This exists because the brain repo's environment cannot reach
-# this engine, and mirror-scale checkpoints are shape-incompatible with the real
-# build_brain — so real-config training must happen where the engine lives.
+# (running --neural towns is the training), domain-randomized across a training
+# seed pool held DISJOINT from the battery's held-out seeds (42-46), checkpoint
+# once grounding is stable on a fixed held-in world, then run the acceptance
+# battery on the held-out worlds and publish battery.json. This exists because
+# the brain repo's environment cannot reach this engine, and mirror-scale
+# checkpoints are shape-incompatible with the real build_brain — so real-config
+# training must happen where the engine lives.
 
 on:
   workflow_dispatch:
@@ -31,9 +33,19 @@ on:
         required: false
         default: "6"
       seed:
-        description: base seed (episode i uses seed+i)
+        description: >-
+          First seed of the TRAINING pool (domain-randomized, disjoint from the
+          battery's held-out seeds 42-46 — the script asserts this at startup).
         required: false
-        default: "42"
+        default: "1000"
+      pool_size:
+        description: >-
+          Number of distinct world seeds to domain-randomize training over
+          (episodes rotate through this pool). A single training world can
+          converge (is_stable) without generalizing to held-out worlds — this
+          is the fix for that, not a hparam.
+        required: false
+        default: "12"
       probe_every:
         description: probe cadence (episodes)
         required: false
@@ -102,6 +114,7 @@ jobs:
             --days "${{ inputs.days }}" \
             --agents "${{ inputs.agents }}" \
             --seed "${{ inputs.seed }}" \
+            --pool-size "${{ inputs.pool_size }}" \
             --probe-every "${{ inputs.probe_every }}" \
             --window "${{ inputs.window }}" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \

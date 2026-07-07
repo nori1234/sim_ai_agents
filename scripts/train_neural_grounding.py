@@ -10,13 +10,28 @@ here, where the engine lives):
      decide(), so the run itself IS the training. Episodes rotate through a
      control world and each counterfactual world (demurrage / vanity / exposure)
      so the policy experiences both sides of every rule. A heuristic teacher
-     provides the L0-L1 scaffolding.
+     provides the L0-L1 scaffolding. Episodes domain-randomize across a POOL of
+     world seeds (--pool-size, rotating), disjoint from the battery's held-out
+     seeds — see the note below.
   2. Periodically save a full checkpoint (dev.save_checkpoint — policy included)
-     and probe it with GroundingMonitor (frozen: learn=False); stop early once
-     every rule's monitor reports is_stable(window).
-  3. Run run_grounding_battery with the checkpointed brain and write
-     battery.json — paste battery.as_dict() to issue #130. A negative result is
-     a real, reportable result.
+     and probe it with GroundingMonitor (frozen: learn=False) *on the first pool
+     seed* (a fixed held-in world — a training-health check, not a generalisation
+     claim); stop early once every rule's monitor reports is_stable(window).
+  3. Run run_grounding_battery on BATTERY_SEEDS (held-out) with the checkpointed
+     brain and write battery.json — paste battery.as_dict() to issue #130. A
+     negative result is a real, reportable result.
+
+Train/eval separation (do not weaken this): run #5 trained on seeds
+42,43,44,45,46,... (--seed + episode index) while the battery's default held-out
+seeds are exactly (42,43,44,45,46) — the first 5 training episodes were literally
+the battery's eval worlds, and GroundingMonitor's is_stable check used seed=42,
+also a battery seed. That contamination is why fraction_grounded stayed flat
+(0.4->0.4) even as is_stable was reached for the first time: the "improvement"
+was convergence on training worlds, not evidence of generalisation. Fixed by
+domain-randomizing training over a seed pool that is asserted disjoint from
+BATTERY_SEEDS, and pointing the health-check monitor at a pool seed instead of a
+battery seed. is_stable/GroundingMonitor's design does NOT change (still a fixed
+held-in check) — only which seed it points at.
 
 Requires the [neural] extra (torch) plus the private llm_model_agi package; the
 shared CI workflow (.github/workflows/neural-train-battery.yml) installs both.
@@ -48,13 +63,28 @@ RULES = ("demurrage", "vanity", "exposure")
 # Every rule is experienced from both sides: control, then each inverted world.
 EPISODE_ROTATION = (None, "demurrage", None, "vanity", None, "exposure")
 
+# The battery's held-out worlds (run_grounding_battery's own default). Declared
+# here, not just inherited implicitly, so the training pool can be asserted
+# disjoint from it — the exact leak that flattened run #5's fraction_grounded.
+BATTERY_SEEDS = (42, 43, 44, 45, 46)
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Train in the real engine, then run the battery (#130)")
     ap.add_argument("--episodes", type=int, default=60, help="max training episodes")
     ap.add_argument("--days", type=int, default=20, help="days per training episode")
     ap.add_argument("--agents", type=int, default=6)
-    ap.add_argument("--seed", type=int, default=42, help="base seed (episode i uses seed+i)")
+    ap.add_argument("--seed", type=int, default=1000,
+                    help="first seed of the TRAINING pool (domain-randomized across "
+                         "--pool-size consecutive seeds, rotated per episode). Must "
+                         f"not overlap the battery's held-out seeds {BATTERY_SEEDS} "
+                         "— asserted at startup.")
+    ap.add_argument("--pool-size", type=int, default=12,
+                    help="number of distinct world seeds to domain-randomize "
+                         "training over; the brain side's diagnosis (run #5: "
+                         "is_stable reached but fraction_grounded stayed flat) "
+                         "was that a single training world can converge without "
+                         "generalizing — a real fix, not a hparam tweak.")
     ap.add_argument("--persona", default="guardian",
                     help="floor persona; guardian exercises all three scored behaviours")
     ap.add_argument("--probe-every", type=int, default=5, help="probe cadence (episodes)")
@@ -73,6 +103,15 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     hparams = json.loads(args.hparams) if args.hparams else None
+
+    train_pool = [args.seed + i for i in range(args.pool_size)]
+    overlap = set(train_pool) & set(BATTERY_SEEDS)
+    if overlap:
+        sys.exit(f"[fatal] training pool {train_pool} overlaps the battery's "
+                 f"held-out seeds {BATTERY_SEEDS} at {sorted(overlap)} — this is "
+                 "exactly the train/eval leak that flattened run #5's "
+                 "fraction_grounded. Pick a --seed that keeps the pool disjoint "
+                 "(default 1000 already is).")
 
     # The sandbox isolates one decision; it currently supports demurrage only.
     rules = ("demurrage",) if args.sandbox else RULES
@@ -98,27 +137,37 @@ def main(argv=None) -> int:
         return NeuralDevelopmentalBrain(persona, learn=False, checkpoint=ckpt,
                                         hparams=hparams)
 
+    # is_stable is a training-health check, not a generalisation claim: it stays
+    # on a single fixed HELD-IN world (the pool's first seed) by design — this is
+    # unchanged from before. What changed is that this seed is no longer also a
+    # battery seed (see BATTERY_SEEDS / the disjointness assertion above).
     monitors = {
         r: GroundingMonitor(args.persona, rule=r, days=args.days,
-                            n_agents=args.agents, seed=args.seed,
+                            n_agents=args.agents, seed=train_pool[0],
                             threshold=args.threshold, sandbox=args.sandbox)
         for r in rules
     }
 
     def build_episode(ep: int):
-        """One training episode. In sandbox mode, alternate the control and
-        demurrage worlds in the minimal deposit-decision town (dense behaviour);
-        in full-town mode, rotate control + each of the three inverted worlds."""
+        """One training episode. Domain-randomizes the world seed by rotating
+        through train_pool (disjoint from BATTERY_SEEDS — see the module
+        docstring): a policy that only ever sees one world can converge on that
+        world's incidental layout rather than the rule, which is exactly what
+        run #5 showed (is_stable reached, fraction_grounded unmoved). In sandbox
+        mode, alternate the control and demurrage worlds in the minimal
+        deposit-decision town (dense behaviour); in full-town mode, rotate
+        control + each of the three inverted worlds."""
+        seed = train_pool[ep % len(train_pool)]
         if args.sandbox:
             return make_grounding_sandbox(
                 args.persona, rule="demurrage", n_savers=args.agents - 1,
-                seed=args.seed + ep, days=args.days,
+                seed=seed, days=args.days,
                 cf_enabled=(ep % 2 == 1), brain_factory=training_factory)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
             status=StatusConfig(enabled=True),
-            config=SimulationConfig(seed=args.seed + ep, days=args.days),
+            config=SimulationConfig(seed=seed, days=args.days),
             counterfactual=CounterfactualConfig(
                 enabled=rule is not None, rule=rule or "demurrage",
                 hide_rate=True, instrument=True),
@@ -128,7 +177,9 @@ def main(argv=None) -> int:
     where = "sandbox" if args.sandbox else "full town"
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}, "
-          f"rules={','.join(rules)}, hparams={hparams}", flush=True)
+          f"rules={','.join(rules)}, hparams={hparams}, "
+          f"train_pool={train_pool} (battery held-out: {list(BATTERY_SEEDS)})",
+          flush=True)
     stable = False
     for ep in range(args.episodes):
         sim = build_episode(ep)
@@ -169,9 +220,13 @@ def main(argv=None) -> int:
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
-    print(f"[battery] running the acceptance battery ({','.join(rules)} x all "
-          f"worlds, {where})...", flush=True)
+    print(f"[battery] running the acceptance battery ({','.join(rules)} x "
+          f"held-out worlds {list(BATTERY_SEEDS)}, {where})...", flush=True)
+    # Explicit, not the function's own default: this script's train/eval
+    # separation is asserted against BATTERY_SEEDS specifically, so evaluation
+    # must use exactly that set even if the library default ever changes.
     battery = run_grounding_battery(args.persona, rules=rules,
+                                    seeds=BATTERY_SEEDS,
                                     threshold=args.threshold,
                                     sandbox=args.sandbox,
                                     brain_factory=probe_factory)
