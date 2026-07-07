@@ -37,23 +37,38 @@ Floor confound (found inspecting run #6, after the leak fix above): even with
 train/eval seeds properly disjoint, fraction_grounded stayed flat at 0.4 across
 runs, and the SAME worlds (seeds 44, 45) were the ones that read "grounded" every
 time — tracking floor_divergence, not the tested brain. `excess = divergence -
-floor_divergence` only removes an *additive* floor confound; it does nothing
-about a *slope* confound, and the floor itself is a noisy point estimate (a
-finite run's count of a scored behaviour). Three independent responses, none of
-which changes what run_grounding_battery gates replay_inexplicable on:
-  1. --floor-rollouts averages the floor over several independent worlds instead
-     of trusting a single draw (emergence.grounding: run_grounding_probe).
-  2. The battery now also reports paired statistics (sign test, Wilcoxon
-     signed-rank, a bootstrap CI) over the conclusive worlds' excess —
+floor_divergence` only removes an *additive* floor confound; a *slope* confound
+survives the subtraction untouched.
+
+`floor_divergence`/`excess` remain the WORLD-MATCHED heuristic floor (same seed
+as the tested brain) — this engine is deterministic, so a single seed's floor is
+an exact number for that world, not a noisy estimate with sampling error to
+average away. An earlier version of this response tried "--floor-rollouts
+averages the floor to reduce its noise", which was wrong on both counts: there
+is no such noise to reduce, and averaging the floor over *other* worlds swaps
+the confound being controlled for from "this world's mechanical strength" to
+"the population's average" — a reversed-sign version of the same problem
+(caught before it shipped in a run). `--floor-rollouts` now computes that
+ensemble ONLY as an additional, side-by-side cross-check
+(`ensemble_floor_divergence`/`ensemble_excess` on GroundingResult) — it never
+moves the canonical, world-matched fields, or what any verdict is based on.
+
+Two responses that DO change what's reported (not what run_grounding_battery's
+core excess means):
+  1. The battery reports paired statistics (sign test, Wilcoxon signed-rank, a
+     bootstrap CI) over the conclusive worlds' world-matched excess —
      SweepResult.sign_test_p/wilcoxon_p/bootstrap_ci_mean_excess — a harder-to-
      Goodhart read than the hard-threshold fraction_grounded, not a replacement
      for it.
-  3. SweepResult.floor_regression regresses each world's raw divergence on its
-     floor_divergence and tests the residual against zero — immune to a floor
-     confound of ANY linear form (slope or offset), not just the additive one
-     `excess` assumes.
-BATTERY_SEEDS was also widened (5 -> 20 held-out worlds) for statistical power;
-by itself this does not de-bias anything, which is why (1)-(3) exist.
+  2. SweepResult.floor_regression regresses each world's raw divergence on its
+     (world-matched) floor_divergence and tests the residual against zero —
+     immune to a floor confound of ANY linear form (slope or offset), not just
+     the additive one `excess` assumes, and independent of the floor convention
+     debate above. Promoted to the tiebreaker:
+     SweepResult.floor_regression_grounded /
+     BatteryResult.replay_inexplicable_floor_regression.
+BATTERY_SEEDS was also widened (5 -> 20 held-out worlds) for the statistical
+power (1)-(2) need; by itself this does not de-bias anything.
 
 Requires the [neural] extra (torch) plus the private llm_model_agi package; the
 shared CI workflow (.github/workflows/neural-train-battery.yml) installs both.
@@ -116,10 +131,11 @@ def main(argv=None) -> int:
     ap.add_argument("--window", type=int, default=3, help="is_stable window (probes)")
     ap.add_argument("--threshold", type=float, default=0.0)
     ap.add_argument("--floor-rollouts", type=int, default=1,
-                    help="average each battery world's heuristic floor over this "
-                         "many independent worlds instead of a single draw "
-                         "(reduces the floor's own sampling noise — see the "
-                         "floor-confound note in this module's docstring).")
+                    help="report an ADDITIONAL ensemble-mean floor read "
+                         "(over this many independent worlds) alongside the "
+                         "canonical world-matched floor, purely as a cross-check "
+                         "-- never changes excess/verdict/fraction_grounded. "
+                         "See the floor-confound note in this module's docstring.")
     ap.add_argument("--sandbox", action="store_true",
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
@@ -274,20 +290,31 @@ def main(argv=None) -> int:
                 "verdict]")
     print(f"\n[done] replay_inexplicable={battery.replay_inexplicable}  "
           f"replay_inexplicable_paired={battery.replay_inexplicable_paired}  "
-          f"weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
+          f"replay_inexplicable_floor_regression={battery.replay_inexplicable_floor_regression}"
+          f"  weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
           f"→ paste {args.out}/battery.json to issue #130")
-    print("\n[paired stats + floor-regression diagnostic per rule] "
-          "(one-sided H1: excess > 0; see docs/GROUNDING.md)")
+    print("\n[paired stats + floor-regression diagnostic per rule] (one-sided "
+          "H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED "
+          "heuristic floor -- floor_rollouts only adds a side-by-side ensemble "
+          "read, never moves these; see docs/GROUNDING.md)")
     for r, sweep in battery.sweeps.items():
         fr = sweep.floor_regression
         fr_str = (fr["note"] if "note" in fr else
                  f"slope={fr['slope']:+.3f} residual_sign_p={fr['residual_sign_p']:.4f} "
-                 f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f}")
+                 f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f} "
+                 f"grounded={sweep.floor_regression_grounded}")
         lo, hi = sweep.bootstrap_ci_mean_excess
         print(f"  {r:>10}: fraction_grounded={sweep.fraction_grounded:.2f}  "
               f"sign_p={sweep.sign_test_p:.4f}  wilcoxon_p={sweep.wilcoxon_p:.4f}  "
               f"grounded_paired={sweep.grounded_paired}  "
               f"bootstrap_ci=[{lo:+.4f}, {hi:+.4f}]  floor_regression: {fr_str}")
+        if args.floor_rollouts > 1:
+            ens = [r2.ensemble_excess for r2 in sweep.results
+                  if r2.ensemble_excess is not None]
+            if ens:
+                print(f"             ensemble-floor excess per world (cross-check "
+                      f"only, not load-bearing): "
+                      + ", ".join(f"{x:+.4f}" for x in ens))
     return 0
 
 

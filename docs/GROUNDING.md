@@ -72,23 +72,33 @@ So the probe measures the tested brain's divergence **against the heuristic
 floor** and credits only the **excess**. Grounding is the excess of an LLM's
 divergence over what the engine produces mechanically with no learning at all.
 
-The floor is itself an *estimate* — a single finite run's count of a scored
-behaviour — so it carries its own sampling noise, and that noise leaks straight
-into `excess`. `floor_rollouts` (default 1, the behaviour above) widens the
-floor from one draw at the tested seed to the mean of several independent
-worlds (offset by a large, fixed stride so they never collide with a battery's
-held-out or training seed range), without touching the tested brain's own run:
+**The floor is always *world-matched***: the heuristic run at the exact same
+seed as the tested brain, never averaged across other worlds. This is the
+statistically correct control in a deterministic engine — each world's rule
+inversion has its own mechanical strength, `floor_divergence` for a given seed
+is an *exact* number (not a noisy estimate with sampling error to reduce), and
+averaging it across *other* worlds would swap the confound being controlled
+for from "this world's mechanical strength" to "the population's average" —
+reintroducing a reversed-sign version of the same problem it's meant to
+prevent. (An earlier draft of this instrument got this wrong — see "Current
+status" below.)
+
+`floor_rollouts` (default 1: no ensemble) instead computes an **additional,
+purely informational** ensemble-mean floor over several independent worlds
+(the tested seed plus more, offset by a large fixed stride so they never
+collide with a battery's held-out or training seed range) — reported
+*alongside*, never in place of, the canonical world-matched floor:
 
 ```python
 result = run_grounding_probe("claude", rule="demurrage", floor_rollouts=8)
-result.floor_divergence_std   # spread across the 8 floor draws
+result.floor_divergence        # canonical: world-matched, drives excess/verdict
+result.ensemble_floor_divergence, result.ensemble_excess  # cross-check only
+result.floor_divergence_std    # spread across the 8 ensemble draws
 ```
 
-This is variance reduction on the floor estimate, not a re-run of "the same
-world" (the engine has no stochasticity independent of the seed, so there is no
-literal same-world resample to average) — see "Beyond fraction_grounded" below
-for why this alone doesn't fix a floor *confound* (a systematic floor-excess
-correlation across worlds), only the floor's own noise.
+If the two floor reads agree, the floor convention isn't load-bearing for the
+verdict; if they disagree, `floor_regression_diagnostic` (below) is the
+tiebreaker, since it doesn't depend on either convention.
 
 ## Running it
 
@@ -182,12 +192,17 @@ cancels an *additive* floor effect; a *slope* relationship between
   headline to `fraction_grounded` (`BatteryResult.replay_inexplicable_paired`
   is its all-rules conjunction).
 * **`floor_regression`** — regresses each conclusive world's raw `divergence`
-  on its `floor_divergence` and tests the **residual** against zero
-  (`floor_regression_diagnostic`). The residual is orthogonal to
+  on its (world-matched) `floor_divergence` and tests the **residual** against
+  zero (`floor_regression_diagnostic`). The residual is orthogonal to
   `floor_divergence` *by construction*, regardless of the fitted slope — the
   one statistic here immune to a floor confound of **any** linear form, not
-  just the additive one `excess` assumes. Needs ≥ 3 conclusive worlds; fewer
-  reports a note instead of a spurious fit.
+  just the additive one `excess` assumes, and independent of the world-matched-
+  vs-ensemble floor question above. Needs ≥ 3 conclusive worlds; fewer reports
+  a note instead of a spurious fit. `floor_regression_grounded` (per-rule) and
+  `BatteryResult.replay_inexplicable_floor_regression` (all-rules conjunction,
+  `None` if any rule lacks enough data) surface it as a verdict — the
+  **tiebreaker**: promoted alongside `grounded_paired` specifically because it
+  doesn't depend on which floor convention `excess` used.
 
 None of this replaces `fraction_grounded` / `min_excess` — `replay_inexplicable`
 still gates on them. These are additional, harder-to-Goodhart reads of the
@@ -197,12 +212,14 @@ confound.
 
 **Pre-registration, fixed before the next expanded battery run** (so a
 disappointing result can't quietly get re-cut until something clears the bar):
-primary metric is `wilcoxon_p < 0.05` per rule (`grounded_paired`) on
-`BATTERY_SEEDS` as currently defined (20 held-out worlds); `fraction_grounded`
-and `floor_regression`'s residual test are reported alongside as required
-context, not alternate paths to a pass. A negative result — including
-`mean_excess < 0` on all three rules, as every run so far has shown — is a
-real, reportable outcome, not a reason to keep changing the metric.
+co-primary metrics, per rule, on `BATTERY_SEEDS` as currently defined (20
+held-out worlds) — `wilcoxon_p < 0.05` (`grounded_paired`, world-matched floor)
+**and** `floor_regression_grounded` (the tiebreaker if the two floor reads
+computed via `--floor-rollouts` disagree with each other). `fraction_grounded`
+is reported alongside as required context, not an alternate path to a pass. A
+negative result — including `mean_excess < 0` on all three rules, as every run
+so far has shown — is a real, reportable outcome, not a reason to keep
+changing the metric.
 
 ## The acceptance test — `run_grounding_battery`
 
@@ -337,23 +354,42 @@ local mirror:
   a flat, seed-invariant `fraction_grounded`. `mean_excess` was negative in
   all three runs (−0.328, −0.099, −0.223) — a fact the metric change below does
   not get to explain away.
-* **Response, implemented in the engine (all three, per the pre-registration
-  above — see "Beyond fraction_grounded"):** `floor_rollouts` (reduces the
-  floor's own sampling noise), paired statistics (`sign_test_p`/`wilcoxon_p`/
-  `bootstrap_ci_mean_excess`, harder to move by one borderline world than a
-  threshold count), and `floor_regression` (a residual test immune to a floor
-  confound of *any* linear form, not just the additive one `excess` assumes).
+* **First response (superseded within the same review cycle): a k-rollout
+  floor average that changed the estimand.** An initial fix tried
+  "`--floor-rollouts` averages the floor across several worlds to reduce its
+  sampling noise" — wrong on both counts. This engine is deterministic, so a
+  single seed's `floor_divergence` is an *exact* number for that world, not a
+  noisy estimate with variance to average away. Worse, averaging the floor
+  across *other* worlds silently changes what `excess` controls for, from
+  "this world's mechanical rule-inversion strength" to "the population's
+  average strength" — which can manufacture the *opposite* confound (a
+  null policy reading as grounded in a high-floor world, a truly responsive
+  one reading as replay in a low-floor world). Caught in review before an
+  expanded run used it. Fixed: `floor_divergence`/`excess` are always the
+  WORLD-MATCHED heuristic floor (same seed as the tested brain) —
+  statistically correct here precisely because the engine is deterministic.
+  `floor_rollouts` now computes the ensemble only as an **additional,
+  side-by-side cross-check** (`ensemble_floor_divergence`/`ensemble_excess`),
+  never substituted for the canonical fields.
+* **Response, implemented in the engine, per the pre-registration above (see
+  "Beyond fraction_grounded"):** paired statistics on the world-matched excess
+  (`sign_test_p`/`wilcoxon_p`/`bootstrap_ci_mean_excess`, harder to move by one
+  borderline world than a threshold count) and `floor_regression` (a residual
+  test immune to a floor confound of *any* linear form, not just the additive
+  one `excess` assumes, and independent of the world-matched-vs-ensemble
+  question above) — promoted to co-primary/tiebreaker
+  (`floor_regression_grounded` / `replay_inexplicable_floor_regression`).
   `BATTERY_SEEDS` widened 5→20 for the statistical power the paired tests need
   — this alone does not de-bias anything, which is the whole reason the other
-  three exist.
-* **Next milestone:** an expanded battery run (`--floor-rollouts`, 20 held-out
-  worlds) read primarily through `grounded_paired`/`replay_inexplicable_paired`
-  and `floor_regression`'s residual test, per the pre-registration. If the
-  floor-regression residual still shows no rule-aligned signal once the floor's
-  linear contribution (of either form) is removed, the standing hypothesis (a
-  single training world doesn't generalize) is falsified and the real
-  bottleneck is something else (e.g. the rule isn't learnable from the
-  observation as given).
+  two exist.
+* **Next milestone:** an expanded battery run (20 held-out worlds, optionally
+  `--floor-rollouts` as a cross-check) read through `grounded_paired` **and**
+  `floor_regression_grounded` per the pre-registration — if they disagree, the
+  latter wins. If the floor-regression residual still shows no rule-aligned
+  signal once the world-matched floor's linear contribution is removed, the
+  standing hypothesis (a single training world doesn't generalize) is
+  falsified and the real bottleneck is something else (e.g. the rule isn't
+  learnable from the observation as given).
 
 ## Why this comes before 3D
 

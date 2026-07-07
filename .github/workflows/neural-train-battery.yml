@@ -62,9 +62,10 @@ on:
         default: "false"
       floor_rollouts:
         description: >-
-          average each battery world's heuristic floor over this many
-          independent worlds instead of a single draw (variance reduction for
-          the floor-confound found in run #6 — see the script's docstring).
+          report an additional ensemble-mean floor read (over this many
+          independent worlds) alongside the canonical world-matched floor,
+          purely as a cross-check -- never changes excess/verdict (see the
+          floor-confound note in the script's docstring).
         required: false
         default: "1"
       hparams:
