@@ -248,10 +248,26 @@ local mirror:
   sandbox exists (behaviours are ~20× denser there). The result validated the
   plumbing end-to-end (train → checkpoint → battery in the real engine) and
   forced the `conclusive` guard above.
-* **Next milestone:** get a battery where the behaviours actually occur — run each
-  rule in a behaviour-eliciting setup (sandbox for `demurrage`; sandbox variants
-  or much longer full-town training for `vanity`/`exposure`) so `conclusive=True`,
-  then read `replay_inexplicable`.
+* **Sandbox battery, iterating on hparams:** with the sandbox conclusive for
+  `demurrage`, a run (episodes=200, `batch_every=64`, `lr_decay_steps=500`)
+  reached `is_stable` for the first time (streak=3) — but `fraction_grounded`
+  stayed flat at 0.4 (unchanged from a prior, unstable run). That non-correlation
+  was the tell: **training had converged on one world's incidentals, not the
+  rule.** Root cause found by inspection, not just inference — the training loop
+  was domain-randomizing seeds `--seed + episode_index` starting at 42, which is
+  *also* `run_grounding_battery`'s default held-out seed set (42–46): the first
+  five training episodes and the `is_stable` health-check were literally battery
+  worlds. Fixed by domain-randomizing training over a seed **pool** asserted
+  disjoint from the battery's held-out seeds (`train_neural_grounding.py`
+  `BATTERY_SEEDS` + the startup assertion), while leaving the `is_stable`
+  design itself untouched (still one fixed held-in world — a training-health
+  check, deliberately not a generalisation claim, so it can't Goodhart against
+  the battery).
+* **Next milestone:** a battery run with training/eval seeds properly disjoint —
+  the test of whether domain randomization (not more optimizer tuning) closes the
+  fraction_grounded gap. If it doesn't move, the standing hypothesis (a single
+  training world doesn't generalize) is falsified and the real bottleneck is
+  something else (e.g. the rule isn't learnable from the observation as given).
 
 ## Why this comes before 3D
 
