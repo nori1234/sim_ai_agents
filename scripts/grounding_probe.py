@@ -57,6 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--threshold", type=float, default=0.0,
                    help="divergence above this reads as grounded")
+    p.add_argument("--floor-rollouts", type=int, default=1,
+                   help="average the heuristic floor over this many independent "
+                        "worlds instead of a single draw at --seed (reduces the "
+                        "floor's own sampling noise; see docs/GROUNDING.md)")
     p.add_argument("--llm", action="store_true", help="put agents on a real model")
     p.add_argument("--llm-provider", default="openai")
     p.add_argument("--llm-model", default=None)
@@ -68,7 +72,8 @@ def main(argv: list[str] | None = None) -> int:
     brain_factory = _llm_factory(args) if args.llm else None
     result = run_grounding_probe(
         args.persona, rule=args.rule, days=args.days, n_agents=args.agents,
-        seed=args.seed, threshold=args.threshold, brain_factory=brain_factory)
+        seed=args.seed, threshold=args.threshold, floor_rollouts=args.floor_rollouts,
+        brain_factory=brain_factory)
 
     if args.json:
         print(json.dumps(result.as_dict(), indent=2))

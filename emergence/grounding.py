@@ -29,7 +29,15 @@ response.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
+
+from .grounding_stats import (
+    linear_regression,
+    paired_bootstrap_ci,
+    sign_test_p,
+    wilcoxon_signed_rank_p,
+)
 
 
 @dataclass
@@ -100,6 +108,15 @@ class GroundingResult:
     verdict: str
     days: int
     n_agents: int
+    # The floor is itself an estimate (a finite run's count of a scored
+    # behaviour), so it carries its own sampling noise — the exact confound a
+    # floor-heavy world can smuggle into `excess`. `floor_rollouts` > 1
+    # averages the floor over that many independent world draws (see
+    # run_grounding_probe) to shrink that noise; `floor_divergence_std` is the
+    # spread across those draws (0.0 when floor_rollouts == 1 — nothing to
+    # measure spread over).
+    floor_rollouts: int = 1
+    floor_divergence_std: float = 0.0
 
     @property
     def conclusive(self) -> bool:
@@ -125,6 +142,8 @@ class GroundingResult:
             "verdict": self.verdict,
             "days": self.days,
             "n_agents": self.n_agents,
+            "floor_rollouts": self.floor_rollouts,
+            "floor_divergence_std": round(self.floor_divergence_std, 4),
         }
 
 
@@ -199,6 +218,8 @@ def run_grounding_probe(
     seed: int = 42,
     threshold: float = 0.0,
     sandbox: bool = False,
+    floor_rollouts: int = 1,
+    floor_seed_stride: int = 97_003,
     brain_factory=None,
 ) -> GroundingResult:
     """Run the control and counterfactual worlds and score the divergence.
@@ -214,6 +235,16 @@ def run_grounding_probe(
     real probe. When it is ``None`` the tested brain *is* the heuristic, so the
     excess is zero by construction — the run then only checks that the instrument
     runs and conserves, and reports the floor.
+
+    ``floor_rollouts`` (default 1, current behaviour) widens the floor estimate
+    from a single draw at ``seed`` to the mean of ``floor_rollouts`` independent
+    heuristic-only draws — ``seed`` itself plus ``floor_rollouts - 1`` further
+    worlds offset by ``floor_seed_stride`` (a large stride, chosen so the extra
+    floor-only worlds never collide with a battery's held-out or training seed
+    range). The floor is a finite run's *count* of a scored behaviour, so it is
+    itself noisy — this reduces that noise without touching the tested brain's
+    own run at ``seed``, which is unaffected. See ``floor_divergence_std`` on the
+    result for the spread across the draws.
     """
     from .scenario import make_simulation
     from .simulation import SimulationConfig
@@ -232,17 +263,17 @@ def run_grounding_probe(
     if sandbox and rule != "demurrage":
         raise ValueError("the sandbox currently supports only the demurrage rule")
 
-    def _divergence(factory) -> tuple[float, float]:
+    def _divergence(factory, world_seed: int) -> tuple[float, float]:
         def _run(cf_enabled: bool) -> float:
             if sandbox:
                 sim = make_grounding_sandbox(
-                    persona, rule=rule, n_savers=n_agents - 1, seed=seed,
+                    persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory)
             else:
                 sim = make_simulation(
                     persona,
                     n_agents=n_agents,
-                    config=SimulationConfig(seed=seed, days=days),
+                    config=SimulationConfig(seed=world_seed, days=days),
                     economy=True,
                     counterfactual=CounterfactualConfig(
                         enabled=cf_enabled, rule=rule, hide_rate=True,
@@ -257,15 +288,22 @@ def run_grounding_probe(
         counterfactual = _run(True)
         return control, control - counterfactual
 
-    control, divergence = _divergence(brain_factory)
+    control, divergence = _divergence(brain_factory, seed)
     if brain_factory is None:
         # The tested brain is the heuristic itself; the floor is the same run.
-        floor = divergence
+        floor, floor_std = divergence, 0.0
         counterfactual_rate = control - divergence
     else:
-        _, floor = _divergence(None)
         # Recover the tested brain's counterfactual rate for reporting.
         counterfactual_rate = control - divergence
+        floor_seeds = [seed] if floor_rollouts <= 1 else (
+            [seed] + [seed + (i + 1) * floor_seed_stride
+                     for i in range(floor_rollouts - 1)])
+        floor_samples = [_divergence(None, s)[1] for s in floor_seeds]
+        floor = sum(floor_samples) / len(floor_samples)
+        floor_std = (math.sqrt(sum((x - floor) ** 2 for x in floor_samples)
+                               / len(floor_samples))
+                    if len(floor_samples) > 1 else 0.0)
 
     excess = divergence - floor
     tested_did_behaviour = (control > 0.0) or (counterfactual_rate > 0.0)
@@ -283,7 +321,9 @@ def run_grounding_probe(
         rule=rule, target=target, control_rate=control,
         counterfactual_rate=counterfactual_rate, divergence=divergence,
         floor_divergence=floor, excess=excess, verdict=verdict,
-        days=days, n_agents=n_agents)
+        days=days, n_agents=n_agents,
+        floor_rollouts=len(floor_seeds) if brain_factory is not None else 1,
+        floor_divergence_std=floor_std)
 
 
 @dataclass
@@ -307,6 +347,21 @@ class SweepResult:
     n_grounded: int               # worlds that were conclusive AND cleared the threshold
     n_worlds: int
     n_conclusive: int             # worlds where the behaviour actually occurred
+    # Paired statistics over the *conclusive* worlds' excess, one-sided for
+    # H1: excess > 0 (see emergence.grounding_stats). fraction_grounded is a
+    # hard-threshold count — flip one borderline world and it jumps by
+    # 1/n_worlds; these read the same numbers as a real hypothesis test, and
+    # are far less sensitive to any one world. Neither replaces the other —
+    # both are reported; replay_inexplicable still gates on fraction_grounded.
+    sign_test_p: float = 1.0
+    wilcoxon_p: float = 1.0
+    bootstrap_ci_mean_excess: tuple = (0.0, 0.0)
+    # Diagnostic, not a verdict: regress each conclusive world's raw
+    # divergence on its floor_divergence and test the residual against zero.
+    # `excess` assumes the floor confound is purely additive (slope 1); this
+    # is immune to that assumption — it is orthogonal to floor_divergence by
+    # construction regardless of the fitted slope. See floor_regression().
+    floor_regression: dict = field(default_factory=dict)
 
     @property
     def fraction_grounded(self) -> float:
@@ -317,6 +372,15 @@ class SweepResult:
         """The sweep measured something in every world — else fraction_grounded
         is not a grounding statement (the behaviour simply never happened)."""
         return self.n_conclusive == self.n_worlds
+
+    @property
+    def grounded_paired(self) -> bool:
+        """A paired-test alternative headline to fraction_grounded: True iff the
+        one-sided Wilcoxon signed-rank p-value (excess > 0 across conclusive
+        worlds) clears the conventional 0.05 bar. Still requires `conclusive`
+        to mean anything — an inconclusive rule can look "significant" on pure
+        floor noise just as easily as fraction_grounded can."""
+        return self.wilcoxon_p < 0.05
 
     def as_dict(self) -> dict:
         return {
@@ -329,8 +393,47 @@ class SweepResult:
             "n_worlds": self.n_worlds,
             "fraction_grounded": round(self.fraction_grounded, 3),
             "conclusive": self.conclusive,
+            "sign_test_p": round(self.sign_test_p, 4),
+            "wilcoxon_p": round(self.wilcoxon_p, 4),
+            "grounded_paired": self.grounded_paired,
+            "bootstrap_ci_mean_excess": [round(self.bootstrap_ci_mean_excess[0], 4),
+                                        round(self.bootstrap_ci_mean_excess[1], 4)],
+            "floor_regression": self.floor_regression,
             "per_world": [r.as_dict() for r in self.results],
         }
+
+
+def floor_regression_diagnostic(results: list) -> dict:
+    """Regress each *conclusive* world's raw ``divergence`` on its
+    ``floor_divergence`` and test the residual against zero (one-sided,
+    excess > 0).
+
+    ``excess = divergence - floor_divergence`` implicitly assumes the floor
+    confound is additive with slope 1. If the true relationship has a
+    different slope, `excess` can still carry a floor-driven trend across
+    worlds. The residual of this regression is orthogonal to
+    ``floor_divergence`` *by construction*, regardless of the fitted slope —
+    it is the one statistic in this module that is immune to a floor
+    confound of any linear form, not just an additive offset. Needs >= 3
+    conclusive worlds to fit a meaningful line; fewer returns a note instead
+    of a spurious fit.
+    """
+    conclusive = [r for r in results if r.conclusive]
+    if len(conclusive) < 3:
+        return {"n": len(conclusive),
+                "note": "too few conclusive worlds for a regression (need >= 3)"}
+    xs = [r.floor_divergence for r in conclusive]
+    ys = [r.divergence for r in conclusive]
+    slope, intercept = linear_regression(xs, ys)
+    residuals = [y - (slope * x + intercept) for x, y in zip(xs, ys)]
+    return {
+        "n": len(conclusive),
+        "slope": round(slope, 4),
+        "intercept": round(intercept, 4),
+        "residuals": [round(r, 4) for r in residuals],
+        "residual_sign_p": round(sign_test_p(residuals), 4),
+        "residual_wilcoxon_p": round(wilcoxon_signed_rank_p(residuals), 4),
+    }
 
 
 def run_grounding_sweep(
@@ -342,6 +445,8 @@ def run_grounding_sweep(
     n_agents: int = 6,
     threshold: float = 0.0,
     sandbox: bool = False,
+    floor_rollouts: int = 1,
+    floor_seed_stride: int = 97_003,
     brain_factory=None,
     probe=None,
 ) -> SweepResult:
@@ -352,15 +457,27 @@ def run_grounding_sweep(
     ``fraction_grounded`` and ``min_excess`` rather than a single world's excess:
     a rule-grounded brain clears the bar in (nearly) every world, a layout
     memoriser does not. ``probe`` is injectable for tests; it defaults to
-    :func:`run_grounding_probe`."""
+    :func:`run_grounding_probe`.
+
+    Also reports paired statistics over the conclusive worlds' excess
+    (``sign_test_p``, ``wilcoxon_p``, ``bootstrap_ci_mean_excess`` — see
+    :mod:`emergence.grounding_stats`) and a floor-regression diagnostic
+    (``floor_regression`` — see :func:`floor_regression_diagnostic`), both
+    read-outs on the *same* per-world numbers as ``fraction_grounded``, not a
+    second experiment — neither changes what counts as ``n_grounded`` or
+    ``replay_inexplicable``.
+    """
     if not seeds:
         raise ValueError("seeds must be non-empty")
     probe = probe or run_grounding_probe
     results = [probe(persona, rule=rule, days=days, n_agents=n_agents,
                      seed=s, threshold=threshold, sandbox=sandbox,
+                     floor_rollouts=floor_rollouts,
+                     floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
                for s in seeds]
     excesses = [r.excess for r in results]
+    conclusive_excesses = [r.excess for r in results if r.conclusive]
     return SweepResult(
         rule=rule, results=results, seeds=tuple(seeds),
         mean_excess=sum(excesses) / len(excesses),
@@ -369,7 +486,11 @@ def run_grounding_sweep(
         # — an inconclusive world's excess is floor noise that can drift positive.
         n_grounded=sum(1 for r in results if r.conclusive and r.excess > threshold),
         n_conclusive=sum(1 for r in results if r.conclusive),
-        n_worlds=len(seeds))
+        n_worlds=len(seeds),
+        sign_test_p=sign_test_p(conclusive_excesses),
+        wilcoxon_p=wilcoxon_signed_rank_p(conclusive_excesses),
+        bootstrap_ci_mean_excess=paired_bootstrap_ci(conclusive_excesses),
+        floor_regression=floor_regression_diagnostic(results))
 
 
 @dataclass
@@ -391,6 +512,11 @@ class BatteryResult:
     weakest_rule: str
     weakest_excess: float
     inconclusive_rules: tuple     # rules whose behaviour never occurred in some world
+    # A paired-test alternative to `replay_inexplicable`: every rule's
+    # Wilcoxon signed-rank test (excess > 0 across conclusive worlds) clears
+    # 0.05. Kept alongside, not instead of, the hard-threshold verdict — see
+    # SweepResult.grounded_paired.
+    replay_inexplicable_paired: bool = False
 
     @property
     def conclusive(self) -> bool:
@@ -403,6 +529,7 @@ class BatteryResult:
         return {
             "rules": list(self.rules),
             "replay_inexplicable": self.replay_inexplicable,
+            "replay_inexplicable_paired": self.replay_inexplicable_paired,
             "conclusive": self.conclusive,
             "inconclusive_rules": list(self.inconclusive_rules),
             "weakest_rule": self.weakest_rule,
@@ -420,6 +547,8 @@ def run_grounding_battery(
     n_agents: int = 6,
     threshold: float = 0.0,
     sandbox: bool = False,
+    floor_rollouts: int = 1,
+    floor_seed_stride: int = 97_003,
     brain_factory=None,
     sweep=None,
 ) -> BatteryResult:
@@ -432,7 +561,9 @@ def run_grounding_battery(
     solvent — keeps qualifying for the plead-poverty scam; predator towns go
     broke or extinct). ``sandbox=True`` measures in the minimal world where the
     behaviour is dense enough to be conclusive (currently ``demurrage`` only).
-    ``sweep`` is injectable for tests and defaults to :func:`run_grounding_sweep`."""
+    ``floor_rollouts``/``floor_seed_stride`` are forwarded to every probe — see
+    :func:`run_grounding_probe`. ``sweep`` is injectable for tests and defaults
+    to :func:`run_grounding_sweep`."""
     if not rules:
         raise ValueError("rules must be non-empty")
     for r in rules:
@@ -441,6 +572,8 @@ def run_grounding_battery(
     sweep = sweep or run_grounding_sweep
     sweeps = {r: sweep(persona, rule=r, seeds=seeds, days=days,
                        n_agents=n_agents, threshold=threshold, sandbox=sandbox,
+                       floor_rollouts=floor_rollouts,
+                       floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)
               for r in rules}
     weakest_rule = min(sweeps, key=lambda r: sweeps[r].min_excess)
@@ -451,6 +584,8 @@ def run_grounding_battery(
         # An inconclusive rule can never earn it — nothing was measured there.
         replay_inexplicable=(not inconclusive and
                              all(s.n_grounded == s.n_worlds for s in sweeps.values())),
+        replay_inexplicable_paired=(not inconclusive and
+                                    all(s.grounded_paired for s in sweeps.values())),
         weakest_rule=weakest_rule,
         weakest_excess=sweeps[weakest_rule].min_excess,
         inconclusive_rules=inconclusive)

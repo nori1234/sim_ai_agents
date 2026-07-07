@@ -60,6 +60,13 @@ on:
           demurrage only). "true" or "false".
         required: false
         default: "false"
+      floor_rollouts:
+        description: >-
+          average each battery world's heuristic floor over this many
+          independent worlds instead of a single draw (variance reduction for
+          the floor-confound found in run #6 — see the script's docstring).
+        required: false
+        default: "1"
       hparams:
         description: >-
           JSON dict forwarded to build_brain — the brain side's late-training-
@@ -118,6 +125,7 @@ jobs:
             --probe-every "${{ inputs.probe_every }}" \
             --window "${{ inputs.window }}" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
+            --floor-rollouts "${{ inputs.floor_rollouts }}" \
             --hparams '${{ inputs.hparams }}' \
             --out grounding_out
 

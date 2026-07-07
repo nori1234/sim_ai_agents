@@ -33,6 +33,28 @@ BATTERY_SEEDS, and pointing the health-check monitor at a pool seed instead of a
 battery seed. is_stable/GroundingMonitor's design does NOT change (still a fixed
 held-in check) — only which seed it points at.
 
+Floor confound (found inspecting run #6, after the leak fix above): even with
+train/eval seeds properly disjoint, fraction_grounded stayed flat at 0.4 across
+runs, and the SAME worlds (seeds 44, 45) were the ones that read "grounded" every
+time — tracking floor_divergence, not the tested brain. `excess = divergence -
+floor_divergence` only removes an *additive* floor confound; it does nothing
+about a *slope* confound, and the floor itself is a noisy point estimate (a
+finite run's count of a scored behaviour). Three independent responses, none of
+which changes what run_grounding_battery gates replay_inexplicable on:
+  1. --floor-rollouts averages the floor over several independent worlds instead
+     of trusting a single draw (emergence.grounding: run_grounding_probe).
+  2. The battery now also reports paired statistics (sign test, Wilcoxon
+     signed-rank, a bootstrap CI) over the conclusive worlds' excess —
+     SweepResult.sign_test_p/wilcoxon_p/bootstrap_ci_mean_excess — a harder-to-
+     Goodhart read than the hard-threshold fraction_grounded, not a replacement
+     for it.
+  3. SweepResult.floor_regression regresses each world's raw divergence on its
+     floor_divergence and tests the residual against zero — immune to a floor
+     confound of ANY linear form (slope or offset), not just the additive one
+     `excess` assumes.
+BATTERY_SEEDS was also widened (5 -> 20 held-out worlds) for statistical power;
+by itself this does not de-bias anything, which is why (1)-(3) exist.
+
 Requires the [neural] extra (torch) plus the private llm_model_agi package; the
 shared CI workflow (.github/workflows/neural-train-battery.yml) installs both.
 Everything engine-side is stdlib.
@@ -63,10 +85,13 @@ RULES = ("demurrage", "vanity", "exposure")
 # Every rule is experienced from both sides: control, then each inverted world.
 EPISODE_ROTATION = (None, "demurrage", None, "vanity", None, "exposure")
 
-# The battery's held-out worlds (run_grounding_battery's own default). Declared
-# here, not just inherited implicitly, so the training pool can be asserted
-# disjoint from it — the exact leak that flattened run #5's fraction_grounded.
-BATTERY_SEEDS = (42, 43, 44, 45, 46)
+# The battery's held-out worlds. Declared here, not just inherited from
+# run_grounding_battery's own (smaller) default, so the training pool can be
+# asserted disjoint from it — the exact leak that flattened run #5's
+# fraction_grounded — and so the acceptance battery gets the statistical power
+# a paired test needs. Widened from the original 5 (42-46) to 20 for that
+# reason; the default --seed (1000) and --pool-size (12) stay far clear of it.
+BATTERY_SEEDS = tuple(range(42, 62))
 
 
 def main(argv=None) -> int:
@@ -90,6 +115,11 @@ def main(argv=None) -> int:
     ap.add_argument("--probe-every", type=int, default=5, help="probe cadence (episodes)")
     ap.add_argument("--window", type=int, default=3, help="is_stable window (probes)")
     ap.add_argument("--threshold", type=float, default=0.0)
+    ap.add_argument("--floor-rollouts", type=int, default=1,
+                    help="average each battery world's heuristic floor over this "
+                         "many independent worlds instead of a single draw "
+                         "(reduces the floor's own sampling noise — see the "
+                         "floor-confound note in this module's docstring).")
     ap.add_argument("--sandbox", action="store_true",
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
@@ -221,7 +251,8 @@ def main(argv=None) -> int:
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
     print(f"[battery] running the acceptance battery ({','.join(rules)} x "
-          f"held-out worlds {list(BATTERY_SEEDS)}, {where})...", flush=True)
+          f"held-out worlds {list(BATTERY_SEEDS)}, {where}, "
+          f"floor_rollouts={args.floor_rollouts})...", flush=True)
     # Explicit, not the function's own default: this script's train/eval
     # separation is asserted against BATTERY_SEEDS specifically, so evaluation
     # must use exactly that set even if the library default ever changes.
@@ -229,6 +260,7 @@ def main(argv=None) -> int:
                                     seeds=BATTERY_SEEDS,
                                     threshold=args.threshold,
                                     sandbox=args.sandbox,
+                                    floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
@@ -241,8 +273,21 @@ def main(argv=None) -> int:
                 "behaviour never occurred, so excess there is floor noise, not a "
                 "verdict]")
     print(f"\n[done] replay_inexplicable={battery.replay_inexplicable}  "
+          f"replay_inexplicable_paired={battery.replay_inexplicable_paired}  "
           f"weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
           f"→ paste {args.out}/battery.json to issue #130")
+    print("\n[paired stats + floor-regression diagnostic per rule] "
+          "(one-sided H1: excess > 0; see docs/GROUNDING.md)")
+    for r, sweep in battery.sweeps.items():
+        fr = sweep.floor_regression
+        fr_str = (fr["note"] if "note" in fr else
+                 f"slope={fr['slope']:+.3f} residual_sign_p={fr['residual_sign_p']:.4f} "
+                 f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f}")
+        lo, hi = sweep.bootstrap_ci_mean_excess
+        print(f"  {r:>10}: fraction_grounded={sweep.fraction_grounded:.2f}  "
+              f"sign_p={sweep.sign_test_p:.4f}  wilcoxon_p={sweep.wilcoxon_p:.4f}  "
+              f"grounded_paired={sweep.grounded_paired}  "
+              f"bootstrap_ci=[{lo:+.4f}, {hi:+.4f}]  floor_regression: {fr_str}")
     return 0
 
 

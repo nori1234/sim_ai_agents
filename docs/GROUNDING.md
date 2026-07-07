@@ -72,6 +72,24 @@ So the probe measures the tested brain's divergence **against the heuristic
 floor** and credits only the **excess**. Grounding is the excess of an LLM's
 divergence over what the engine produces mechanically with no learning at all.
 
+The floor is itself an *estimate* — a single finite run's count of a scored
+behaviour — so it carries its own sampling noise, and that noise leaks straight
+into `excess`. `floor_rollouts` (default 1, the behaviour above) widens the
+floor from one draw at the tested seed to the mean of several independent
+worlds (offset by a large, fixed stride so they never collide with a battery's
+held-out or training seed range), without touching the tested brain's own run:
+
+```python
+result = run_grounding_probe("claude", rule="demurrage", floor_rollouts=8)
+result.floor_divergence_std   # spread across the 8 floor draws
+```
+
+This is variance reduction on the floor estimate, not a re-run of "the same
+world" (the engine has no stochasticity independent of the seed, so there is no
+literal same-world resample to average) — see "Beyond fraction_grounded" below
+for why this alone doesn't fix a floor *confound* (a systematic floor-excess
+correlation across worlds), only the floor's own noise.
+
 ## Running it
 
 ```bash
@@ -142,6 +160,49 @@ Note the distinction from *training*-seed variance (whether the learner converge
 run-to-run, the brain side's axis): world seeds vary the town the same brain is
 *measured* in. A rule-grounded brain clears the bar in nearly every world; a
 layout memoriser does not.
+
+## Beyond fraction_grounded — paired statistics and a floor-regression diagnostic
+
+`fraction_grounded` is a hard-threshold count: one borderline world flipping
+across `excess > 0` swings it by `1/n_worlds`, and it is blind to *how much* a
+world misses by. This surfaced concretely in run #6 (below): the same two
+worlds read "grounded" across three separate training runs, tracking
+`floor_divergence`, not the tested brain — a **floor confound**, not noise that
+more seeds alone dilutes away (`excess = divergence - floor_divergence` only
+cancels an *additive* floor effect; a *slope* relationship between
+`floor_divergence` and `divergence` survives the subtraction untouched).
+`SweepResult` now also reports, over the **conclusive** worlds' `excess`
+(inconclusive worlds are excluded — their "excess" is floor noise, not signal):
+
+* **`sign_test_p` / `wilcoxon_p`** — one-sided paired tests (H1: excess > 0;
+  `emergence.grounding_stats`, pure stdlib) — harder to move by any one
+  borderline world than a threshold count.
+* **`bootstrap_ci_mean_excess`** — a percentile bootstrap CI on the mean excess.
+* **`grounded_paired`** — `wilcoxon_p < 0.05`, a paired-test alternative
+  headline to `fraction_grounded` (`BatteryResult.replay_inexplicable_paired`
+  is its all-rules conjunction).
+* **`floor_regression`** — regresses each conclusive world's raw `divergence`
+  on its `floor_divergence` and tests the **residual** against zero
+  (`floor_regression_diagnostic`). The residual is orthogonal to
+  `floor_divergence` *by construction*, regardless of the fitted slope — the
+  one statistic here immune to a floor confound of **any** linear form, not
+  just the additive one `excess` assumes. Needs ≥ 3 conclusive worlds; fewer
+  reports a note instead of a spurious fit.
+
+None of this replaces `fraction_grounded` / `min_excess` — `replay_inexplicable`
+still gates on them. These are additional, harder-to-Goodhart reads of the
+*same* per-world numbers, added specifically because widening `BATTERY_SEEDS`
+alone reduces sampling error but does nothing about a systematic floor
+confound.
+
+**Pre-registration, fixed before the next expanded battery run** (so a
+disappointing result can't quietly get re-cut until something clears the bar):
+primary metric is `wilcoxon_p < 0.05` per rule (`grounded_paired`) on
+`BATTERY_SEEDS` as currently defined (20 held-out worlds); `fraction_grounded`
+and `floor_regression`'s residual test are reported alongside as required
+context, not alternate paths to a pass. A negative result — including
+`mean_excess < 0` on all three rules, as every run so far has shown — is a
+real, reportable outcome, not a reason to keep changing the metric.
 
 ## The acceptance test — `run_grounding_battery`
 
@@ -263,11 +324,36 @@ local mirror:
   design itself untouched (still one fixed held-in world — a training-health
   check, deliberately not a generalisation claim, so it can't Goodhart against
   the battery).
-* **Next milestone:** a battery run with training/eval seeds properly disjoint —
-  the test of whether domain randomization (not more optimizer tuning) closes the
-  fraction_grounded gap. If it doesn't move, the standing hypothesis (a single
-  training world doesn't generalize) is falsified and the real bottleneck is
-  something else (e.g. the rule isn't learnable from the observation as given).
+* **Run #6, with training/eval seeds properly disjoint: the leak fix wasn't
+  enough — a floor confound, not fraction_grounded, was the real story.**
+  `fraction_grounded` stayed flat at 0.4 across three separate runs, and the
+  *same two worlds* (seeds 44, 45) read "grounded" every single time —
+  independent of what the brain actually did, since domain randomization was
+  now genuinely in effect. Cross-checking those worlds' `floor_divergence`
+  against the "grounded" verdict showed a direct correspondence: low/negative
+  floor worlds were exactly the ones passing. `excess = divergence -
+  floor_divergence` only removes an *additive* floor effect; a slope
+  relationship between the two survives the subtraction and can fully explain
+  a flat, seed-invariant `fraction_grounded`. `mean_excess` was negative in
+  all three runs (−0.328, −0.099, −0.223) — a fact the metric change below does
+  not get to explain away.
+* **Response, implemented in the engine (all three, per the pre-registration
+  above — see "Beyond fraction_grounded"):** `floor_rollouts` (reduces the
+  floor's own sampling noise), paired statistics (`sign_test_p`/`wilcoxon_p`/
+  `bootstrap_ci_mean_excess`, harder to move by one borderline world than a
+  threshold count), and `floor_regression` (a residual test immune to a floor
+  confound of *any* linear form, not just the additive one `excess` assumes).
+  `BATTERY_SEEDS` widened 5→20 for the statistical power the paired tests need
+  — this alone does not de-bias anything, which is the whole reason the other
+  three exist.
+* **Next milestone:** an expanded battery run (`--floor-rollouts`, 20 held-out
+  worlds) read primarily through `grounded_paired`/`replay_inexplicable_paired`
+  and `floor_regression`'s residual test, per the pre-registration. If the
+  floor-regression residual still shows no rule-aligned signal once the floor's
+  linear contribution (of either form) is removed, the standing hypothesis (a
+  single training world doesn't generalize) is falsified and the real
+  bottleneck is something else (e.g. the rule isn't learnable from the
+  observation as given).
 
 ## Why this comes before 3D
 
