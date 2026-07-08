@@ -154,6 +154,24 @@ jobs:
           print("adapter importable — training for real.")
           PY
 
+      - name: Guard — confirm the observation tokenizer is v2 (not a stale pin)
+        run: |
+          python - <<'PY'
+          import sys
+          from agent.adapters.emergence import build_brain
+          brain = build_brain("guardian", None, None)
+          version = getattr(getattr(brain, "tokenize", None), "version",
+                            "PRE-v2 CODE (= v1!)")
+          print(f"[guard] obs tokenizer version: {version}")
+          if version != "v2":
+              sys.exit(f"[fatal] expected obs tokenizer v2, got {version!r} — "
+                       "llm_model_agi_ref is pinned before the v2 fix (commit "
+                       "9bc016c). v1 collapses observation structure into opaque "
+                       "hashes (see docs/GROUNDING.md) — measuring with it silently "
+                       "invalidates any grounding result. Update llm_model_agi_ref "
+                       "to a ref that includes the fix and re-dispatch.")
+          PY
+
       - name: Train in the real engine, then run the acceptance battery
         run: |
           python scripts/train_neural_grounding.py \
