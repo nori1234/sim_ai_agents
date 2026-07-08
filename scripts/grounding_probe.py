@@ -57,6 +57,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--threshold", type=float, default=0.0,
                    help="divergence above this reads as grounded")
+    p.add_argument("--floor-rollouts", type=int, default=1,
+                   help="also compute an ensemble-mean floor over this many "
+                        "independent worlds, reported alongside (never in place "
+                        "of) the canonical world-matched floor at --seed; a "
+                        "cross-check, not a de-biasing step — see docs/GROUNDING.md")
     p.add_argument("--llm", action="store_true", help="put agents on a real model")
     p.add_argument("--llm-provider", default="openai")
     p.add_argument("--llm-model", default=None)
@@ -68,7 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     brain_factory = _llm_factory(args) if args.llm else None
     result = run_grounding_probe(
         args.persona, rule=args.rule, days=args.days, n_agents=args.agents,
-        seed=args.seed, threshold=args.threshold, brain_factory=brain_factory)
+        seed=args.seed, threshold=args.threshold, floor_rollouts=args.floor_rollouts,
+        brain_factory=brain_factory)
 
     if args.json:
         print(json.dumps(result.as_dict(), indent=2))
@@ -85,6 +91,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  heuristic floor  : {d['floor_divergence']:+.4f}   (mechanical, no learning)")
     print(f"  excess over floor: {d['excess']:+.4f}   ← the grounding signal")
     print(f"  verdict          : {d['verdict']}")
+    if d["ensemble_excess"] is not None:
+        print(f"  ensemble floor   : {d['ensemble_floor_divergence']:+.4f}   "
+              f"(cross-check over {d['floor_rollouts']} worlds, not load-bearing)")
+        print(f"  ensemble excess  : {d['ensemble_excess']:+.4f}")
     if not args.llm:
         print("\nNote: with heuristic brains the tested brain IS the floor, so the "
               "excess is\nzero by construction. The non-zero divergence is purely "

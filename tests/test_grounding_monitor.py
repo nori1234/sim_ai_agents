@@ -30,7 +30,7 @@ class _RisingProbe:
         self.calls = 0
 
     def __call__(self, persona, *, rule, days, n_agents, seed, threshold,
-                 brain_factory, sandbox=False):
+                 brain_factory, sandbox=False, **kwargs):
         self.calls += 1
         return _result(0.01 * self.calls)
 

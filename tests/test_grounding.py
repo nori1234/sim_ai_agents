@@ -276,6 +276,40 @@ class TestGroundingSandbox(unittest.TestCase):
             run_grounding_probe("guardian", rule="vanity", sandbox=True, days=4)
 
 
+class TestConclusiveYieldPreflight(unittest.TestCase):
+    """A cheap, brain-free estimate of how many worlds will be conclusive per
+    rule, so a rule whose scored behaviour is too sparse to ever power
+    floor_regression can be caught BEFORE a training run's compute is spent,
+    not after (the run #6 aftermath's practical risk: 20 worlds burned on a
+    rule that was structurally never going to reach n_conclusive >= 6)."""
+
+    def test_dense_sandbox_behaviour_is_conclusive_in_every_seed(self):
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage",), seeds=(1, 2, 3, 4),
+            days=10, n_agents=4, sandbox=True)
+        self.assertEqual(yields["demurrage"]["n_conclusive"], 4)
+        self.assertEqual(yields["demurrage"]["n_seeds"], 4)
+
+    def test_reports_every_requested_rule(self):
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage", "vanity"), seeds=(1, 2),
+            days=4, n_agents=4)
+        self.assertEqual(set(yields), {"demurrage", "vanity"})
+        for rule_yield in yields.values():
+            self.assertLessEqual(rule_yield["n_conclusive"], rule_yield["n_seeds"])
+
+    def test_uses_the_heuristic_only_no_brain_factory_needed(self):
+        # This must run with zero brain_factory, i.e. before any trained
+        # checkpoint exists -- the whole point of a preflight check.
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage",), seeds=(1,), days=6, n_agents=4,
+            sandbox=True)
+        self.assertIn("demurrage", yields)
+
+
 class TestGroundingSweep(unittest.TestCase):
     """Robustness across *worlds*: one seed's excess could be layout memorisation;
     the sweep's fraction-grounded / min-excess is the claim that travels."""
@@ -284,7 +318,7 @@ class TestGroundingSweep(unittest.TestCase):
         from emergence.grounding import GroundingResult
 
         def probe(persona, *, rule, days, n_agents, seed, threshold,
-                  brain_factory, sandbox=False):
+                  brain_factory, sandbox=False, **kwargs):
             x = excess_by_seed[seed]
             return GroundingResult(
                 rule=rule, target="deposit", control_rate=0.5,
@@ -329,7 +363,7 @@ class TestGroundingBattery(unittest.TestCase):
         from emergence.grounding import SweepResult, GroundingResult
 
         def sweep(persona, *, rule, seeds, days, n_agents, threshold,
-                  brain_factory, sandbox=False):
+                  brain_factory, sandbox=False, **kwargs):
             xs = excess_by_rule[rule]
             results = [GroundingResult(
                 rule=rule, target="t", control_rate=0.5,
@@ -375,7 +409,8 @@ class TestGroundingBattery(unittest.TestCase):
         # be counted as grounded even if the noise drifts positive.
         from emergence.grounding import SweepResult, GroundingResult, run_grounding_battery
 
-        def sweep(persona, *, rule, seeds, days, n_agents, threshold, brain_factory, sandbox=False):
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold, brain_factory,
+                  sandbox=False, **kwargs):
             if rule == "vanity":                       # behaviour never happened
                 results = [GroundingResult(
                     rule=rule, target="feast", control_rate=0.0,
@@ -493,6 +528,399 @@ class TestProbeEndToEnd(unittest.TestCase):
     def test_unknown_rule_is_rejected(self):
         with self.assertRaises(ValueError):
             run_grounding_probe("guardian", rule="no_such_rule", days=2)
+
+
+class TestFloorRollouts(unittest.TestCase):
+    """`floor_divergence`/`excess` are always the WORLD-MATCHED heuristic floor
+    (the seed under test) — the statistically correct control in a
+    deterministic engine, where a single seed's floor is an exact number, not a
+    noisy estimate to average away. Averaging the floor across *other* worlds
+    would swap the confound being controlled for from "this world's mechanical
+    strength" to "the population's average", not remove it (this was flagged
+    against an earlier version of this instrument that got this wrong).
+    `floor_rollouts` therefore computes only an ADDITIONAL, side-by-side
+    ensemble read (`ensemble_floor_divergence`/`ensemble_excess`) for
+    cross-checking — it must never move the canonical fields."""
+
+    def _factory(self, agent, persona, rng):
+        from emergence.brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona, rng)
+
+    def test_default_is_a_single_draw_at_the_tested_seed(self):
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, brain_factory=self._factory)
+        self.assertEqual(result.floor_rollouts, 1)
+        self.assertEqual(result.floor_divergence_std, 0.0)
+        self.assertIsNone(result.ensemble_floor_divergence)
+        self.assertIsNone(result.ensemble_excess)
+
+    def test_the_canonical_floor_and_excess_never_move_when_rollouts_are_requested(self):
+        # This is the load-bearing property: asking for an ensemble read must
+        # not change the world-matched floor/excess that the verdict, and
+        # fraction_grounded/sign_test_p/wilcoxon_p, are computed from.
+        kwargs = dict(persona="guardian", sandbox=True, days=10, n_agents=4,
+                      seed=1, brain_factory=self._factory)
+        baseline = run_grounding_probe(**kwargs)
+        ensembled = run_grounding_probe(floor_rollouts=6, **kwargs)
+        self.assertEqual(baseline.floor_divergence, ensembled.floor_divergence)
+        self.assertEqual(baseline.excess, ensembled.excess)
+        self.assertEqual(baseline.verdict, ensembled.verdict)
+
+    def test_more_rollouts_reports_a_separate_ensemble_read(self):
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, brain_factory=self._factory,
+                                     floor_rollouts=4)
+        self.assertEqual(result.floor_rollouts, 4)
+        self.assertIsNotNone(result.ensemble_floor_divergence)
+        self.assertAlmostEqual(result.ensemble_excess,
+                               result.divergence - result.ensemble_floor_divergence)
+        # Four independent worlds essentially never produce byte-identical
+        # deposit rates, so the ensemble should show *some* spread.
+        self.assertGreaterEqual(result.floor_divergence_std, 0.0)
+
+    def test_heuristic_only_probe_ignores_floor_rollouts(self):
+        # brain_factory=None means the tested brain IS the floor; there is no
+        # separate floor draw to ensemble, regardless of floor_rollouts.
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, floor_rollouts=5)
+        self.assertEqual(result.floor_rollouts, 1)
+        self.assertEqual(result.floor_divergence_std, 0.0)
+        self.assertIsNone(result.ensemble_floor_divergence)
+
+    def test_extra_floor_worlds_never_collide_with_the_tested_seed(self):
+        # A regression here would silently make "more rollouts" measure the
+        # exact same world over and over — no variance reduction at all.
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, brain_factory=self._factory,
+                                     floor_rollouts=3, floor_seed_stride=97_003)
+        self.assertEqual(result.floor_rollouts, 3)
+
+
+class TestPairedStatisticsOnASweep(unittest.TestCase):
+    """SweepResult's paired-test fields are a harder-to-Goodhart read of the
+    same per-world excess numbers `fraction_grounded` already has — not a
+    second experiment."""
+
+    def _fake_probe(self, excess_by_seed, *, inconclusive_seeds=()):
+        from emergence.grounding import GroundingResult
+
+        def probe(persona, *, rule, days, n_agents, seed, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            x = excess_by_seed[seed]
+            if seed in inconclusive_seeds:
+                return GroundingResult(
+                    rule=rule, target="deposit", control_rate=0.0,
+                    counterfactual_rate=0.0, divergence=0.0,
+                    floor_divergence=-x, excess=x,
+                    verdict="inconclusive (behaviour never occurred)",
+                    days=days, n_agents=n_agents)
+            return GroundingResult(
+                rule=rule, target="deposit", control_rate=0.5,
+                counterfactual_rate=0.5 - x, divergence=x,
+                floor_divergence=0.0, excess=x,
+                verdict="grounded" if x > threshold else "replay",
+                days=days, n_agents=n_agents)
+
+        return probe
+
+    def test_consistently_positive_excess_is_significant(self):
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep(
+            "guardian", seeds=(1, 2, 3, 4, 5),
+            probe=self._fake_probe({1: 0.3, 2: 0.25, 3: 0.4, 4: 0.35, 5: 0.28}))
+        self.assertLess(sweep.wilcoxon_p, 0.05)
+        self.assertLess(sweep.sign_test_p, 0.05)
+        self.assertTrue(sweep.grounded_paired)
+        lo, hi = sweep.bootstrap_ci_mean_excess
+        self.assertGreater(lo, 0.0, "a consistently positive sweep's CI excludes zero")
+
+    def test_noisy_mixed_sign_excess_is_not_significant(self):
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep(
+            "guardian", seeds=(1, 2, 3),
+            probe=self._fake_probe({1: 0.1, 2: -0.15, 3: 0.05}))
+        self.assertGreater(sweep.wilcoxon_p, 0.05)
+        self.assertFalse(sweep.grounded_paired)
+
+    def test_inconclusive_worlds_are_excluded_from_the_paired_test(self):
+        # An inconclusive world's "excess" is floor noise; a huge outlier there
+        # must not be able to manufacture significance either way.
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep(
+            "guardian", seeds=(1, 2, 3),
+            probe=self._fake_probe({1: 0.1, 2: -0.15, 3: 10.0},
+                                   inconclusive_seeds=(3,)))
+        # Only seeds 1, 2 (mixed sign) feed the test -- seed 3's enormous
+        # "excess" must be invisible to it.
+        self.assertGreater(sweep.wilcoxon_p, 0.05)
+
+    def test_as_dict_reports_the_new_fields(self):
+        from emergence.grounding import run_grounding_sweep
+        sweep = run_grounding_sweep(
+            "guardian", seeds=(1, 2, 3),
+            probe=self._fake_probe({1: 0.3, 2: 0.25, 3: 0.4}))
+        d = sweep.as_dict()
+        for key in ("sign_test_p", "wilcoxon_p", "grounded_paired",
+                   "bootstrap_ci_mean_excess", "floor_regression"):
+            self.assertIn(key, d)
+
+
+class TestFloorRegressionDiagnostic(unittest.TestCase):
+    """A diagnostic immune to any *linear* floor confound, not just an
+    additive one — the specific gap `excess = divergence - floor_divergence`
+    leaves open (see docs/GROUNDING.md, run #6's floor confound)."""
+
+    def test_too_few_conclusive_worlds_reports_a_note_not_a_fit(self):
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        results = [GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.5,
+            counterfactual_rate=0.3, divergence=0.2, floor_divergence=0.1,
+            excess=0.1, verdict="", days=10, n_agents=4) for _ in range(2)]
+        d = floor_regression_diagnostic(results)
+        self.assertEqual(d["n"], 2)
+        self.assertIn("note", d)
+
+    def test_a_pure_additive_floor_confound_is_fully_absorbed_by_the_intercept(self):
+        # divergence = floor_divergence + 0.15 in every world: the confound is
+        # exactly what `excess` already assumes (slope 1, constant offset), so
+        # the fit recovers it exactly and leaves ~zero residual everywhere --
+        # there is nothing left over once the (correctly additive) floor
+        # relationship is accounted for.
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        floors = [-0.3, -0.1, 0.0, 0.2, 0.4]
+        results = [GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.5,
+            counterfactual_rate=0.3, divergence=f + 0.15, floor_divergence=f,
+            excess=0.15, verdict="", days=10, n_agents=4) for f in floors]
+        d = floor_regression_diagnostic(results)
+        self.assertAlmostEqual(d["slope"], 1.0, places=4)
+        self.assertAlmostEqual(d["intercept"], 0.15, places=4)
+        for r in d["residuals"]:
+            self.assertAlmostEqual(r, 0.0, places=4)
+
+    def test_a_real_grounding_signal_survives_on_top_of_a_floor_slope_confound(self):
+        # Same slope-2 floor confound as above, but now there is ALSO a real,
+        # constant +0.08 grounding effect layered on top. The regression must
+        # still find slope~2 and leave a residual that is consistently
+        # positive and significant -- exactly the "residual orthogonal to the
+        # floor, aligned with the rule" read the diagnostic is for.
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        floors = [0.1, 0.2, 0.3, 0.4, 0.5]
+        results = [GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.5,
+            counterfactual_rate=0.3, divergence=2 * f + 0.08, floor_divergence=f,
+            excess=f + 0.08, verdict="", days=10, n_agents=4) for f in floors]
+        d = floor_regression_diagnostic(results)
+        self.assertAlmostEqual(d["slope"], 2.0, places=4)
+        for r in d["residuals"]:
+            self.assertAlmostEqual(r, 0.0, places=4)
+        # The intercept IS the real effect once the floor's slope is removed.
+        self.assertAlmostEqual(d["intercept"], 0.08, places=4)
+
+    def test_a_pure_floor_slope_confound_with_no_real_signal_has_a_flat_residual(self):
+        # divergence is EXACTLY 2x floor_divergence in every world -- a brain
+        # with zero real grounding whose "excess" would still look inflated in
+        # floor-heavy worlds because the confound isn't additive (slope != 1).
+        # The regression should fit that slope and leave ~zero residual.
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        floors = [0.1, 0.2, 0.3, 0.4, 0.5]
+        results = [GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.5,
+            counterfactual_rate=0.3, divergence=2 * f, floor_divergence=f,
+            excess=f, verdict="", days=10, n_agents=4) for f in floors]
+        d = floor_regression_diagnostic(results)
+        self.assertAlmostEqual(d["slope"], 2.0, places=4)
+        for r in d["residuals"]:
+            self.assertAlmostEqual(r, 0.0, places=4)
+
+    def test_only_conclusive_worlds_feed_the_regression(self):
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        conclusive = [GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.5,
+            counterfactual_rate=0.3, divergence=f + 0.1, floor_divergence=f,
+            excess=0.1, verdict="", days=10, n_agents=4) for f in (-0.2, 0.0, 0.3)]
+        inconclusive = GroundingResult(
+            rule="demurrage", target="deposit", control_rate=0.0,
+            counterfactual_rate=0.0, divergence=0.0, floor_divergence=999.0,
+            excess=-999.0, verdict="inconclusive (behaviour never occurred)",
+            days=10, n_agents=4)
+        d = floor_regression_diagnostic(conclusive + [inconclusive])
+        self.assertEqual(d["n"], 3, "the inconclusive world must not skew the fit")
+
+
+class TestFloorRegressionAsATiebreaker(unittest.TestCase):
+    """The floor-regression verdict (SweepResult.floor_regression_grounded,
+    BatteryResult.replay_inexplicable_floor_regression) — promoted to a
+    co-primary/tiebreaker read alongside grounded_paired/replay_inexplicable_
+    paired, since it is immune to a floor confound of any linear form
+    regardless of which floor convention (world-matched vs. ensemble) the
+    excess-based statistics used."""
+
+    def _sweep_with_residuals(self, rule, floors, extra):
+        from emergence.grounding import GroundingResult, run_grounding_sweep
+
+        results_by_seed = {i: (f, e) for i, (f, e) in enumerate(zip(floors, extra))}
+
+        def probe(persona, *, rule, days, n_agents, seed, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            f, e = results_by_seed[seed]
+            return GroundingResult(
+                rule=rule, target="deposit", control_rate=0.5,
+                counterfactual_rate=0.5 - (f + e), divergence=f + e,
+                floor_divergence=f, excess=e, verdict="",
+                days=days, n_agents=n_agents)
+
+        return run_grounding_sweep(
+            "guardian", rule=rule, seeds=tuple(range(len(floors))),
+            probe=probe)
+
+    def test_significant_residual_is_floor_regression_grounded(self):
+        # OLS residuals always sum to exactly zero (an intercept absorbs any
+        # constant shift) -- so "significant" here necessarily means a SKEWED
+        # residual (most worlds a bit above zero, balanced by one or two well
+        # below), not a case where every single world individually clears a
+        # threshold. These floors/extra are constructed (via projecting a
+        # skewed target orthogonal to [1, floor]) specifically to produce that
+        # shape -- not meant to look like a plausible battery result, just to
+        # exercise a test a naive per-world threshold check would miss.
+        floors = [-0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
+        extra = [1.572727, 1.512121, 1.451515, 1.390909, -8.669697,
+                1.269697, 1.209091, 1.148485, 1.087879, 1.027273]
+        sweep = self._sweep_with_residuals("demurrage", floors, extra)
+        self.assertTrue(sweep.floor_regression_grounded)
+
+    def test_no_residual_signal_is_not_floor_regression_grounded(self):
+        # n=6, floor spread ~0.29 -- comfortably powered, so a False here is a
+        # real "not significant" verdict, not an underpowered None in disguise
+        # (assertFalse(None) would also pass, which is why this specifically
+        # asserts `is False`, not just falsy).
+        floors = [-0.4, -0.3, -0.1, 0.1, 0.3, 0.4]
+        extra = [0.10, -0.20, 0.15, -0.10, 0.05, -0.05]  # no consistent direction
+        sweep = self._sweep_with_residuals("demurrage", floors, extra)
+        self.assertTrue(sweep.floor_regression["powered"])
+        self.assertIs(sweep.floor_regression_grounded, False)
+
+    def test_too_few_conclusive_worlds_is_undetermined_not_false(self):
+        from emergence.grounding import SweepResult
+        sweep = SweepResult(rule="demurrage", results=[], seeds=(),
+                            mean_excess=0.0, min_excess=0.0, n_grounded=0,
+                            n_worlds=0, n_conclusive=0,
+                            floor_regression={"n": 2, "note": "too few..."})
+        self.assertIsNone(sweep.floor_regression_grounded)
+
+    def test_battery_conjunction_is_none_when_any_rule_is_undetermined(self):
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            fr = ({"note": "too few"} if rule == "vanity"
+                 else {"residual_wilcoxon_p": 0.01, "powered": True})
+            return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
+                               mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
+                               n_worlds=len(seeds), n_conclusive=len(seeds),
+                               floor_regression=fr)
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertIsNone(battery.replay_inexplicable_floor_regression)
+
+    def test_battery_conjunction_is_none_when_a_rule_is_unpowered_even_with_a_low_p(self):
+        # An underpowered fit's p-value must not count as "significant" just
+        # because it happens to be small -- it's not trustworthy evidence.
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            fr = {"residual_wilcoxon_p": 0.001, "powered": rule != "vanity"}
+            return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
+                               mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
+                               n_worlds=len(seeds), n_conclusive=len(seeds),
+                               floor_regression=fr)
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertIsNone(battery.replay_inexplicable_floor_regression)
+
+    def test_battery_conjunction_is_true_only_when_every_rule_is_significant(self):
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            p = 0.30 if rule == "exposure" else 0.01
+            return SweepResult(rule=rule, results=[], seeds=tuple(seeds),
+                               mean_excess=0.2, min_excess=0.1, n_grounded=len(seeds),
+                               n_worlds=len(seeds), n_conclusive=len(seeds),
+                               floor_regression={"residual_wilcoxon_p": p, "powered": True})
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertFalse(battery.replay_inexplicable_floor_regression)
+
+
+class TestGroundedConfirmedAndGate(unittest.TestCase):
+    """The pre-registered verdict is a strict AND gate, not a tiebreaker: a
+    single test disagreeing withholds "grounded" (2026-07 review — an earlier
+    draft's wording implied floor_regression could override a failing
+    grounded_paired, which contradicted the AND semantics actually coded)."""
+
+    def _sweep(self, *, wilcoxon_p, fr_p, fr_powered=True):
+        from emergence.grounding import SweepResult
+        fr = {"powered": fr_powered}
+        if fr_powered:
+            fr["residual_wilcoxon_p"] = fr_p
+        else:
+            fr["note"] = "underpowered"
+        return SweepResult(rule="demurrage", results=[], seeds=(1, 2),
+                           mean_excess=0.2, min_excess=0.1, n_grounded=2,
+                           n_worlds=2, n_conclusive=2,
+                           wilcoxon_p=wilcoxon_p, floor_regression=fr)
+
+    def test_both_significant_is_confirmed(self):
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.01)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertTrue(sweep.floor_regression_grounded)
+        self.assertTrue(sweep.grounded_confirmed)
+
+    def test_paired_significant_but_regression_not_is_NOT_confirmed(self):
+        # This is exactly the quadrant the AND gate exists for: a floor
+        # confound that grounded_paired alone would miss must be able to veto.
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.30)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertFalse(sweep.floor_regression_grounded)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_regression_significant_but_paired_not_is_NOT_confirmed(self):
+        # The other quadrant: floor_regression is not a unilateral arbiter
+        # either -- it needs grounded_paired's agreement too.
+        sweep = self._sweep(wilcoxon_p=0.30, fr_p=0.01)
+        self.assertFalse(sweep.grounded_paired)
+        self.assertTrue(sweep.floor_regression_grounded)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_neither_significant_is_not_confirmed(self):
+        sweep = self._sweep(wilcoxon_p=0.30, fr_p=0.30)
+        self.assertFalse(sweep.grounded_confirmed)
+
+    def test_underpowered_regression_makes_confirmed_undetermined(self):
+        # Even if grounded_paired is significant, an underpowered regression
+        # can't confirm OR deny -- the AND gate can't be evaluated.
+        sweep = self._sweep(wilcoxon_p=0.01, fr_p=0.01, fr_powered=False)
+        self.assertTrue(sweep.grounded_paired)
+        self.assertIsNone(sweep.floor_regression_grounded)
+        self.assertIsNone(sweep.grounded_confirmed)
+
+    def test_battery_confirmed_requires_every_rule_confirmed(self):
+        from emergence.grounding import SweepResult, run_grounding_battery
+
+        def sweep(persona, *, rule, seeds, days, n_agents, threshold,
+                  brain_factory, sandbox=False, **kwargs):
+            wilcoxon_p = 0.30 if rule == "vanity" else 0.01
+            return SweepResult(
+                rule=rule, results=[], seeds=tuple(seeds), mean_excess=0.2,
+                min_excess=0.1, n_grounded=len(seeds), n_worlds=len(seeds),
+                n_conclusive=len(seeds), wilcoxon_p=wilcoxon_p,
+                floor_regression={"residual_wilcoxon_p": 0.01, "powered": True})
+
+        battery = run_grounding_battery("guardian", seeds=(1, 2), sweep=sweep)
+        self.assertFalse(battery.replay_inexplicable_confirmed,
+                         "vanity's grounded_paired failed, so the AND gate must fail overall")
 
 
 if __name__ == "__main__":

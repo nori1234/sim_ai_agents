@@ -34,7 +34,8 @@ emergence/
     neural.py          発達脳アダプタ（経験から継続学習；依存任意・失敗時はheuristicへ縮退）
     _neural_reward.py  観測差分→報酬（純Python・torch不要）
     neural_contract.py 世界⇄発達脳の契約の真実源（行動語彙・param規約・観測スキーマ・target解決）
-  grounding.py    接地検証器：反事実世界の転移テスト（excess＝ヒューリスティック床超過分）
+  grounding.py    接地検証器：反事実世界の転移テスト（excess＝world-matchedヒューリスティック床超過分）
+  grounding_stats.py    ペア検定（符号検定・Wilcoxon符号順位・ブートストラップCI・線形回帰）— 標準ライブラリのみ
   grounding_monitor.py  学習中に接地スコアの推移を記録（GroundingMonitor）
   scenario.py     人口生成とシミュレーション組み立て
   report.py       実行後の人間可読レポート

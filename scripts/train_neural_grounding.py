@@ -33,6 +33,85 @@ BATTERY_SEEDS, and pointing the health-check monitor at a pool seed instead of a
 battery seed. is_stable/GroundingMonitor's design does NOT change (still a fixed
 held-in check) — only which seed it points at.
 
+Floor confound (found inspecting run #6, after the leak fix above): even with
+train/eval seeds properly disjoint, fraction_grounded stayed flat at 0.4 across
+runs, and the SAME worlds (seeds 44, 45) were the ones that read "grounded" every
+time — tracking floor_divergence, not the tested brain. `excess = divergence -
+floor_divergence` only removes an *additive* floor confound; a *slope* confound
+survives the subtraction untouched.
+
+`floor_divergence`/`excess` remain the WORLD-MATCHED heuristic floor (same seed
+as the tested brain) — this engine is deterministic, so a single seed's floor is
+an exact number for that world, not a noisy estimate with sampling error to
+average away. An earlier version of this response tried "--floor-rollouts
+averages the floor to reduce its noise", which was wrong on both counts: there
+is no such noise to reduce, and averaging the floor over *other* worlds swaps
+the confound being controlled for from "this world's mechanical strength" to
+"the population's average" — a reversed-sign version of the same problem
+(caught before it shipped in a run). `--floor-rollouts` now computes that
+ensemble ONLY as an additional, side-by-side cross-check
+(`ensemble_floor_divergence`/`ensemble_excess` on GroundingResult) — it never
+moves the canonical, world-matched fields, or what any verdict is based on.
+
+Two responses that DO change what's reported (not what run_grounding_battery's
+core excess means):
+  1. The battery reports paired statistics (sign test, Wilcoxon signed-rank, a
+     bootstrap CI) over the conclusive worlds' world-matched excess —
+     SweepResult.sign_test_p/wilcoxon_p/bootstrap_ci_mean_excess — a harder-to-
+     Goodhart read than the hard-threshold fraction_grounded, not a replacement
+     for it. SweepResult.grounded_paired = wilcoxon_p < 0.05.
+  2. SweepResult.floor_regression regresses each world's raw divergence on its
+     (world-matched) floor_divergence and tests the residual against zero —
+     immune to a floor confound of ANY linear form (slope or offset), not just
+     the additive one `excess` assumes, and independent of the floor convention
+     debate above. Only trustworthy when `powered` (>= 6 conclusive worlds AND
+     enough spread in their floor_divergence that the slope is identifiable;
+     see floor_regression_diagnostic's min_conclusive/min_floor_spread) —
+     an underpowered fit's p-value is not evidence either way, so
+     SweepResult.floor_regression_grounded is None rather than guessing.
+
+THE pre-registered verdict (fixed before the next expanded run, per
+docs/GROUNDING.md) is SweepResult.grounded_confirmed / BatteryResult.
+replay_inexplicable_confirmed — a STRICT AND GATE: grounded_paired AND
+floor_regression_grounded must BOTH be True, per rule. Either disagreeing
+withholds "grounded"; this is not a tiebreaker where floor_regression
+overrides grounded_paired (an earlier draft's wording implied that, which
+contradicted the AND actually coded — floor_regression alone missing the
+signal grounded_paired found is just as disqualifying as the reverse). None
+if floor_regression is underpowered for any rule — genuinely undetermined,
+not a "no". fraction_grounded/replay_inexplicable remain reported as
+required context, never an alternate path to a pass.
+
+BATTERY_SEEDS was also widened (5 -> 20 held-out worlds) for the statistical
+power (1)-(2) need; by itself this does not de-bias anything.
+
+What `None` means, fixed BEFORE looking at any run's numbers (the burden of
+proof is on grounding, not on replay: until a powered confirmatory test says
+"grounded", the reportable status is "not grounded / unconfirmed" -- None is
+not a pass, and it must not become one after the fact). Two different Nones,
+two different next steps:
+  - UNDETERMINED (floor_regression unpowered for a rule): not a verdict either
+    way -- the battery didn't measure enough to know. Next step: improve the
+    battery itself (more conclusive worlds, or address behaviour density) and
+    re-run, not conclude anything about the brain.
+  - POWERED-NO (floor_regression was powered but grounded_confirmed is False
+    because grounded_paired and/or floor_regression_grounded came back
+    negative): a real negative result. Next step: stop tuning the metric and
+    ask whether the rule is learnable from the observation as given
+    (representation learnability), per docs/GROUNDING.md.
+Which one occurred is visible directly off SweepResult.floor_regression["powered"]
+per rule -- report it, don't infer it from grounded_confirmed alone.
+
+Practical risk this creates: floor_regression's power check is PER RULE, and
+feast/lie are far sparser than deposit (~20x, see "the minimal sandbox" in
+docs/GROUNDING.md) -- a rule can be structurally unable to ever reach
+n_conclusive>=6 no matter how many seeds the battery covers, if the density
+problem isn't addressed first. Running the whole (expensive) battery and only
+THEN discovering a rule was undetermined from the start wastes the run. Run
+`--preflight-only` first (cheap: heuristic-only, no trained brain, no torch
+even) to see the expected per-rule conclusive yield against BATTERY_SEEDS
+before committing training compute.
+
 Requires the [neural] extra (torch) plus the private llm_model_agi package; the
 shared CI workflow (.github/workflows/neural-train-battery.yml) installs both.
 Everything engine-side is stdlib.
@@ -52,6 +131,7 @@ from emergence.brains.neural import NeuralDevelopmentalBrain   # noqa: E402
 from emergence.esteem import StatusConfig                      # noqa: E402
 from emergence.grounding import (                              # noqa: E402
     CounterfactualConfig,
+    estimate_conclusive_yield,
     make_grounding_sandbox,
     run_grounding_battery,
 )
@@ -63,10 +143,50 @@ RULES = ("demurrage", "vanity", "exposure")
 # Every rule is experienced from both sides: control, then each inverted world.
 EPISODE_ROTATION = (None, "demurrage", None, "vanity", None, "exposure")
 
-# The battery's held-out worlds (run_grounding_battery's own default). Declared
-# here, not just inherited implicitly, so the training pool can be asserted
-# disjoint from it — the exact leak that flattened run #5's fraction_grounded.
-BATTERY_SEEDS = (42, 43, 44, 45, 46)
+# The battery's held-out worlds. Declared here, not just inherited from
+# run_grounding_battery's own (smaller) default, so the training pool can be
+# asserted disjoint from it — the exact leak that flattened run #5's
+# fraction_grounded — and so the acceptance battery gets the statistical power
+# a paired test needs. Widened from the original 5 (42-46) to 20 for that
+# reason; the default --seed (1000) and --pool-size (12) stay far clear of it.
+BATTERY_SEEDS = tuple(range(42, 62))
+
+# Mirrors floor_regression_diagnostic's own default (emergence/grounding.py) —
+# kept as an explicit constant here so the preflight warning below and the
+# regression's actual power check can never silently drift apart.
+MIN_CONCLUSIVE_FOR_POWER = 6
+
+
+def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
+                    sandbox: bool) -> bool:
+    """Estimate each rule's conclusive yield against BATTERY_SEEDS using the
+    heuristic only (no trained brain, no torch) and print it. Returns True iff
+    every rule looks likely to power floor_regression. Purely advisory — it
+    does not abort the run, since the heuristic's occurrence rate is a proxy
+    for the trained brain's, not a guarantee — but printed loudly and early so
+    a human can decide whether to fix behaviour density (more seeds, a denser
+    scenario, or the sandbox) before committing training compute to a run that
+    would come back UNDETERMINED for a sparse rule regardless of what the
+    brain does (see the module docstring's "What None means")."""
+    yields = estimate_conclusive_yield(persona, rules=rules, seeds=BATTERY_SEEDS,
+                                       days=days, n_agents=n_agents, sandbox=sandbox)
+    print(f"[preflight] estimated conclusive yield vs {len(BATTERY_SEEDS)} held-out "
+          f"worlds (heuristic proxy, need >= {MIN_CONCLUSIVE_FOR_POWER} per rule for "
+          "floor_regression to be powered):")
+    all_ok = True
+    for rule, y in yields.items():
+        ok = y["n_conclusive"] >= MIN_CONCLUSIVE_FOR_POWER
+        all_ok = all_ok and ok
+        flag = "ok" if ok else "AT RISK -- likely UNDETERMINED, not a verdict"
+        print(f"  {rule:>10}: {y['n_conclusive']}/{y['n_seeds']} conclusive  [{flag}]")
+    if not all_ok:
+        print("[preflight] WARNING: at least one rule is unlikely to reach "
+              f"n_conclusive >= {MIN_CONCLUSIVE_FOR_POWER} -- floor_regression_grounded "
+              "(and therefore grounded_confirmed) would likely be None for it "
+              "regardless of what the trained brain does. Consider widening "
+              "BATTERY_SEEDS, using --sandbox, or otherwise increasing the "
+              "behaviour's density before spending training compute.", flush=True)
+    return all_ok
 
 
 def main(argv=None) -> int:
@@ -90,10 +210,21 @@ def main(argv=None) -> int:
     ap.add_argument("--probe-every", type=int, default=5, help="probe cadence (episodes)")
     ap.add_argument("--window", type=int, default=3, help="is_stable window (probes)")
     ap.add_argument("--threshold", type=float, default=0.0)
+    ap.add_argument("--floor-rollouts", type=int, default=1,
+                    help="report an ADDITIONAL ensemble-mean floor read "
+                         "(over this many independent worlds) alongside the "
+                         "canonical world-matched floor, purely as a cross-check "
+                         "-- never changes excess/verdict/fraction_grounded. "
+                         "See the floor-confound note in this module's docstring.")
     ap.add_argument("--sandbox", action="store_true",
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
     ap.add_argument("--out", default="grounding_out", help="output dir (ckpt, logs, battery.json)")
+    ap.add_argument("--preflight-only", action="store_true",
+                    help="print the estimated per-rule conclusive yield against "
+                         "BATTERY_SEEDS (heuristic only, no torch/training) and exit "
+                         "-- run this before a real training run to catch a rule "
+                         "that's structurally too sparse to ever power floor_regression.")
     ap.add_argument("--hparams", default=None,
                     help='JSON dict forwarded to build_brain, e.g. '
                          '\'{"batch_every": 64, "lr_decay_steps": 4000}\' — the '
@@ -115,6 +246,11 @@ def main(argv=None) -> int:
 
     # The sandbox isolates one decision; it currently supports demurrage only.
     rules = ("demurrage",) if args.sandbox else RULES
+
+    print_preflight(args.persona, rules, days=args.days, n_agents=args.agents,
+                    sandbox=args.sandbox)
+    if args.preflight_only:
+        return 0
 
     os.makedirs(args.out, exist_ok=True)
     ckpt = os.path.join(args.out, "agent.pt")
@@ -221,7 +357,8 @@ def main(argv=None) -> int:
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
     print(f"[battery] running the acceptance battery ({','.join(rules)} x "
-          f"held-out worlds {list(BATTERY_SEEDS)}, {where})...", flush=True)
+          f"held-out worlds {list(BATTERY_SEEDS)}, {where}, "
+          f"floor_rollouts={args.floor_rollouts})...", flush=True)
     # Explicit, not the function's own default: this script's train/eval
     # separation is asserted against BATTERY_SEEDS specifically, so evaluation
     # must use exactly that set even if the library default ever changes.
@@ -229,6 +366,7 @@ def main(argv=None) -> int:
                                     seeds=BATTERY_SEEDS,
                                     threshold=args.threshold,
                                     sandbox=args.sandbox,
+                                    floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
@@ -241,8 +379,56 @@ def main(argv=None) -> int:
                 "behaviour never occurred, so excess there is floor noise, not a "
                 "verdict]")
     print(f"\n[done] replay_inexplicable={battery.replay_inexplicable}  "
-          f"weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
+          f"replay_inexplicable_paired={battery.replay_inexplicable_paired}  "
+          f"replay_inexplicable_floor_regression={battery.replay_inexplicable_floor_regression}  "
+          f"replay_inexplicable_CONFIRMED={battery.replay_inexplicable_confirmed}"
+          f"  weakest={battery.weakest_rule} ({battery.weakest_excess:+.4f}){note}  "
           f"→ paste {args.out}/battery.json to issue #130")
+    print("\n[paired stats + floor-regression diagnostic per rule] (one-sided "
+          "H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED "
+          "heuristic floor -- floor_rollouts only adds a side-by-side ensemble "
+          "read, never moves these. The PRE-REGISTERED verdict is grounded_confirmed "
+          "-- a strict AND of grounded_paired and floor_regression_grounded, per "
+          "docs/GROUNDING.md; the two below it are context, not alternate passes.)")
+    for r, sweep in battery.sweeps.items():
+        fr = sweep.floor_regression
+        if "slope" in fr:
+            slope_lo, slope_hi = fr["slope_ci"]
+            fr_str = (f"slope={fr['slope']:+.3f} (CI [{slope_lo:+.3f}, {slope_hi:+.3f}]) "
+                     f"n={fr['n']} floor_spread_std={fr['floor_spread_std']:.4f} "
+                     f"powered={fr['powered']} "
+                     f"residual_sign_p={fr['residual_sign_p']:.4f} "
+                     f"residual_wilcoxon_p={fr['residual_wilcoxon_p']:.4f} "
+                     f"grounded={sweep.floor_regression_grounded}")
+            if not fr["powered"]:
+                fr_str += f"  [{fr['note']}]"
+        else:
+            fr_str = fr["note"]
+        lo, hi = sweep.bootstrap_ci_mean_excess
+        print(f"  {r:>10}: fraction_grounded={sweep.fraction_grounded:.2f}  "
+              f"sign_p={sweep.sign_test_p:.4f}  wilcoxon_p={sweep.wilcoxon_p:.4f}  "
+              f"grounded_paired={sweep.grounded_paired}  "
+              f"bootstrap_ci=[{lo:+.4f}, {hi:+.4f}]")
+        print(f"             floor_regression: {fr_str}")
+        confirmed = sweep.grounded_confirmed
+        if confirmed is None:
+            reading = "UNDETERMINED (floor_regression unpowered -- not a verdict; " \
+                      "improve the battery [more conclusive worlds / behaviour " \
+                      "density] and re-run, don't conclude anything about the brain)"
+        elif confirmed is False:
+            reading = "POWERED-NO (a real negative result -- next: representation " \
+                      "learnability, not more metric tuning)"
+        else:
+            reading = "CONFIRMED"
+        print(f"             grounded_CONFIRMED (pre-registered verdict): "
+              f"{confirmed}  [{reading}]")
+        if args.floor_rollouts > 1:
+            ens = [r2.ensemble_excess for r2 in sweep.results
+                  if r2.ensemble_excess is not None]
+            if ens:
+                print(f"             ensemble-floor excess per world (cross-check "
+                      f"only, not load-bearing): "
+                      + ", ".join(f"{x:+.4f}" for x in ens))
     return 0
 
 
