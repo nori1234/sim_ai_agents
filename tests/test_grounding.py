@@ -276,6 +276,40 @@ class TestGroundingSandbox(unittest.TestCase):
             run_grounding_probe("guardian", rule="vanity", sandbox=True, days=4)
 
 
+class TestConclusiveYieldPreflight(unittest.TestCase):
+    """A cheap, brain-free estimate of how many worlds will be conclusive per
+    rule, so a rule whose scored behaviour is too sparse to ever power
+    floor_regression can be caught BEFORE a training run's compute is spent,
+    not after (the run #6 aftermath's practical risk: 20 worlds burned on a
+    rule that was structurally never going to reach n_conclusive >= 6)."""
+
+    def test_dense_sandbox_behaviour_is_conclusive_in_every_seed(self):
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage",), seeds=(1, 2, 3, 4),
+            days=10, n_agents=4, sandbox=True)
+        self.assertEqual(yields["demurrage"]["n_conclusive"], 4)
+        self.assertEqual(yields["demurrage"]["n_seeds"], 4)
+
+    def test_reports_every_requested_rule(self):
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage", "vanity"), seeds=(1, 2),
+            days=4, n_agents=4)
+        self.assertEqual(set(yields), {"demurrage", "vanity"})
+        for rule_yield in yields.values():
+            self.assertLessEqual(rule_yield["n_conclusive"], rule_yield["n_seeds"])
+
+    def test_uses_the_heuristic_only_no_brain_factory_needed(self):
+        # This must run with zero brain_factory, i.e. before any trained
+        # checkpoint exists -- the whole point of a preflight check.
+        from emergence.grounding import estimate_conclusive_yield
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage",), seeds=(1,), days=6, n_agents=4,
+            sandbox=True)
+        self.assertIn("demurrage", yields)
+
+
 class TestGroundingSweep(unittest.TestCase):
     """Robustness across *worlds*: one seed's excess could be layout memorisation;
     the sweep's fraction-grounded / min-excess is the claim that travels."""

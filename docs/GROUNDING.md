@@ -239,6 +239,52 @@ negative result — including `mean_excess < 0` on all three rules, as every run
 so far has shown — is a real, reportable outcome, not a reason to keep
 changing the metric.
 
+**What `None` means, fixed now — not after seeing a run's numbers.** The
+burden of proof is on grounding, not on replay: until a powered confirmatory
+test says "grounded", the reportable status is *not grounded / unconfirmed* —
+`None` is never a pass. Two different causes produce `grounded_confirmed is
+None`, and they call for different next steps, so don't collapse them:
+
+* **Undetermined** — `floor_regression` was unpowered for that rule (too few
+  conclusive worlds, or too little spread in their `floor_divergence`). Not a
+  verdict about the brain at all: the *battery* didn't measure enough. Next
+  step is to improve the battery (more worlds, or address behaviour density —
+  see the preflight check below) and re-run, not to conclude anything.
+* **Powered-no** — `floor_regression` *was* powered, and `grounded_confirmed`
+  is `False` because `grounded_paired` and/or `floor_regression_grounded` came
+  back negative. A real negative result. Next step is the one already
+  standing: stop tuning the metric and ask whether the rule is learnable from
+  the observation as given (representation learnability).
+
+Which case occurred is visible directly off `SweepResult.floor_regression["powered"]`
+per rule — report it explicitly, don't try to infer it from `grounded_confirmed`
+alone.
+
+**Preflight: check per-rule conclusive yield before spending training compute.**
+`floor_regression`'s power check is *per rule*, and the scored behaviours are
+not equally dense — `vanity`/`exposure` (feast/lie) are markedly sparser than
+`demurrage` (deposit) in the full town (see "The minimal sandbox" below). A
+rule can be structurally unable to ever reach `n_conclusive >= 6` no matter how
+many world seeds the battery covers, if the density problem itself isn't
+addressed first — and discovering that only after a full (expensive) training
+run reads as a wasted run, not a result. `estimate_conclusive_yield` answers
+this cheaply, using only the non-learning heuristic (no trained brain, no
+torch) as a density proxy — a proxy, not a guarantee, but the best available
+signal before a real brain exists:
+
+```python
+from emergence.grounding import estimate_conclusive_yield
+
+estimate_conclusive_yield("guardian", seeds=BATTERY_SEEDS)
+# {"demurrage": {"n_conclusive": 20, "n_seeds": 20},
+#  "vanity":    {"n_conclusive": 20, "n_seeds": 20},
+#  "exposure":  {"n_conclusive": 19, "n_seeds": 20}}
+```
+
+`train_neural_grounding.py --preflight-only` runs this against `BATTERY_SEEDS`
+and prints a warning for any rule under the threshold, in seconds, before
+committing to a training run.
+
 ## The acceptance test — `run_grounding_battery`
 
 The strongest claim this instrument can make is a conjunction: positive excess on
@@ -413,13 +459,26 @@ local mirror:
   on the fitted slope, so an underpowered fit's low p-value can't masquerade
   as evidence — `floor_regression_grounded` is `None`, not `False` or `True`,
   when unpowered.
-* **Next milestone:** an expanded battery run (20 held-out worlds, optionally
-  `--floor-rollouts` as a cross-check) read through `grounded_confirmed` per
-  the pre-registration. If the floor-regression residual still shows no
-  rule-aligned signal once the world-matched floor's linear contribution is
-  removed, the standing hypothesis (a single training world doesn't
-  generalize) is falsified and the real bottleneck is something else (e.g. the
-  rule isn't learnable from the observation as given).
+* **Review round 3 (sign-off, with two conditions before the run): pre-register
+  what `None` means, and check per-rule conclusive yield first.** Both
+  addressed without touching the verdict logic itself. `None` now has a fixed,
+  documented split — *undetermined* (floor_regression unpowered: the battery
+  didn't measure enough, re-run after improving it) vs. *powered-no* (a real
+  negative result: move on to representation learnability) — decided now, not
+  after seeing which one a run produces. And because `floor_regression`'s
+  power check is *per rule* and `vanity`/`exposure` are markedly sparser than
+  `demurrage`, `estimate_conclusive_yield` (heuristic-only, no trained brain
+  needed) and `train_neural_grounding.py --preflight-only` were added to
+  estimate each rule's conclusive yield against `BATTERY_SEEDS` in seconds,
+  specifically to catch a rule that would come back undetermined *before*
+  training compute is spent finding that out the expensive way.
+* **Next milestone:** run `--preflight-only` first; if every rule looks
+  adequately powered, run the expanded battery (20 held-out worlds, optionally
+  `--floor-rollouts` as a cross-check) and read `grounded_confirmed` per the
+  pre-registration, filing the result under undetermined or powered-no as it
+  lands. If it's a powered-no, the standing hypothesis (a single training
+  world doesn't generalize) is falsified and the real bottleneck is something
+  else (e.g. the rule isn't learnable from the observation as given).
 
 ## Why this comes before 3D
 

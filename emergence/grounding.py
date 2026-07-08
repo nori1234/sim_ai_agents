@@ -376,6 +376,47 @@ def run_grounding_probe(
         ensemble_floor_divergence=ensemble_floor, ensemble_excess=ensemble_excess)
 
 
+def estimate_conclusive_yield(
+    persona: str = "guardian",
+    *,
+    rules: tuple = ("demurrage", "vanity", "exposure"),
+    seeds: tuple = (42, 43, 44, 45, 46),
+    days: int = 20,
+    n_agents: int = 6,
+    sandbox: bool = False,
+) -> dict:
+    """Cheap preflight: how many of ``seeds`` would be conclusive per rule,
+    estimated from the non-learning heuristic's own occurrence rate — no
+    trained brain required, so this can run (and be checked) before a training
+    run's compute is committed.
+
+    ``floor_regression_diagnostic``'s power check needs ``n_conclusive >= 6``
+    *per rule* by default; a rule whose scored behaviour is sparse (feast/lie
+    were ~20x rarer than deposit in the full town — see "The minimal sandbox"
+    below) can structurally fail to ever reach that, no matter how many world
+    seeds the battery covers, if the density problem itself isn't addressed
+    first (a wider seed set, a denser scenario, or a sandbox). Running the
+    whole battery and *then* discovering a rule was never going to be powered
+    wastes the compute; this estimates it up front.
+
+    ``conclusive`` (behaviour occurred in the control OR counterfactual world)
+    is a property of the world + persona + rule, not really of which brain is
+    tested — the heuristic's own occurrence is the best available proxy before
+    a real (trained) brain exists. It is a proxy, not a guarantee: a trained
+    policy can end up denser or sparser than the heuristic. Returns
+    ``{rule: {"n_conclusive": int, "n_seeds": int}}``.
+    """
+    out = {}
+    for rule in rules:
+        n_conclusive = sum(
+            1 for seed in seeds
+            if run_grounding_probe(persona, rule=rule, days=days, n_agents=n_agents,
+                                   seed=seed, sandbox=sandbox,
+                                   brain_factory=None).conclusive)
+        out[rule] = {"n_conclusive": n_conclusive, "n_seeds": len(seeds)}
+    return out
+
+
 @dataclass
 class SweepResult:
     """A grounding probe repeated across several *world* seeds.

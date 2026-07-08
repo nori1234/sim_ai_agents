@@ -76,6 +76,16 @@ on:
           {"batch_every": 64, "lr_decay_steps": 4000}. Empty = their defaults.
         required: false
         default: ""
+      preflight_only:
+        description: >-
+          Print the estimated per-rule conclusive yield against BATTERY_SEEDS
+          (heuristic only -- no torch, no training, seconds not hours) and
+          exit. Run this first when in doubt whether a rule (feast/lie are
+          sparser than deposit) will power floor_regression before spending
+          training compute on a run that would come back UNDETERMINED for it
+          regardless of what the brain does. "true" or "false".
+        required: false
+        default: "false"
 
 jobs:
   train-and-battery:
@@ -127,6 +137,7 @@ jobs:
             --window "${{ inputs.window }}" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             --floor-rollouts "${{ inputs.floor_rollouts }}" \
+            ${{ inputs.preflight_only == 'true' && '--preflight-only' || '' }} \
             --hparams '${{ inputs.hparams }}' \
             --out grounding_out
 
