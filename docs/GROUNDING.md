@@ -555,17 +555,47 @@ local mirror:
   while `lie` — a cheap, no-cost action — occurred in every world: consistent
   with a survival-pressured policy avoiding costly/risky actions and taking
   the cheap one, not with a methodology bug).
-* **Next milestone, per the priority set after run #7:** the sandbox first
-  (dense `demurrage` signal, isolates "does a *converged* policy ground on
-  *anything*" from the full-town exploration problem) before returning to the
-  full town with explicit exploration levers for the unexplored verbs
-  (entropy/curiosity weighting, count-based novelty, or an exploratory
-  teacher that demonstrates `deposit`/`feast`) — more episodes alone
-  (`trained_stable=False`) is expected to re-converge to the same
-  never-deposit policy, since non-convergence and behaviour coverage are
-  different problems. Run `--preflight-only` before any of these; read
-  `grounded_confirmed` per the pre-registration, filing the result under
-  undetermined or powered-no as it lands.
+* **Run #8 (sandbox, `demurrage`, episodes=200, previously-good hparams):
+  density solved (`n_conclusive=20/20`, vs. run #7's 0/20), but still
+  `trained_stable=False` and a powered negative
+  (`grounded_confirmed=False`).** `mean_excess=-0.2132`, `wilcoxon_p=0.9681`,
+  `floor_regression` powered (n=20, slope_ci width 1.089) with
+  `residual_wilcoxon_p=0.6079` — the sandbox fixed the density problem
+  cleanly, but training itself never stabilised (probe excess oscillated
+  ep5→ep200 with no visible trend) and, unstable or not, showed no grounding
+  signal either way.
+* **The non-convergence traced to a real architecture gap, confirmed by the
+  brain team from their own code: the deployed policy is memoryless
+  step-to-step** — `decide()` is a pure function of the current observation;
+  no recurrent state survives between ticks, and their "Titans test-time
+  memory" resets (`M = torch.zeros(...)`) at the start of every `forward()`
+  call, so nothing persists even within an episode. Their documentation had
+  overstated this as persistent memory; they've corrected it. If a rule's
+  consequence isn't independently readable from a single observation
+  snapshot, a memoryless policy has no way to condition on it.
+* **Engine-side inspection answered their follow-up question directly (is
+  the regime visible in a single snapshot at all?): yes.**
+  `_pay_deposit_interest`/`_apply_demurrage` (`emergence/simulation.py`) are
+  asymmetric by construction — control pays interest as cash
+  (`holder.add("money", paid)`, `Deposit.amount` unchanged), counterfactual
+  shrinks the deposit itself (`dep.amount -= lost`, no cash). So
+  `economy.my_deposits[].amount`'s trend, `self_view.money`'s trend, and a
+  demurrage-only `memory` entry ("N coin ... vanished") all distinguish the
+  two worlds from observation content alone — this rules out the strongest
+  form of "the information simply isn't there" as an engine-side gap. What's
+  still unknown (their code, not inspectable from here) is whether their
+  observation tokenizer actually surfaces these specific fields.
+* **Next milestone:** a block-rotation experiment
+  (`train_neural_grounding.py --regime-block-size N`, sandbox) — hold
+  control/counterfactual fixed for `N` consecutive episodes instead of
+  alternating every episode (default 1 = prior behaviour), pre-registered
+  with the brain team: improvement points at their "weak" reading (regime
+  info reaches the observation but per-episode switching diluted the
+  gradient signal); no change points at their tokenizer specifically (since
+  engine-side inspection already rules out "no information in the
+  observation" as the explanation). `--complexity-level` and `--status`
+  remain queued behind this — a converged, information-rich baseline is a
+  precondition for either being informative.
 
 ## Why this comes before 3D
 

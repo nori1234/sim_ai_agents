@@ -79,6 +79,16 @@ on:
           isolates world size from this axis.
         required: false
         default: ""
+      regime_block_size:
+        description: >-
+          Only applies with sandbox=true: hold the control/counterfactual
+          regime fixed for this many CONSECUTIVE episodes before switching,
+          instead of alternating every episode (default 1). The brain side
+          confirmed their deployed policy is memoryless step-to-step;
+          switching every episode may simply dilute the per-regime gradient
+          signal (see docs/GROUNDING.md).
+        required: false
+        default: "1"
       floor_rollouts:
         description: >-
           report an additional ensemble-mean floor read (over this many
@@ -158,6 +168,7 @@ jobs:
             --complexity-level "${{ inputs.complexity_level }}" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
+            --regime-block-size "${{ inputs.regime_block_size }}" \
             --floor-rollouts "${{ inputs.floor_rollouts }}" \
             ${{ inputs.preflight_only == 'true' && '--preflight-only' || '' }} \
             --hparams '${{ inputs.hparams }}' \
