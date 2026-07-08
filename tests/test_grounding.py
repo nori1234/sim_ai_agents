@@ -275,6 +275,79 @@ class TestGroundingSandbox(unittest.TestCase):
         with self.assertRaises(ValueError):
             run_grounding_probe("guardian", rule="vanity", sandbox=True, days=4)
 
+    def test_status_layer_is_off_by_default_matching_prior_behaviour(self):
+        from emergence.grounding import make_grounding_sandbox
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=4)
+        self.assertFalse(sim.status.enabled)
+
+    def test_status_can_be_switched_on_independently_of_complexity(self):
+        from emergence.grounding import make_grounding_sandbox
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=4,
+                                     status=True)
+        self.assertTrue(sim.status.enabled)
+
+
+class TestComplexityLadder(unittest.TestCase):
+    """A rung ladder between the minimal sandbox and the full town (#118
+    follow-up): does the world being too information-poor/predictable gate
+    grounding, independent of training convergence or observation encoding?
+    Each level must be a strict superset of the previous, so a regression at
+    level N attributes to what's newly added there."""
+
+    def test_level_0_is_byte_identical_to_the_original_sandbox(self):
+        from emergence.grounding import make_grounding_sandbox
+        from emergence.world import FacilityType
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=6,
+                                     complexity_level=0)
+        ftypes = {f.ftype for f in sim.world.facilities}
+        self.assertEqual(ftypes, {FacilityType.BANK, FacilityType.FARM,
+                                  FacilityType.HOUSE})
+
+    def test_each_level_is_a_strict_superset_of_the_previous(self):
+        from emergence.grounding import make_grounding_sandbox, MAX_COMPLEXITY_LEVEL
+        prev_types = None
+        for level in range(MAX_COMPLEXITY_LEVEL + 1):
+            sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=4,
+                                         complexity_level=level)
+            types = {f.ftype for f in sim.world.facilities}
+            if prev_types is not None:
+                self.assertTrue(prev_types.issubset(types),
+                               f"level {level} dropped facilities from level {level-1}")
+                self.assertGreater(len(types), len(prev_types),
+                                   f"level {level} added nothing new")
+            prev_types = types
+
+    def test_higher_levels_still_stage_a_working_bank_and_funded_savers(self):
+        # The scored decision (deposit) must stay reachable and dense at every
+        # level -- the ladder adds distractions, it must not break the setup.
+        from emergence.grounding import make_grounding_sandbox
+        from emergence.world import FacilityType
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=12,
+                                     complexity_level=3)
+        bank = next(f for f in sim.world.facilities if f.ftype is FacilityType.BANK)
+        self.assertEqual(sim.agents[0].pos, bank.pos)
+        self.assertTrue(all(s.money > 0 for s in sim.agents[1:]))
+        sim.run()
+        deposits = sum(1 for e in sim.world.events if e["kind"] == "deposit")
+        self.assertGreater(deposits, 0, "depositing must stay exercised at higher levels")
+
+    def test_out_of_range_level_is_rejected(self):
+        from emergence.grounding import make_grounding_sandbox, MAX_COMPLEXITY_LEVEL
+        with self.assertRaises(ValueError):
+            make_grounding_sandbox("guardian", complexity_level=MAX_COMPLEXITY_LEVEL + 1)
+        with self.assertRaises(ValueError):
+            make_grounding_sandbox("guardian", complexity_level=-1)
+
+    def test_probe_and_preflight_accept_a_complexity_level(self):
+        from emergence.grounding import estimate_conclusive_yield
+        result = run_grounding_probe("guardian", sandbox=True, days=8, n_agents=4,
+                                     seed=1, complexity_level=2)
+        self.assertEqual(result.target, "deposit")
+        yields = estimate_conclusive_yield(
+            "guardian", rules=("demurrage",), seeds=(1, 2), days=8, n_agents=4,
+            sandbox=True, complexity_level=2)
+        self.assertIn("demurrage", yields)
+
 
 class TestConclusiveYieldPreflight(unittest.TestCase):
     """A cheap, brain-free estimate of how many worlds will be conclusive per

@@ -60,6 +60,25 @@ on:
           demurrage only). "true" or "false".
         required: false
         default: "false"
+      complexity_level:
+        description: >-
+          Step up the sandbox's complexity ladder (0..3; only applies with
+          sandbox=true). 0 is the original minimal sandbox; each further
+          level adds a nested facility tier (market/workshop/forest, then
+          plaza/town_hall, then police/hospital). Tests whether the world
+          itself being too information-poor gates grounding (see
+          docs/GROUNDING.md).
+        required: false
+        default: "0"
+      status_layer:
+        description: >-
+          Enable the status/esteem layer during TRAINING episodes (a
+          competing reward objective). Leave empty for the existing default
+          (on for full town, off for sandbox); set "true"/"false" to override
+          either way and build the sandbox x status 2x2 factorial that
+          isolates world size from this axis.
+        required: false
+        default: ""
       floor_rollouts:
         description: >-
           report an additional ensemble-mean floor read (over this many
@@ -136,6 +155,9 @@ jobs:
             --probe-every "${{ inputs.probe_every }}" \
             --window "${{ inputs.window }}" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
+            --complexity-level "${{ inputs.complexity_level }}" \
+            ${{ inputs.status_layer == 'true' && '--status' || '' }} \
+            ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
             --floor-rollouts "${{ inputs.floor_rollouts }}" \
             ${{ inputs.preflight_only == 'true' && '--preflight-only' || '' }} \
             --hparams '${{ inputs.hparams }}' \

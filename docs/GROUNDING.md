@@ -341,6 +341,58 @@ run_grounding_probe("claude", sandbox=True) # measure in the same minimal world
 It is a rung between a trivial bandit and the real world: nail grounding here on
 one axis first, then graduate to the full town and more rules.
 
+## Is the world itself the bottleneck? — the complexity ladder and the status factorial
+
+Run #7/#8 raised a question the instrument hadn't separated out before: even
+with training converged and the observation correctly encoded, does the
+*world itself* need to be rich enough — enough contextual variety, enough
+independent cues — for a sample-limited learner to notice a rule at all?
+This is a third axis alongside the two already in the pre-registered
+decision tree (training convergence, representation learnability), and it
+predicts differently: convergence issues resolve with more episodes at a
+fixed world; a representation bug never resolves regardless of the world;
+a world-richness bottleneck resolves by *changing the world*, with or
+without more training.
+
+Two deliberately cheap experiments, both reusing the existing sandbox
+machinery rather than a new world-builder:
+
+**The complexity ladder** — `make_grounding_sandbox(..., complexity_level=N)`
+steps from the original minimal sandbox (`N=0`) toward the full town in
+`MAX_COMPLEXITY_LEVEL` controlled increments. Each level *adds* a fixed,
+nested tier of facilities on top of the previous — never removes anything —
+so a grounding regression observed at level N attributes cleanly to what's
+newly available there, not a shuffled unrelated layout:
+
+| level | adds | tests |
+|---|---|---|
+| 0 | (original sandbox: bank, farm, house) | baseline |
+| 1 | market, workshop, forest | alternative ways to make money competing with saving |
+| 2 | plaza, town_hall | a public arena (verb availability; pairs with the status axis below) |
+| 3 | police_station, hospital | risk/security — new defensive verbs, a loss channel |
+
+Population and rule (`demurrage`) are held fixed across levels — only the
+facility set varies. `run_grounding_probe`/`run_grounding_sweep`/
+`run_grounding_battery`/`estimate_conclusive_yield` all accept
+`complexity_level` (forwarded to the sandbox only; ignored otherwise).
+`train_neural_grounding.py --complexity-level N` trains and measures
+**matched**: the question is "can grounding happen at all at this
+complexity," not transfer across levels.
+
+**The status factorial** — a confound noticed while designing the ladder:
+training in the full town has always run with the status/esteem layer
+(a competing reward objective) on, while the sandbox has always run with it
+off — *two* axes changing at once between "sandbox worked" and "full town
+didn't," not one. `make_grounding_sandbox(..., status=True)` and
+`train_neural_grounding.py --status`/`--no-status` make it independently
+overridable (default: unchanged from prior behaviour — on for full town, off
+for sandbox), so a 2×2 (world size × status) can separate the two:
+
+|  | status OFF | status ON |
+|---|---|---|
+| **sandbox** | (existing default) | override with `--status` |
+| **full town** | override with `--no-status` | (existing default) |
+
 ## What it is and is not
 
 * It **is** a falsifiable test: a model that only replays will score ~0 excess,
