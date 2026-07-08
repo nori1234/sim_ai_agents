@@ -530,7 +530,8 @@ class SweepResult:
 
 
 def floor_regression_diagnostic(results: list, *, min_conclusive: int = 6,
-                                min_floor_spread: float = 0.01) -> dict:
+                                min_floor_spread: float = 0.01,
+                                max_slope_ci_width: float = 3.0) -> dict:
     """Regress each *conclusive* world's raw ``divergence`` on its
     ``floor_divergence`` and test the residual against zero (one-sided,
     excess > 0).
@@ -543,16 +544,26 @@ def floor_regression_diagnostic(results: list, *, min_conclusive: int = 6,
     it is the one statistic in this module that is immune to a floor
     confound of any linear form, not just an additive offset.
 
-    A fit is only as trustworthy as the data behind it: ``powered`` is True
-    only when there are at least ``min_conclusive`` conclusive worlds AND the
-    conclusive worlds' ``floor_divergence`` values actually spread out (their
-    population std exceeds ``min_floor_spread``) — clustered floor values make
-    the slope statistically unidentifiable (division-by-near-zero variance),
-    so a "significant" residual test off such a fit is not trustworthy evidence
-    either way. ``slope_ci`` (a pair bootstrap CI on the fitted slope) is
-    reported regardless of ``powered``, so a caller can see *how* unidentified
-    the slope is, not just a pass/fail flag. Needs >= 3 conclusive worlds to
-    attempt a fit at all; fewer returns a note and no fit.
+    A fit is only as trustworthy as the data behind it. ``powered`` requires
+    THREE things:
+      1. ``n_conclusive >= min_conclusive``.
+      2. The conclusive worlds' ``floor_divergence`` values actually spread
+         out (population std > ``min_floor_spread``) — clustered floor values
+         make the slope statistically unidentifiable.
+      3. The fitted slope is actually identified: its bootstrap CI
+         (``slope_ci``) is narrower than ``max_slope_ci_width``.
+    (2) is a necessary but not sufficient proxy for (3) — identifiability
+    depends on residual noise and n too (roughly
+    ``slope_SE ~ residual_sd / (floor_spread_std * sqrt(n))``), so a run can
+    clear the spread bar with plenty of conclusive worlds and *still* have an
+    unidentified slope (run #7's `exposure`: n=20, floor_spread_std=0.0148,
+    yet ``slope_ci`` spanned both signs at width ~7.5) — hence gating on the
+    CI directly rather than trusting the spread proxy alone. A "significant"
+    residual test off an unidentified fit is not trustworthy evidence either
+    way. ``slope_ci``/``slope_ci_width`` are reported regardless of
+    ``powered``, so a caller can see *how* unidentified the slope is, not
+    just a pass/fail flag. Needs >= 3 conclusive worlds to attempt a fit at
+    all; fewer returns a note and no fit.
     """
     conclusive = [r for r in results if r.conclusive]
     n = len(conclusive)
@@ -566,12 +577,15 @@ def floor_regression_diagnostic(results: list, *, min_conclusive: int = 6,
     floor_mean = sum(xs) / n
     floor_spread_std = math.sqrt(sum((x - floor_mean) ** 2 for x in xs) / n)
     slope_lo, slope_hi = regression_slope_bootstrap_ci(xs, ys)
-    powered = (n >= min_conclusive) and (floor_spread_std > min_floor_spread)
+    slope_ci_width = slope_hi - slope_lo
+    powered = (n >= min_conclusive) and (floor_spread_std > min_floor_spread) \
+        and (slope_ci_width <= max_slope_ci_width)
     out = {
         "n": n,
         "slope": round(slope, 4),
         "intercept": round(intercept, 4),
         "slope_ci": [round(slope_lo, 4), round(slope_hi, 4)],
+        "slope_ci_width": round(slope_ci_width, 4),
         "floor_spread_std": round(floor_spread_std, 4),
         "powered": powered,
         "residuals": [round(r, 4) for r in residuals],
@@ -582,8 +596,9 @@ def floor_regression_diagnostic(results: list, *, min_conclusive: int = 6,
         out["note"] = (
             f"underpowered: n_conclusive={n} (need >= {min_conclusive}) and/or "
             f"floor spread too small (std={floor_spread_std:.4f}, need > "
-            f"{min_floor_spread}) — the fitted slope may be unidentifiable; "
-            "see slope_ci")
+            f"{min_floor_spread}) and/or slope not identified (CI width="
+            f"{slope_ci_width:.4f}, need <= {max_slope_ci_width}) — the fitted "
+            "slope may be unidentifiable; see slope_ci")
     return out
 
 
