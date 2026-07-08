@@ -670,6 +670,34 @@ class TestFloorRegressionDiagnostic(unittest.TestCase):
     additive one — the specific gap `excess = divergence - floor_divergence`
     leaves open (see docs/GROUNDING.md, run #6's floor confound)."""
 
+    def test_a_narrow_floor_spread_that_clears_the_std_bar_can_still_be_unidentified(self):
+        # run #7's real `exposure` numbers (20 held-out worlds, full town):
+        # n=20 and floor_spread_std=0.0148 clear the mechanical min_conclusive/
+        # min_floor_spread bars, but the residual noise is large relative to
+        # that spread, so the fitted slope's bootstrap CI spans both signs
+        # (essentially unidentified) -- exactly the case the brain team flagged
+        # in review: floor_spread_std is necessary but not sufficient for
+        # `powered`, so the slope CI itself must gate it directly.
+        from emergence.grounding import GroundingResult, floor_regression_diagnostic
+        floors = [-0.0083, -0.0333, -0.0333, -0.0333, 0.0083, 0.0, 0.0167,
+                 -0.0083, -0.0167, 0.0, -0.0083, 0.0, 0.0, 0.0083, 0.0,
+                 -0.0083, 0.0083, -0.025, -0.025, 0.0]
+        divs = [0.0417, 0.05, -0.15, -0.0333, -0.2083, -0.0833, 0.0333,
+               0.0417, 0.0417, 0.0917, 0.2083, 0.0083, -0.175, 0.1667, 0.0,
+               -0.25, -0.0833, -0.1333, 0.1667, -0.1083]
+        results = [GroundingResult(
+            rule="exposure", target="lie", control_rate=0.5, counterfactual_rate=0.3,
+            divergence=d, floor_divergence=f, excess=d - f, verdict="",
+            days=10, n_agents=4) for f, d in zip(floors, divs)]
+        out = floor_regression_diagnostic(results)
+        self.assertEqual(out["n"], 20)
+        self.assertGreater(out["floor_spread_std"], 0.01, "clears the spread bar alone")
+        self.assertGreater(out["slope_ci"][1] - out["slope_ci"][0], 3.0,
+                           "the slope CI should be wide/unidentified for this data")
+        self.assertFalse(out["powered"],
+                         "a wide slope CI must veto `powered` even though n and "
+                         "floor_spread_std both individually cleared their bars")
+
     def test_too_few_conclusive_worlds_reports_a_note_not_a_fit(self):
         from emergence.grounding import GroundingResult, floor_regression_diagnostic
         results = [GroundingResult(
@@ -780,13 +808,19 @@ class TestFloorRegressionAsATiebreaker(unittest.TestCase):
         # residual (most worlds a bit above zero, balanced by one or two well
         # below), not a case where every single world individually clears a
         # threshold. These floors/extra are constructed (via projecting a
-        # skewed target orthogonal to [1, floor]) specifically to produce that
-        # shape -- not meant to look like a plausible battery result, just to
-        # exercise a test a naive per-world threshold check would miss.
+        # skewed target orthogonal to [1, floor], then scaling the residual
+        # small -- p-values are scale-invariant, but a small residual keeps
+        # the fitted slope's bootstrap CI narrow) specifically to produce that
+        # shape while staying `powered` (n>=6, floor spread and slope CI width
+        # both comfortably inside their thresholds) -- not meant to look like
+        # a plausible battery result, just to exercise a test a naive
+        # per-world threshold check would miss.
         floors = [-0.4, -0.3, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-        extra = [1.572727, 1.512121, 1.451515, 1.390909, -8.669697,
-                1.269697, 1.209091, 1.148485, 1.087879, 1.027273]
+        extra = [0.163636, 0.160606, 0.157576, 0.154545, -0.348485,
+                0.148485, 0.145455, 0.142424, 0.139394, 0.136364]
         sweep = self._sweep_with_residuals("demurrage", floors, extra)
+        self.assertTrue(sweep.floor_regression["powered"],
+                        f"expected a narrow, identified slope: {sweep.floor_regression}")
         self.assertTrue(sweep.floor_regression_grounded)
 
     def test_no_residual_signal_is_not_floor_regression_grounded(self):

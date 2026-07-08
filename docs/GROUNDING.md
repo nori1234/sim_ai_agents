@@ -203,15 +203,22 @@ cancels an *additive* floor effect; a *slope* relationship between
   vs-ensemble floor question above.
 
   A fit is only as good as its power: `floor_regression` also reports
-  `slope_ci` (a bootstrap CI on the fitted slope — wide or sign-crossing means
-  the slope isn't actually identified, whatever the residual test's p-value
-  says), `floor_spread_std` (population std of the conclusive worlds'
-  `floor_divergence` — clustered floor values make the slope unidentifiable),
-  and `powered` (`True` only when `n_conclusive >= 6` **and**
-  `floor_spread_std > 0.01`). `floor_regression_grounded` (per rule) is `None`
-  — not `False` — whenever `powered` is `False` (including the < 3 conclusive
-  case, which can't even attempt a fit): an underpowered "significant"
-  p-value is not trustworthy evidence either way.
+  `slope_ci`/`slope_ci_width` (a bootstrap CI on the fitted slope — wide or
+  sign-crossing means the slope isn't actually identified, whatever the
+  residual test's p-value says) and `floor_spread_std` (population std of the
+  conclusive worlds' `floor_divergence` — clustered floor values make the
+  slope unidentifiable). `powered` requires **three** things: `n_conclusive >=
+  6`, `floor_spread_std > 0.01`, **and** `slope_ci_width <= 3.0`. The spread
+  check is *necessary but not sufficient* for the slope actually being
+  identified — identifiability also depends on residual noise and n
+  (`slope_SE ≈ residual_sd / (floor_spread_std·√n)`) — so the CI width is
+  gated directly rather than trusted to follow from the spread alone: run #7's
+  `exposure` cleared `n=20` and `floor_spread_std=0.0148` comfortably, yet its
+  `slope_ci` spanned both signs at width ≈7.5 — a spread-only gate would have
+  called that fit `powered` when it plainly wasn't. `floor_regression_grounded`
+  (per rule) is `None` — not `False` — whenever `powered` is `False`
+  (including the < 3 conclusive case, which can't even attempt a fit): an
+  underpowered "significant" p-value is not trustworthy evidence either way.
 
 None of this replaces `fraction_grounded` / `min_excess` — `replay_inexplicable`
 still gates on them. These are additional, harder-to-Goodhart reads of the
@@ -472,13 +479,41 @@ local mirror:
   estimate each rule's conclusive yield against `BATTERY_SEEDS` in seconds,
   specifically to catch a rule that would come back undetermined *before*
   training compute is spent finding that out the expensive way.
-* **Next milestone:** run `--preflight-only` first; if every rule looks
-  adequately powered, run the expanded battery (20 held-out worlds, optionally
-  `--floor-rollouts` as a cross-check) and read `grounded_confirmed` per the
-  pre-registration, filing the result under undetermined or powered-no as it
-  lands. If it's a powered-no, the standing hypothesis (a single training
-  world doesn't generalize) is falsified and the real bottleneck is something
-  else (e.g. the rule isn't learnable from the observation as given).
+* **Run #7 (full town, 3 rules, 20 held-out worlds, per the pre-registration):
+  `replay_inexplicable_confirmed = None`. Preflight passed (20/20, 20/20,
+  19/20) but did not predict the trained brain's density — a real,
+  not-hypothetical instance of the "proxy, not a guarantee" caveat.**
+  `demurrage`/`vanity`: **undetermined**, `n_conclusive = 0/20` — the trained
+  checkpoint deposited and feasted in *zero* of the 20 held-out worlds
+  (`trained_stable=False`, `is_stable` was never reached over 60 episodes; the
+  per-probe excess series for both rules was flat the entire run). `exposure`:
+  **powered-no** — `n_conclusive=20/20`, `fraction_grounded=0.50` (10/20,
+  which the *old* metric alone would have reported as promising), but
+  `wilcoxon_p=0.684` and `residual_wilcoxon_p=0.5508` — neither test found a
+  signal, and (see above) the fit's `slope_ci` spanned both signs, which is
+  why the slope-CI-width gate was added the same review round. The record for
+  run #7 itself is not retroactively rewritten under the new gate (see
+  battery.json, linked from the PR); the refinement applies going forward.
+  Read together: the floor-confound machinery did its job (a naive
+  `fraction_grounded=0.50` read would have over-claimed for `exposure`) and
+  correctly refused to conclude anything for the two rules that never
+  occurred — but run #7 says nothing about grounding either way. The blocker
+  moved from floor methodology to (a) training convergence (`is_stable` never
+  reached) and (b) behaviour coverage (`deposit`/`feast` never explored,
+  while `lie` — a cheap, no-cost action — occurred in every world: consistent
+  with a survival-pressured policy avoiding costly/risky actions and taking
+  the cheap one, not with a methodology bug).
+* **Next milestone, per the priority set after run #7:** the sandbox first
+  (dense `demurrage` signal, isolates "does a *converged* policy ground on
+  *anything*" from the full-town exploration problem) before returning to the
+  full town with explicit exploration levers for the unexplored verbs
+  (entropy/curiosity weighting, count-based novelty, or an exploratory
+  teacher that demonstrates `deposit`/`feast`) — more episodes alone
+  (`trained_stable=False`) is expected to re-converge to the same
+  never-deposit policy, since non-convergence and behaviour coverage are
+  different problems. Run `--preflight-only` before any of these; read
+  `grounded_confirmed` per the pre-registration, filing the result under
+  undetermined or powered-no as it lands.
 
 ## Why this comes before 3D
 

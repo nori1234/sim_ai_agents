@@ -64,11 +64,16 @@ core excess means):
      (world-matched) floor_divergence and tests the residual against zero —
      immune to a floor confound of ANY linear form (slope or offset), not just
      the additive one `excess` assumes, and independent of the floor convention
-     debate above. Only trustworthy when `powered` (>= 6 conclusive worlds AND
-     enough spread in their floor_divergence that the slope is identifiable;
-     see floor_regression_diagnostic's min_conclusive/min_floor_spread) —
-     an underpowered fit's p-value is not evidence either way, so
-     SweepResult.floor_regression_grounded is None rather than guessing.
+     debate above. Only trustworthy when `powered`: >= 6 conclusive worlds,
+     enough spread in their floor_divergence, AND the fitted slope's bootstrap
+     CI is actually narrow (floor_regression_diagnostic's min_conclusive/
+     min_floor_spread/max_slope_ci_width). The spread check alone is
+     necessary but not sufficient -- run #7's `exposure` cleared n=20 and
+     floor_spread_std=0.0148 comfortably, yet its slope_ci spanned both signs
+     (width ~7.5); gating on CI width directly caught what the spread proxy
+     alone would have missed. An underpowered fit's p-value is not evidence
+     either way, so SweepResult.floor_regression_grounded is None rather than
+     guessing.
 
 THE pre-registered verdict (fixed before the next expanded run, per
 docs/GROUNDING.md) is SweepResult.grounded_confirmed / BatteryResult.
@@ -394,7 +399,8 @@ def main(argv=None) -> int:
         fr = sweep.floor_regression
         if "slope" in fr:
             slope_lo, slope_hi = fr["slope_ci"]
-            fr_str = (f"slope={fr['slope']:+.3f} (CI [{slope_lo:+.3f}, {slope_hi:+.3f}]) "
+            fr_str = (f"slope={fr['slope']:+.3f} "
+                     f"(CI [{slope_lo:+.3f}, {slope_hi:+.3f}], width={fr['slope_ci_width']:.3f}) "
                      f"n={fr['n']} floor_spread_std={fr['floor_spread_std']:.4f} "
                      f"powered={fr['powered']} "
                      f"residual_sign_p={fr['residual_sign_p']:.4f} "
