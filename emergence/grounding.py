@@ -184,15 +184,50 @@ def behaviour_rate(sim, kind: str) -> float:
     return n / agent_days
 
 
-def _sandbox_world():
+# The complexity ladder (#118 follow-up: does the WORLD being too information-
+# poor/predictable gate grounding, independent of training convergence or
+# observation encoding?). Level 0 is the original minimal sandbox; each
+# further level ADDS a fixed, nested tier of facilities on top — never
+# removes anything — so a grounding regression observed at level N attributes
+# cleanly to what's newly available there, not a shuffled unrelated layout.
+# Each tier targets a specific competing pressure:
+#   tier 1 (+market/workshop/forest) : alternative ways to make money (trade,
+#                                       craft) that compete with saving as
+#                                       *the* wealth strategy.
+#   tier 2 (+plaza/town_hall)        : a public arena -- pairs with the
+#                                       `status` axis in make_grounding_sandbox
+#                                       (a separate, orthogonal toggle: verb
+#                                       *availability* here vs. the esteem
+#                                       *reward* layer there).
+#   tier 3 (+police_station/hospital): risk/security -- new defensive verbs
+#                                       and a loss channel.
+# This is deliberately smaller than build_default_world() (40+ facilities) —
+# a controlled, legible step, not an attempt to reach full-town scale.
+_COMPLEXITY_TIERS: list = [
+    [("Market", "market", 5, 2), ("Workshop", "workshop", 0, 0), ("Forest", "forest", 5, 5)],
+    [("Plaza", "plaza", 0, 5), ("Town Hall", "town_hall", 5, 0)],
+    [("Police Station", "police_station", 0, 3), ("Hospital", "hospital", 3, 5)],
+]
+MAX_COMPLEXITY_LEVEL = len(_COMPLEXITY_TIERS)   # valid levels: 0..MAX_COMPLEXITY_LEVEL
+
+
+def _sandbox_world(complexity_level: int = 0):
     """A tiny world that isolates the deposit decision: a bank, a farm (food) and
     a house (rest), packed close together — no market, crime, disasters or 40
-    other facilities to distract a small policy."""
+    other facilities to distract a small policy. ``complexity_level`` > 0 adds
+    that many nested tiers from ``_COMPLEXITY_TIERS`` on top (see above); 0 is
+    the original, unchanged minimal sandbox."""
     from .world import World, Facility, FacilityType
+    if not (0 <= complexity_level <= MAX_COMPLEXITY_LEVEL):
+        raise ValueError(f"complexity_level must be 0..{MAX_COMPLEXITY_LEVEL}, "
+                         f"got {complexity_level}")
     w = World(width=6, height=6)
     w.add_facility(Facility(name="Bank", ftype=FacilityType.BANK, x=2, y=2))
     w.add_facility(Facility(name="Farm", ftype=FacilityType.FARM, x=3, y=2))
     w.add_facility(Facility(name="House", ftype=FacilityType.HOUSE, x=2, y=3))
+    for tier in range(complexity_level):
+        for name, ftype, x, y in _COMPLEXITY_TIERS[tier]:
+            w.add_facility(Facility(name=name, ftype=FacilityType(ftype), x=x, y=y))
     return w
 
 
@@ -216,23 +251,38 @@ def make_grounding_sandbox(
     seed: int = 42,
     days: int = 20,
     cf_enabled: bool = True,
+    complexity_level: int = 0,
+    status: bool = False,
     brain_factory=None,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
     curriculum rung between a trivial bandit and the real world. The returned
     :class:`Simulation` can be run for training episodes *or* measured with the
-    probe. Deposit-focused (the ``demurrage`` axis)."""
+    probe. Deposit-focused (the ``demurrage`` axis).
+
+    ``complexity_level`` (default 0, the original sandbox) steps up the
+    complexity ladder — see ``_COMPLEXITY_TIERS`` above. ``status`` (default
+    False, matching prior behaviour) independently toggles the esteem/status
+    reward layer; it is orthogonal to ``complexity_level`` specifically so the
+    "is it the world's size or the competing objective" question can be
+    answered with a 2x2 (level x status), not conflated into one axis.
+    """
     from .scenario import make_simulation
     from .simulation import SimulationConfig
     if rule != "demurrage":
         raise ValueError("the sandbox currently isolates the demurrage (deposit) decision")
+    extra_kwargs: dict = {}
+    if status:
+        from .esteem import StatusConfig
+        extra_kwargs["status"] = StatusConfig(enabled=True)
     sim = make_simulation(
-        persona, n_agents=n_savers + 1, world=_sandbox_world(),
+        persona, n_agents=n_savers + 1, world=_sandbox_world(complexity_level),
         config=SimulationConfig(seed=seed, days=days), economy=True,
         counterfactual=CounterfactualConfig(enabled=cf_enabled, rule=rule,
                                             hide_rate=True, instrument=True),
         brain_factory=brain_factory,
+        **extra_kwargs,
     )
     _prepare_sandbox(sim)
     return sim
@@ -247,6 +297,7 @@ def run_grounding_probe(
     seed: int = 42,
     threshold: float = 0.0,
     sandbox: bool = False,
+    complexity_level: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -286,6 +337,12 @@ def run_grounding_probe(
     load-bearing for the verdict; if they disagree, it is, and
     :func:`floor_regression_diagnostic` (run on the canonical, world-matched
     floor) is the tiebreaker.
+
+    ``complexity_level`` (default 0) only applies when ``sandbox=True`` — it
+    steps up the complexity ladder (see ``_COMPLEXITY_TIERS``), a rung between
+    the minimal sandbox and the full town, added to test whether the WORLD
+    itself being too information-poor/predictable gates grounding, independent
+    of training convergence or observation encoding.
     """
     from .scenario import make_simulation
     from .simulation import SimulationConfig
@@ -309,7 +366,8 @@ def run_grounding_probe(
             if sandbox:
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
-                    days=days, cf_enabled=cf_enabled, brain_factory=factory)
+                    days=days, cf_enabled=cf_enabled, brain_factory=factory,
+                    complexity_level=complexity_level)
             else:
                 sim = make_simulation(
                     persona,
@@ -384,6 +442,7 @@ def estimate_conclusive_yield(
     days: int = 20,
     n_agents: int = 6,
     sandbox: bool = False,
+    complexity_level: int = 0,
 ) -> dict:
     """Cheap preflight: how many of ``seeds`` would be conclusive per rule,
     estimated from the non-learning heuristic's own occurrence rate — no
@@ -412,6 +471,7 @@ def estimate_conclusive_yield(
             1 for seed in seeds
             if run_grounding_probe(persona, rule=rule, days=days, n_agents=n_agents,
                                    seed=seed, sandbox=sandbox,
+                                   complexity_level=complexity_level,
                                    brain_factory=None).conclusive)
         out[rule] = {"n_conclusive": n_conclusive, "n_seeds": len(seeds)}
     return out
@@ -611,6 +671,7 @@ def run_grounding_sweep(
     n_agents: int = 6,
     threshold: float = 0.0,
     sandbox: bool = False,
+    complexity_level: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -638,6 +699,7 @@ def run_grounding_sweep(
     probe = probe or run_grounding_probe
     results = [probe(persona, rule=rule, days=days, n_agents=n_agents,
                      seed=s, threshold=threshold, sandbox=sandbox,
+                     complexity_level=complexity_level,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -728,6 +790,7 @@ def run_grounding_battery(
     n_agents: int = 6,
     threshold: float = 0.0,
     sandbox: bool = False,
+    complexity_level: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -753,6 +816,7 @@ def run_grounding_battery(
     sweep = sweep or run_grounding_sweep
     sweeps = {r: sweep(persona, rule=r, seeds=seeds, days=days,
                        n_agents=n_agents, threshold=threshold, sandbox=sandbox,
+                       complexity_level=complexity_level,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)

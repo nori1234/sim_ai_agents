@@ -341,6 +341,58 @@ run_grounding_probe("claude", sandbox=True) # measure in the same minimal world
 It is a rung between a trivial bandit and the real world: nail grounding here on
 one axis first, then graduate to the full town and more rules.
 
+## Is the world itself the bottleneck? — the complexity ladder and the status factorial
+
+Run #7/#8 raised a question the instrument hadn't separated out before: even
+with training converged and the observation correctly encoded, does the
+*world itself* need to be rich enough — enough contextual variety, enough
+independent cues — for a sample-limited learner to notice a rule at all?
+This is a third axis alongside the two already in the pre-registered
+decision tree (training convergence, representation learnability), and it
+predicts differently: convergence issues resolve with more episodes at a
+fixed world; a representation bug never resolves regardless of the world;
+a world-richness bottleneck resolves by *changing the world*, with or
+without more training.
+
+Two deliberately cheap experiments, both reusing the existing sandbox
+machinery rather than a new world-builder:
+
+**The complexity ladder** — `make_grounding_sandbox(..., complexity_level=N)`
+steps from the original minimal sandbox (`N=0`) toward the full town in
+`MAX_COMPLEXITY_LEVEL` controlled increments. Each level *adds* a fixed,
+nested tier of facilities on top of the previous — never removes anything —
+so a grounding regression observed at level N attributes cleanly to what's
+newly available there, not a shuffled unrelated layout:
+
+| level | adds | tests |
+|---|---|---|
+| 0 | (original sandbox: bank, farm, house) | baseline |
+| 1 | market, workshop, forest | alternative ways to make money competing with saving |
+| 2 | plaza, town_hall | a public arena (verb availability; pairs with the status axis below) |
+| 3 | police_station, hospital | risk/security — new defensive verbs, a loss channel |
+
+Population and rule (`demurrage`) are held fixed across levels — only the
+facility set varies. `run_grounding_probe`/`run_grounding_sweep`/
+`run_grounding_battery`/`estimate_conclusive_yield` all accept
+`complexity_level` (forwarded to the sandbox only; ignored otherwise).
+`train_neural_grounding.py --complexity-level N` trains and measures
+**matched**: the question is "can grounding happen at all at this
+complexity," not transfer across levels.
+
+**The status factorial** — a confound noticed while designing the ladder:
+training in the full town has always run with the status/esteem layer
+(a competing reward objective) on, while the sandbox has always run with it
+off — *two* axes changing at once between "sandbox worked" and "full town
+didn't," not one. `make_grounding_sandbox(..., status=True)` and
+`train_neural_grounding.py --status`/`--no-status` make it independently
+overridable (default: unchanged from prior behaviour — on for full town, off
+for sandbox), so a 2×2 (world size × status) can separate the two:
+
+|  | status OFF | status ON |
+|---|---|---|
+| **sandbox** | (existing default) | override with `--status` |
+| **full town** | override with `--no-status` | (existing default) |
+
 ## What it is and is not
 
 * It **is** a falsifiable test: a model that only replays will score ~0 excess,
@@ -503,17 +555,94 @@ local mirror:
   while `lie` — a cheap, no-cost action — occurred in every world: consistent
   with a survival-pressured policy avoiding costly/risky actions and taking
   the cheap one, not with a methodology bug).
-* **Next milestone, per the priority set after run #7:** the sandbox first
-  (dense `demurrage` signal, isolates "does a *converged* policy ground on
-  *anything*" from the full-town exploration problem) before returning to the
-  full town with explicit exploration levers for the unexplored verbs
-  (entropy/curiosity weighting, count-based novelty, or an exploratory
-  teacher that demonstrates `deposit`/`feast`) — more episodes alone
-  (`trained_stable=False`) is expected to re-converge to the same
-  never-deposit policy, since non-convergence and behaviour coverage are
-  different problems. Run `--preflight-only` before any of these; read
-  `grounded_confirmed` per the pre-registration, filing the result under
-  undetermined or powered-no as it lands.
+* **Run #8 (sandbox, `demurrage`, episodes=200, previously-good hparams):
+  density solved (`n_conclusive=20/20`, vs. run #7's 0/20), but still
+  `trained_stable=False` and a powered negative
+  (`grounded_confirmed=False`).** `mean_excess=-0.2132`, `wilcoxon_p=0.9681`,
+  `floor_regression` powered (n=20, slope_ci width 1.089) with
+  `residual_wilcoxon_p=0.6079` — the sandbox fixed the density problem
+  cleanly, but training itself never stabilised (probe excess oscillated
+  ep5→ep200 with no visible trend) and, unstable or not, showed no grounding
+  signal either way.
+* **The non-convergence traced to a real architecture gap, confirmed by the
+  brain team from their own code: the deployed policy is memoryless
+  step-to-step** — `decide()` is a pure function of the current observation;
+  no recurrent state survives between ticks, and their "Titans test-time
+  memory" resets (`M = torch.zeros(...)`) at the start of every `forward()`
+  call, so nothing persists even within an episode. Their documentation had
+  overstated this as persistent memory; they've corrected it. If a rule's
+  consequence isn't independently readable from a single observation
+  snapshot, a memoryless policy has no way to condition on it.
+* **Engine-side inspection answered their follow-up question directly (is
+  the regime visible in a single snapshot at all?): yes.**
+  `_pay_deposit_interest`/`_apply_demurrage` (`emergence/simulation.py`) are
+  asymmetric by construction — control pays interest as cash
+  (`holder.add("money", paid)`, `Deposit.amount` unchanged), counterfactual
+  shrinks the deposit itself (`dep.amount -= lost`, no cash). So
+  `economy.my_deposits[].amount`'s trend, `self_view.money`'s trend, and a
+  demurrage-only `memory` entry ("N coin ... vanished") all distinguish the
+  two worlds from observation content alone — this rules out the strongest
+  form of "the information simply isn't there" as an engine-side gap. What's
+  still unknown (their code, not inspectable from here) is whether their
+  observation tokenizer actually surfaces these specific fields.
+* **Run #9 (v2, block=10) and run #10 (v2, block=1): the brain team's own "weak
+  H3" prediction failed.** Both resolved `llm_model_agi` to commit `9bc016c`
+  (their v2 tokenizer fix, confirmed from the CI install log) — the tokenizer
+  fix alone did not produce a learning curve; if anything both v2 runs read
+  *worse* than run #8 (`mean_excess` -0.3465 / -0.3024 vs run #8's -0.2132;
+  `wilcoxon_p` 0.9968 / 0.9999, i.e. further from significance). Block size
+  (1 vs 10) made negligible difference under v2, closing that axis. The
+  qualitative shape changed, though: run #10's `bootstrap_ci_mean_excess`
+  ([-0.41, -0.19]) is entirely negative — not the directionless oscillation
+  of run #8, but a *stable* negative excess, i.e. the policy converged to
+  something close to regime-blind (`agent_divergence ≈ 0`) rather than to
+  noise.
+* **That signature pointed at a third structural gap, found and fixed by the
+  brain team: single-step credit assignment.** Their policy gradient used
+  the immediate-step reward only (no discounted return; `AgentConfig.gamma`
+  was defined but never wired in). A `deposit` doesn't change wealth on the
+  step it happens (cash moves to a claim of equal value); demurrage's loss —
+  or control's interest — lands several ticks later, attributed to whatever
+  unrelated action was being taken then. The deposit/no-deposit choice never
+  received a learning signal even when the observation correctly encoded the
+  regime (v2) — consistent with every result so far: v1→v2 no change
+  (information was never the bottleneck), block 1→10 no change (switching
+  frequency was never the bottleneck), and convergence to a stable
+  regime-blind policy (exactly what an undiscounted-return objective would
+  optimise for). Fixed on their side (discounted returns over the buffer,
+  value bootstrap at truncation, episode-boundary carry reset,
+  `gamma=0` exactly reproduces prior behaviour for regression testing).
+* **Run #11 (sandbox, `demurrage`, block=1, v2 tokenizer, credit-assignment
+  fix): the primary signal did not appear — a powered-no, not undetermined.**
+  Resolved `llm_model_agi` to commit `db39ffa` (confirmed from the CI install
+  log). Training self-stopped early at episode 130/200 via `is_stable`
+  (probes at ep120/125/130 read +0.333/+0.204/+0.070, three in a row above
+  threshold) — but the probe series up to that point was mostly negative or
+  oscillating (7 of 26 probes positive), and the streak did not generalise:
+  the held-out battery (20 worlds) returned `mean_excess=-0.3591`,
+  `wilcoxon_p=0.988`, `bootstrap_ci_mean_excess=[-0.632, -0.065]` (entirely
+  negative, the same qualitative signature as run #10's `[-0.41, -0.19]`).
+  `floor_regression` was **powered for the first time** (n=20,
+  `floor_spread_std=0.259`, `slope_ci_width=1.99` under the 3.0 gate) and
+  still found no signal (`residual_wilcoxon_p=0.551`). `grounded_confirmed =
+  False`, and per the pre-registered None-split this is the powered-no case:
+  a real negative result, not a call for a better-measuring re-run. Three
+  independent structural fixes now (floor confound, v1→v2 tokenizer,
+  single-step→discounted credit assignment) have each been necessary but
+  none has been sufficient to produce a generalising positive-excess trend in
+  the sandbox.
+* **Fallback triggered, per the pre-registration: a supervised
+  regime-decoding probe directly on frozen `encode_state` output**, bypassing
+  RL entirely — trains a classifier on top of the brain's own learned
+  representation to predict control-vs-counterfactual regime from a single
+  observation snapshot, using the same held-out seeds (42–61) as the battery
+  so it is directly comparable. This isolates representation-learnability
+  (does `encode_state` even make regime linearly/simply decodable?) from
+  policy-learnability (can RL exploit it once it's there) — the run #11
+  result cannot distinguish these two failure modes on its own.
+  `--complexity-level` and `--status` remain queued behind this — a
+  representation that doesn't decode regime at all makes both experiments
+  moot.
 
 ## Why this comes before 3D
 

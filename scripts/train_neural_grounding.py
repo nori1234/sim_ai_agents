@@ -136,6 +136,7 @@ from emergence.brains.neural import NeuralDevelopmentalBrain   # noqa: E402
 from emergence.esteem import StatusConfig                      # noqa: E402
 from emergence.grounding import (                              # noqa: E402
     CounterfactualConfig,
+    MAX_COMPLEXITY_LEVEL,
     estimate_conclusive_yield,
     make_grounding_sandbox,
     run_grounding_battery,
@@ -163,7 +164,7 @@ MIN_CONCLUSIVE_FOR_POWER = 6
 
 
 def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
-                    sandbox: bool) -> bool:
+                    sandbox: bool, complexity_level: int = 0) -> bool:
     """Estimate each rule's conclusive yield against BATTERY_SEEDS using the
     heuristic only (no trained brain, no torch) and print it. Returns True iff
     every rule looks likely to power floor_regression. Purely advisory — it
@@ -174,7 +175,8 @@ def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
     would come back UNDETERMINED for a sparse rule regardless of what the
     brain does (see the module docstring's "What None means")."""
     yields = estimate_conclusive_yield(persona, rules=rules, seeds=BATTERY_SEEDS,
-                                       days=days, n_agents=n_agents, sandbox=sandbox)
+                                       days=days, n_agents=n_agents, sandbox=sandbox,
+                                       complexity_level=complexity_level)
     print(f"[preflight] estimated conclusive yield vs {len(BATTERY_SEEDS)} held-out "
           f"worlds (heuristic proxy, need >= {MIN_CONCLUSIVE_FOR_POWER} per rule for "
           "floor_regression to be powered):")
@@ -224,6 +226,40 @@ def main(argv=None) -> int:
     ap.add_argument("--sandbox", action="store_true",
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
+    ap.add_argument("--complexity-level", type=int, default=0,
+                    help="step up the sandbox's complexity ladder (0..%d; only applies "
+                         "with --sandbox). 0 is the original minimal sandbox; each "
+                         "further level ADDS a nested tier of facilities (market/"
+                         "workshop/forest, then plaza/town_hall, then police/hospital) "
+                         "-- never removes anything. Added to test whether the WORLD "
+                         "itself being too information-poor/predictable gates "
+                         "grounding, independent of training convergence or "
+                         "observation encoding (see docs/GROUNDING.md)." % MAX_COMPLEXITY_LEVEL)
+    ap.add_argument("--status", action=argparse.BooleanOptionalAction, default=None,
+                    help="enable the status/esteem layer during TRAINING episodes (a "
+                         "competing reward objective). Default: on for full town "
+                         "(existing behaviour), off for --sandbox (existing "
+                         "behaviour) -- pass --status/--no-status to override either "
+                         "way and build the sandbox x status 2x2 factorial that "
+                         "isolates world size from this competing-objective axis, "
+                         "independent of --complexity-level.")
+    ap.add_argument("--regime-block-size", type=int, default=1,
+                    help="only applies with --sandbox: hold the control/counterfactual "
+                         "regime fixed for this many CONSECUTIVE episodes before "
+                         "switching, instead of alternating every single episode "
+                         "(default 1 = prior behaviour, alternate every episode). "
+                         "The brain side confirmed the deployed policy is memoryless "
+                         "step-to-step (no recurrent state persists even within an "
+                         "episode) -- switching every episode may simply dilute the "
+                         "per-regime gradient signal. If a larger block size measurably "
+                         "improves grounding, that's the brain side's own pre-registered "
+                         "'weak H3' outcome (regime info reaches the observation but "
+                         "switching frequency was diluting it); no change, 'strong H3' "
+                         "(their tokenizer isn't surfacing it) -- though engine-side "
+                         "inspection already shows the regime IS distinguishable "
+                         "snapshot-to-snapshot (economy.my_deposits[].amount trend, "
+                         "self_view.money trend, memory text -- see docs/GROUNDING.md), "
+                         "so 'no change' would point at their tokenizer specifically.")
     ap.add_argument("--out", default="grounding_out", help="output dir (ckpt, logs, battery.json)")
     ap.add_argument("--preflight-only", action="store_true",
                     help="print the estimated per-rule conclusive yield against "
@@ -252,8 +288,19 @@ def main(argv=None) -> int:
     # The sandbox isolates one decision; it currently supports demurrage only.
     rules = ("demurrage",) if args.sandbox else RULES
 
+    if args.complexity_level != 0 and not args.sandbox:
+        sys.exit("[fatal] --complexity-level only applies with --sandbox.")
+    if args.regime_block_size != 1 and not args.sandbox:
+        sys.exit("[fatal] --regime-block-size only applies with --sandbox.")
+    if args.regime_block_size < 1:
+        sys.exit("[fatal] --regime-block-size must be >= 1.")
+    # Default matches prior behaviour exactly (full town always had status on,
+    # --sandbox always had it off); --status/--no-status overrides either way
+    # to build the sandbox x status 2x2 factorial (see --status's help).
+    status_enabled = args.status if args.status is not None else (not args.sandbox)
+
     print_preflight(args.persona, rules, days=args.days, n_agents=args.agents,
-                    sandbox=args.sandbox)
+                    sandbox=args.sandbox, complexity_level=args.complexity_level)
     if args.preflight_only:
         return 0
 
@@ -285,7 +332,8 @@ def main(argv=None) -> int:
     monitors = {
         r: GroundingMonitor(args.persona, rule=r, days=args.days,
                             n_agents=args.agents, seed=train_pool[0],
-                            threshold=args.threshold, sandbox=args.sandbox)
+                            threshold=args.threshold, sandbox=args.sandbox,
+                            complexity_level=args.complexity_level)
         for r in rules
     }
 
@@ -295,19 +343,22 @@ def main(argv=None) -> int:
         docstring): a policy that only ever sees one world can converge on that
         world's incidental layout rather than the rule, which is exactly what
         run #5 showed (is_stable reached, fraction_grounded unmoved). In sandbox
-        mode, alternate the control and demurrage worlds in the minimal
-        deposit-decision town (dense behaviour); in full-town mode, rotate
-        control + each of the three inverted worlds."""
+        mode, hold the control/counterfactual regime fixed for
+        --regime-block-size consecutive episodes before switching (default 1 =
+        alternate every episode); in full-town mode, rotate control + each of
+        the three inverted worlds every episode (unaffected by the block size)."""
         seed = train_pool[ep % len(train_pool)]
         if args.sandbox:
+            cf_enabled = (ep // args.regime_block_size) % 2 == 1
             return make_grounding_sandbox(
                 args.persona, rule="demurrage", n_savers=args.agents - 1,
                 seed=seed, days=args.days,
-                cf_enabled=(ep % 2 == 1), brain_factory=training_factory)
+                cf_enabled=cf_enabled, brain_factory=training_factory,
+                complexity_level=args.complexity_level, status=status_enabled)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
-            status=StatusConfig(enabled=True),
+            status=StatusConfig(enabled=status_enabled),
             config=SimulationConfig(seed=seed, days=args.days),
             counterfactual=CounterfactualConfig(
                 enabled=rule is not None, rule=rule or "demurrage",
@@ -316,9 +367,11 @@ def main(argv=None) -> int:
         )
 
     where = "sandbox" if args.sandbox else "full town"
+    level_str = (f", complexity_level={args.complexity_level}, "
+                f"regime_block_size={args.regime_block_size}") if args.sandbox else ""
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
-          f"{args.agents} agents, persona={args.persona}, {where}, "
-          f"rules={','.join(rules)}, hparams={hparams}, "
+          f"{args.agents} agents, persona={args.persona}, {where}{level_str}, "
+          f"status={status_enabled}, rules={','.join(rules)}, hparams={hparams}, "
           f"train_pool={train_pool} (battery held-out: {list(BATTERY_SEEDS)})",
           flush=True)
     stable = False
@@ -362,18 +415,25 @@ def main(argv=None) -> int:
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
     print(f"[battery] running the acceptance battery ({','.join(rules)} x "
-          f"held-out worlds {list(BATTERY_SEEDS)}, {where}, "
+          f"held-out worlds {list(BATTERY_SEEDS)}, {where}{level_str}, "
           f"floor_rollouts={args.floor_rollouts})...", flush=True)
     # Explicit, not the function's own default: this script's train/eval
     # separation is asserted against BATTERY_SEEDS specifically, so evaluation
     # must use exactly that set even if the library default ever changes.
+    # complexity_level is a train/eval-MATCHED design (measure at the same
+    # level trained at) -- the ladder asks "can grounding happen at all at
+    # this complexity," not "does it transfer across complexity levels".
     battery = run_grounding_battery(args.persona, rules=rules,
                                     seeds=BATTERY_SEEDS,
                                     threshold=args.threshold,
                                     sandbox=args.sandbox,
+                                    complexity_level=args.complexity_level,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
-    result = {"trained_stable": stable, **battery.as_dict()}
+    result = {"trained_stable": stable, "sandbox": args.sandbox,
+              "complexity_level": args.complexity_level, "status": status_enabled,
+              "regime_block_size": args.regime_block_size,
+              **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 

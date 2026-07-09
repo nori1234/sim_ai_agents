@@ -1,0 +1,152 @@
+name: regime-decoding-probe
+
+# The pre-registered FALLBACK from run #11 (see docs/GROUNDING.md, "Run #11"):
+# run #11's held-out battery came back POWERED-NO even after three independent
+# structural fixes (floor confound, v1->v2 tokenizer, single-step->discounted
+# credit assignment). That leaves two indistinguishable explanations —
+# representation-learnability (does a single observation even make regime
+# decodable?) vs policy-learnability (can RL exploit it once it's there). This
+# workflow answers the first question directly and cheaply: it generates
+# paired control/counterfactual Observation snapshots for the battery's
+# held-out worlds (scripts/generate_probe_pairs.py) and runs the brain team's
+# supervised regime-decoding probe (scripts/probe_regime_readout.py in
+# llm_model_agi, commit 7b40a93+) against both a trained checkpoint and a
+# fresh/untrained init, bypassing RL entirely.
+
+on:
+  workflow_dispatch:
+    inputs:
+      llm_model_agi_ref:
+        description: >-
+          pip spec for the brain package. MUST include probe_regime_readout.py
+          (commit 7b40a93 or later).
+        required: true
+        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+      llm_model_agi_checkout_ref:
+        description: >-
+          git ref of the llm_model_agi repo to check out alongside the pip
+          install, so scripts/probe_regime_readout.py is available as a file
+          even if it isn't packaged into the pip-installable module. Should
+          match llm_model_agi_ref's commit/branch.
+        required: false
+        default: "claude/custom-llm-model-qhtfxd"
+      torch_spec:
+        required: false
+        default: "torch"
+      persona:
+        description: matches the battery's default persona (exercises all rules)
+        required: false
+        default: "guardian"
+      days:
+        required: false
+        default: "20"
+      agents:
+        required: false
+        default: "6"
+      checkpoint_run_id:
+        description: >-
+          workflow run id of the neural-train-battery run whose
+          grounding-battery-<N> artifact holds the checkpoint (agent.pt) to
+          probe. Default is run #11 (28990875855, the credit-assignment-fix
+          run this fallback responds to).
+        required: false
+        default: "28990875855"
+      checkpoint_artifact_name:
+        description: name of that run's uploaded artifact
+        required: false
+        default: "grounding-battery-11"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the engine (this repo)
+        run: pip install -e .
+
+      - name: Auth for the private brain repo
+        env:
+          LLM_TOKEN: ${{ secrets.LLM_MODEL_AGI_TOKEN }}
+        run: |
+          if [ -z "$LLM_TOKEN" ]; then
+            echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install torch + the developmental-brain package
+        run: |
+          pip install "${{ inputs.torch_spec }}"
+          pip install "${{ inputs.llm_model_agi_ref }}"
+
+      - name: Check out llm_model_agi (for scripts/probe_regime_readout.py)
+        uses: actions/checkout@v4
+        with:
+          repository: nori1234/llm_model_agi
+          ref: ${{ inputs.llm_model_agi_checkout_ref }}
+          token: ${{ secrets.LLM_MODEL_AGI_TOKEN }}
+          path: llm_model_agi_repo
+
+      - name: Guard — probe script present
+        run: |
+          test -f llm_model_agi_repo/scripts/probe_regime_readout.py || {
+            echo "::error::llm_model_agi_repo/scripts/probe_regime_readout.py not found at ref ${{ inputs.llm_model_agi_checkout_ref }} — pin to commit 7b40a93 or later."
+            exit 1
+          }
+
+      - name: Download the checkpoint (run #11's agent.pt)
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.checkpoint_artifact_name }}
+          run-id: ${{ inputs.checkpoint_run_id }}
+          github-token: ${{ github.token }}
+          path: checkpoint_in
+
+      - name: Generate paired control/counterfactual Observation snapshots
+        run: |
+          python scripts/generate_probe_pairs.py \
+            --persona "${{ inputs.persona }}" \
+            --days "${{ inputs.days }}" \
+            --agents "${{ inputs.agents }}" \
+            --out probe_pairs.jsonl
+
+      - name: Run the probe — trained checkpoint (run #11, ep130)
+        run: |
+          python llm_model_agi_repo/scripts/probe_regime_readout.py \
+            --data probe_pairs.jsonl --ckpt checkpoint_in/agent.pt \
+            | tee probe_trained.log
+
+      - name: Run the probe — fresh/untrained init (sanity baseline)
+        run: |
+          python llm_model_agi_repo/scripts/probe_regime_readout.py \
+            --data probe_pairs.jsonl \
+            | tee probe_fresh.log
+
+      - name: Publish results to the job summary
+        if: always()
+        run: |
+          echo '## regime-decoding probe (run #11 fallback)' >> "$GITHUB_STEP_SUMMARY"
+          echo '### trained (run #11, ep130)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat probe_trained.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo '### fresh/untrained init' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat probe_fresh.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts (probe data + logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regime-probe-${{ github.run_number }}
+          path: |
+            probe_pairs.jsonl
+            probe_trained.log
+            probe_fresh.log
+          if-no-files-found: warn

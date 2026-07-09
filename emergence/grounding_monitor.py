@@ -50,6 +50,7 @@ class GroundingMonitor:
         every: int = 1,
         threshold: float = 0.0,
         sandbox: bool = False,
+        complexity_level: int = 0,
         floor_rollouts: int = 1,
         on_result: Optional[Callable[[dict], None]] = None,
         probe: Callable[..., GroundingResult] = run_grounding_probe,
@@ -64,6 +65,7 @@ class GroundingMonitor:
         self.every = every
         self.threshold = threshold
         self.sandbox = sandbox
+        self.complexity_level = complexity_level
         self.floor_rollouts = floor_rollouts
         self._on_result = on_result
         self._probe = probe
@@ -89,6 +91,7 @@ class GroundingMonitor:
         result = self._probe(
             self.persona, rule=self.rule, days=self.days, n_agents=self.n_agents,
             seed=self.seed, threshold=self.threshold, sandbox=self.sandbox,
+            complexity_level=self.complexity_level,
             floor_rollouts=self.floor_rollouts, brain_factory=brain_factory)
         entry = {"epoch": epoch, **result.as_dict()}
         self.history.append(entry)
