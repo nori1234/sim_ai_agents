@@ -585,16 +585,41 @@ local mirror:
   form of "the information simply isn't there" as an engine-side gap. What's
   still unknown (their code, not inspectable from here) is whether their
   observation tokenizer actually surfaces these specific fields.
-* **Next milestone:** a block-rotation experiment
-  (`train_neural_grounding.py --regime-block-size N`, sandbox) — hold
-  control/counterfactual fixed for `N` consecutive episodes instead of
-  alternating every episode (default 1 = prior behaviour), pre-registered
-  with the brain team: improvement points at their "weak" reading (regime
-  info reaches the observation but per-episode switching diluted the
-  gradient signal); no change points at their tokenizer specifically (since
-  engine-side inspection already rules out "no information in the
-  observation" as the explanation). `--complexity-level` and `--status`
-  remain queued behind this — a converged, information-rich baseline is a
+* **Run #9 (v2, block=10) and run #10 (v2, block=1): the brain team's own "weak
+  H3" prediction failed.** Both resolved `llm_model_agi` to commit `9bc016c`
+  (their v2 tokenizer fix, confirmed from the CI install log) — the tokenizer
+  fix alone did not produce a learning curve; if anything both v2 runs read
+  *worse* than run #8 (`mean_excess` -0.3465 / -0.3024 vs run #8's -0.2132;
+  `wilcoxon_p` 0.9968 / 0.9999, i.e. further from significance). Block size
+  (1 vs 10) made negligible difference under v2, closing that axis. The
+  qualitative shape changed, though: run #10's `bootstrap_ci_mean_excess`
+  ([-0.41, -0.19]) is entirely negative — not the directionless oscillation
+  of run #8, but a *stable* negative excess, i.e. the policy converged to
+  something close to regime-blind (`agent_divergence ≈ 0`) rather than to
+  noise.
+* **That signature pointed at a third structural gap, found and fixed by the
+  brain team: single-step credit assignment.** Their policy gradient used
+  the immediate-step reward only (no discounted return; `AgentConfig.gamma`
+  was defined but never wired in). A `deposit` doesn't change wealth on the
+  step it happens (cash moves to a claim of equal value); demurrage's loss —
+  or control's interest — lands several ticks later, attributed to whatever
+  unrelated action was being taken then. The deposit/no-deposit choice never
+  received a learning signal even when the observation correctly encoded the
+  regime (v2) — consistent with every result so far: v1→v2 no change
+  (information was never the bottleneck), block 1→10 no change (switching
+  frequency was never the bottleneck), and convergence to a stable
+  regime-blind policy (exactly what an undiscounted-return objective would
+  optimise for). Fixed on their side (discounted returns over the buffer,
+  value bootstrap at truncation, episode-boundary carry reset,
+  `gamma=0` exactly reproduces prior behaviour for regression testing).
+* **Next milestone: run #11**, identical to run #10 (sandbox, `demurrage`,
+  episodes=200, block=1, v2 tokenizer) against the credit-assignment fix.
+  Pre-registered with the brain team: a positive trend in probe excess for
+  the first time is the primary signal. If flat again, the agreed fallback
+  is a supervised regime-decoding probe directly on frozen `encode_state`
+  output (bypassing RL entirely) to test representation independent of the
+  learning rule. `--complexity-level` and `--status` remain queued behind
+  this — a converged, information-rich, correctly-credited baseline is a
   precondition for either being informative.
 
 ## Why this comes before 3D
