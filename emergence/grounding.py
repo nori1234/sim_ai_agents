@@ -141,6 +141,15 @@ class GroundingResult:
     floor_divergence_std: float = 0.0
     ensemble_floor_divergence: Optional[float] = None
     ensemble_excess: Optional[float] = None
+    # Raw (unnormalised) event counts for the tested brain, alongside the
+    # per-agent-day `control_rate`/`counterfactual_rate` above -- lets a
+    # reader judge whether a rate reflects a handful of tries or a rich
+    # sample, and gives an exact answer to "how many times did it actually
+    # attempt the behaviour in each world" without reconstructing it from
+    # the normalised rate. None only for GroundingResult instances built by
+    # hand (e.g. in tests) that don't set them.
+    control_count: Optional[int] = None
+    counterfactual_count: Optional[int] = None
 
     @property
     def conclusive(self) -> bool:
@@ -173,15 +182,26 @@ class GroundingResult:
                                           else None),
             "ensemble_excess": (round(self.ensemble_excess, 4)
                                if self.ensemble_excess is not None else None),
+            "control_count": self.control_count,
+            "counterfactual_count": self.counterfactual_count,
         }
 
 
 def behaviour_rate(sim, kind: str) -> float:
     """Frequency of an event ``kind`` over the run, per agent-day — a population-
     and length-normalised rate so control and counterfactual runs compare fairly."""
-    n = sum(1 for e in sim.world.events if e.get("kind") == kind)
-    agent_days = max(1, sim.metrics.population * max(1, sim.metrics.days_run))
-    return n / agent_days
+    return behaviour_count(sim, kind) / max(
+        1, sim.metrics.population * max(1, sim.metrics.days_run))
+
+
+def behaviour_count(sim, kind: str) -> int:
+    """Raw (unnormalised) count of event ``kind`` over the run -- the number of
+    times the scored behaviour actually happened. Companion to
+    :func:`behaviour_rate`: the rate is what control/counterfactual worlds are
+    fairly compared on, but the raw count answers "how many times did it
+    actually try this" -- e.g. distinguishing a rate difference built on a
+    rich sample from one built on a handful of attempts."""
+    return sum(1 for e in sim.world.events if e.get("kind") == kind)
 
 
 # The complexity ladder (#118 follow-up: does the WORLD being too information-
@@ -361,8 +381,8 @@ def run_grounding_probe(
     if sandbox and rule != "demurrage":
         raise ValueError("the sandbox currently supports only the demurrage rule")
 
-    def _divergence(factory, world_seed: int) -> tuple[float, float]:
-        def _run(cf_enabled: bool) -> float:
+    def _divergence(factory, world_seed: int) -> tuple[float, float, int, int]:
+        def _run(cf_enabled: bool) -> tuple[float, int]:
             if sandbox:
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
@@ -381,13 +401,13 @@ def run_grounding_probe(
                     **extra_kwargs,
                 )
             sim.run()
-            return behaviour_rate(sim, target)
+            return behaviour_rate(sim, target), behaviour_count(sim, target)
 
-        control = _run(False)
-        counterfactual = _run(True)
-        return control, control - counterfactual
+        control, control_n = _run(False)
+        counterfactual, cf_n = _run(True)
+        return control, control - counterfactual, control_n, cf_n
 
-    control, divergence = _divergence(brain_factory, seed)
+    control, divergence, control_n, cf_n = _divergence(brain_factory, seed)
     ensemble_floor = None
     ensemble_excess = None
     floor_std = 0.0
@@ -402,7 +422,7 @@ def run_grounding_probe(
         # Recover the tested brain's counterfactual rate for reporting.
         counterfactual_rate = control - divergence
         # The canonical floor: world-matched, exact, no averaging.
-        _, floor = _divergence(None, seed)
+        _, floor, _, _ = _divergence(None, seed)
         if floor_rollouts > 1:
             extra_seeds = [seed + (i + 1) * floor_seed_stride
                           for i in range(floor_rollouts - 1)]
@@ -431,7 +451,8 @@ def run_grounding_probe(
         floor_divergence=floor, excess=excess, verdict=verdict,
         days=days, n_agents=n_agents,
         floor_rollouts=n_floor_rollouts, floor_divergence_std=floor_std,
-        ensemble_floor_divergence=ensemble_floor, ensemble_excess=ensemble_excess)
+        ensemble_floor_divergence=ensemble_floor, ensemble_excess=ensemble_excess,
+        control_count=control_n, counterfactual_count=cf_n)
 
 
 def estimate_conclusive_yield(
