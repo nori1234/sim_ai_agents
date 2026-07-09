@@ -643,6 +643,66 @@ local mirror:
   `--complexity-level` and `--status` remain queued behind this — a
   representation that doesn't decode regime at all makes both experiments
   moot.
+* **The regime-decoding probe ran twice (`regime-decoding-probe.yml`,
+  `scripts/generate_probe_pairs.py` + the brain team's
+  `scripts/probe_regime_readout.py`), against run #11's checkpoint (episode
+  130) and a fresh/untrained init, each on 725 paired control/counterfactual
+  observation snapshots (20 held-out worlds x 2 regimes x 20 days,
+  heuristic-driven so the scored behaviour reliably occurs). The first pass
+  surfaced a real methodological gap; the corrected second pass gives the
+  answer that stands: representation-learnability is fine, the bottleneck is
+  RL/credit-side.**
+  * **Run A (`llm_model_agi` commit `7b40a93`, unpaired):** probe A (raw
+    tokens, weight-independent — a sanity check) read 1.000 held-out for
+    both checkpoints, as expected. Probe B (frozen `encode_state`) read
+    0.992 held-out for the fresh init (`REPRESENTATION-OK`) but exactly
+    0.500 — chance, flat across every one of the 20 days — for the trained
+    checkpoint (`ENCODER-DESTROYS`: readable from tokens, lost in
+    `encode_state`).
+  * **A real confound, caught before the result was trusted:** a few worlds
+    die out (population extinction) before day 20 under one or both
+    regimes, which the generator handles by simply stopping that
+    world/regime's snapshots early. This leaves some `(world_seed, day)`
+    rows with no counterpart in the other regime — an artifact the brain
+    team flagged from the delivered row counts alone, without seeing the
+    probe's output: an unpaired row lets a classifier fit `day` as a
+    survivorship proxy for regime instead of the actual encoded content,
+    which does not transfer to held-out worlds with different extinction
+    patterns. Fixed on their side (`llm_model_agi` commit `e3b91c1`):
+    `probe_regime_readout.py` now defaults to paired-only scoring (both
+    regimes present for the same `(world_seed, day)`); the excluded count
+    is reported alongside the verdict.
+  * **Run B (`e3b91c1`, paired-only, 49/725 = 6.8% of rows dropped): the
+    verdict flips, in the opposite direction from what the confound
+    predicted.** Held-out accuracy for the trained checkpoint's `encode_state`
+    probe *rose* from 0.500 to 0.808 (fresh: 0.979, day-2-onward ~1.000) —
+    both now read `REPRESENTATION-OK`. This is the surprising part worth
+    stating plainly: removing the confounded rows was expected to lower
+    accuracy (strip out an inflationary shortcut), not raise it. The
+    working hypothesis (not verified, offered without a proposed fix): the
+    unpaired rows taught the linear probe a *training-world-specific*
+    day/survival correlation that actively misleads on held-out worlds
+    (different worlds die out on different days), and the trained
+    checkpoint's weaker signal-to-noise `encode_state` was more susceptible
+    to being led astray by that spurious feature than the fresh init's
+    stronger one. The paired-only visibility curve for the trained
+    checkpoint rises from 0.667 (day 1) to mostly 0.75-1.0 by day 4 onward
+    (one dip to 0.583 at day 17) — a real, if noisier, decoding signal, not
+    chance.
+  * **Reading (paired-only, the corrected and trusted result):
+    representation-learnability is not the blocker.** `encode_state` makes
+    the regime linearly decodable both before and after training (0.98 vs
+    0.81 held-out) — degraded by training, but nowhere near destroyed. Per
+    the pre-registered decision tree, this places the run #11 failure on
+    the RL/credit-side: the representation the policy conditions on already
+    contains the regime signal (fresh init even more clearly than trained),
+    but three structural fixes in a row (floor confound, v1->v2 tokenizer,
+    single-step->discounted credit assignment) have not produced a policy
+    that acts differently on it. The `db39ffa` discounted-return fix was
+    necessary but evidently not sufficient — the next candidates are
+    exploration (a memoryless policy has no reason to try `deposit` more
+    than a handful of times per episode) and value-estimate noise on the
+    deposit/no-deposit margin specifically, not the representation itself.
 
 ## Why this comes before 3D
 
