@@ -669,6 +669,49 @@ class TestFloorRollouts(unittest.TestCase):
         self.assertEqual(result.floor_rollouts, 3)
 
 
+class TestRawAttemptCounts(unittest.TestCase):
+    """control_count/counterfactual_count: the raw (unnormalised) companion to
+    control_rate/counterfactual_rate -- answers "how many times did it actually
+    try this" without reconstructing it from a per-agent-day rate."""
+
+    @staticmethod
+    def _factory(agent, persona, rng):
+        from emergence.brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona, rng)
+
+    def test_counts_are_populated_and_agree_in_sign_with_the_rate(self):
+        # The exact agent_days divisor (behaviour_rate) depends on the sim's
+        # OBSERVED population/days_run, not the configured n_agents/days (a
+        # world can end early) -- so this checks the count/rate agree on
+        # whether the behaviour happened at all, not an exact ratio.
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, brain_factory=self._factory)
+        self.assertIsInstance(result.control_count, int)
+        self.assertIsInstance(result.counterfactual_count, int)
+        self.assertGreaterEqual(result.control_count, 0)
+        self.assertGreaterEqual(result.counterfactual_count, 0)
+        self.assertEqual(result.control_count > 0, result.control_rate > 0)
+        self.assertEqual(result.counterfactual_count > 0, result.counterfactual_rate > 0)
+
+    def test_counts_appear_in_as_dict(self):
+        result = run_grounding_probe("guardian", sandbox=True, days=10,
+                                     n_agents=4, seed=1, brain_factory=self._factory)
+        d = result.as_dict()
+        self.assertEqual(d["control_count"], result.control_count)
+        self.assertEqual(d["counterfactual_count"], result.counterfactual_count)
+
+    def test_hand_built_results_default_counts_to_none(self):
+        # GroundingResult instances built directly (as many tests do) rather
+        # than via run_grounding_probe shouldn't be forced to supply counts.
+        result = GroundingResult(
+            rule="demurrage", target="deposit", control_rate=1.0,
+            counterfactual_rate=0.5, divergence=0.5, floor_divergence=0.1,
+            excess=0.4, verdict="grounded (exceeds heuristic floor)",
+            days=10, n_agents=4)
+        self.assertIsNone(result.control_count)
+        self.assertIsNone(result.counterfactual_count)
+
+
 class TestPairedStatisticsOnASweep(unittest.TestCase):
     """SweepResult's paired-test fields are a harder-to-Goodhart read of the
     same per-world excess numbers `fraction_grounded` already has — not a

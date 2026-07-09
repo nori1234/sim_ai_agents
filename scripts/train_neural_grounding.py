@@ -495,6 +495,20 @@ def main(argv=None) -> int:
                 print(f"             ensemble-floor excess per world (cross-check "
                       f"only, not load-bearing): "
                       + ", ".join(f"{x:+.4f}" for x in ens))
+        # Raw attempt counts (unnormalised, unlike control_rate/counterfactual_rate
+        # above): how many times the tested brain actually tried the scored
+        # behaviour in each regime, summed across held-out worlds. Distinguishes
+        # "the rate difference is built on a rich sample" from "on a handful of
+        # tries" -- the exploration-vs-value-noise fork if grounded_confirmed
+        # reads False despite the representation being decodable.
+        counts = [(r2.control_count, r2.counterfactual_count) for r2 in sweep.results
+                 if r2.control_count is not None]
+        if counts:
+            total_control = sum(c for c, _ in counts)
+            total_cf = sum(c for _, c in counts)
+            print(f"             raw attempt counts (summed over {len(counts)} "
+                  f"held-out worlds): control={total_control}  "
+                  f"counterfactual={total_cf}")
     return 0
 
 
