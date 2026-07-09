@@ -9,6 +9,23 @@ here — saving in a bank, repaying a loan, taking shelter — is that behaviour
 pattern memorised from training data? In a world whose rules already match the
 training prior, the two are indistinguishable, so success proves nothing.
 
+## Where things stand (see "Current status" below for the full run-by-run record)
+
+**Not confirmed, not refuted — localized.** Across 11 real-engine CI runs and
+three independent structural bug fixes (engine-side: the floor confound;
+brain-side: v1→v2 observation tokenizer, then single-step→discounted credit
+assignment), the sandbox acceptance battery has never returned
+`grounded_confirmed = True`. The most recent finding — a supervised
+regime-decoding probe on frozen `encode_state` output, bias-corrected for a
+population-extinction confound — rules out the leading alternative
+explanation: the representation **does** make the regime linearly decodable,
+both before and after training (0.98 / 0.81 held-out accuracy). So the open
+question is no longer "can the representation see it" — it's "why doesn't the
+policy act on what it can see," which points at RL/credit-assignment or
+exploration, not architecture or observation content. Tracked on issue #130;
+`--complexity-level`/`--status` (the complexity ladder, the status factorial)
+remain queued behind this.
+
 ## The instrument suite at a glance
 
 | tool | question it answers | one call |
