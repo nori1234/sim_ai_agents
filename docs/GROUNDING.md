@@ -612,15 +612,37 @@ local mirror:
   optimise for). Fixed on their side (discounted returns over the buffer,
   value bootstrap at truncation, episode-boundary carry reset,
   `gamma=0` exactly reproduces prior behaviour for regression testing).
-* **Next milestone: run #11**, identical to run #10 (sandbox, `demurrage`,
-  episodes=200, block=1, v2 tokenizer) against the credit-assignment fix.
-  Pre-registered with the brain team: a positive trend in probe excess for
-  the first time is the primary signal. If flat again, the agreed fallback
-  is a supervised regime-decoding probe directly on frozen `encode_state`
-  output (bypassing RL entirely) to test representation independent of the
-  learning rule. `--complexity-level` and `--status` remain queued behind
-  this — a converged, information-rich, correctly-credited baseline is a
-  precondition for either being informative.
+* **Run #11 (sandbox, `demurrage`, block=1, v2 tokenizer, credit-assignment
+  fix): the primary signal did not appear — a powered-no, not undetermined.**
+  Resolved `llm_model_agi` to commit `db39ffa` (confirmed from the CI install
+  log). Training self-stopped early at episode 130/200 via `is_stable`
+  (probes at ep120/125/130 read +0.333/+0.204/+0.070, three in a row above
+  threshold) — but the probe series up to that point was mostly negative or
+  oscillating (7 of 26 probes positive), and the streak did not generalise:
+  the held-out battery (20 worlds) returned `mean_excess=-0.3591`,
+  `wilcoxon_p=0.988`, `bootstrap_ci_mean_excess=[-0.632, -0.065]` (entirely
+  negative, the same qualitative signature as run #10's `[-0.41, -0.19]`).
+  `floor_regression` was **powered for the first time** (n=20,
+  `floor_spread_std=0.259`, `slope_ci_width=1.99` under the 3.0 gate) and
+  still found no signal (`residual_wilcoxon_p=0.551`). `grounded_confirmed =
+  False`, and per the pre-registered None-split this is the powered-no case:
+  a real negative result, not a call for a better-measuring re-run. Three
+  independent structural fixes now (floor confound, v1→v2 tokenizer,
+  single-step→discounted credit assignment) have each been necessary but
+  none has been sufficient to produce a generalising positive-excess trend in
+  the sandbox.
+* **Fallback triggered, per the pre-registration: a supervised
+  regime-decoding probe directly on frozen `encode_state` output**, bypassing
+  RL entirely — trains a classifier on top of the brain's own learned
+  representation to predict control-vs-counterfactual regime from a single
+  observation snapshot, using the same held-out seeds (42–61) as the battery
+  so it is directly comparable. This isolates representation-learnability
+  (does `encode_state` even make regime linearly/simply decodable?) from
+  policy-learnability (can RL exploit it once it's there) — the run #11
+  result cannot distinguish these two failure modes on its own.
+  `--complexity-level` and `--status` remain queued behind this — a
+  representation that doesn't decode regime at all makes both experiments
+  moot.
 
 ## Why this comes before 3D
 
