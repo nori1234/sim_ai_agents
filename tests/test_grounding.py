@@ -1073,5 +1073,59 @@ class TestGroundedConfirmedAndGate(unittest.TestCase):
                          "vanity's grounded_paired failed, so the AND gate must fail overall")
 
 
+class TestRewardCeiling(unittest.TestCase):
+    """measure_reward_ceiling: does the TASK pay enough for grounding to be
+    worth learning, independent of whether any policy currently learns it."""
+
+    def test_advantage_control_is_exactly_zero(self):
+        # The grounded oracle only diverges from the blind heuristic when
+        # avoid_deposit is True (i.e. in the counterfactual world) -- in
+        # control it must be behaviourally IDENTICAL, so any nonzero
+        # advantage_control would mean a bug in the oracle, not a finding.
+        from emergence.grounding import measure_reward_ceiling
+        result = measure_reward_ceiling("guardian", seeds=(42, 43, 44), days=10, n_agents=4)
+        self.assertEqual(result.advantage_control, 0.0)
+        self.assertEqual(result.blind_return_control, result.grounded_return_control)
+
+    def test_as_dict_round_trips_the_key_fields(self):
+        from emergence.grounding import measure_reward_ceiling
+        result = measure_reward_ceiling("guardian", seeds=(42,), days=10, n_agents=4)
+        d = result.as_dict()
+        self.assertEqual(d["rule"], "demurrage")
+        self.assertEqual(d["n_worlds"], 1)
+        self.assertAlmostEqual(d["advantage_control"],
+                               d["grounded_return_control"] - d["blind_return_control"],
+                               places=4)
+        self.assertAlmostEqual(d["advantage_counterfactual"],
+                               d["grounded_return_counterfactual"]
+                               - d["blind_return_counterfactual"], places=4)
+
+    def test_only_demurrage_is_supported(self):
+        from emergence.grounding import measure_reward_ceiling
+        with self.assertRaises(ValueError):
+            measure_reward_ceiling("guardian", rule="vanity", seeds=(42,))
+
+    def test_grounded_oracle_never_starves_avoiding_deposit(self):
+        # Regression test for a real bug caught while building this: an
+        # earlier oracle returned None instead of REST when avoiding a
+        # deposit, which fell through HeuristicBrain.decide() into
+        # _trade_action's untested market-primitive loops (offer/accept/
+        # repay with no facility to ground them in this minimal sandbox)
+        # and starved the agent to death by day 5 -- a confound entirely
+        # unrelated to the demurrage regime being measured.
+        from emergence.grounding import make_grounding_sandbox, _grounded_heuristic_brain_class
+        GroundedHeuristicBrain = _grounded_heuristic_brain_class()
+
+        def factory(agent, persona, rng):
+            return GroundedHeuristicBrain(persona, rng, avoid_deposit=True)
+
+        sim = make_grounding_sandbox("guardian", rule="demurrage", n_savers=5,
+                                     seed=42, days=20, cf_enabled=True,
+                                     brain_factory=factory)
+        agent = sim.agents[1]
+        sim.run()
+        self.assertTrue(agent.alive)
+
+
 if __name__ == "__main__":
     unittest.main()

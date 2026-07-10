@@ -33,8 +33,13 @@ margin, not architecture, observation content, or representation stability.
 Two further candidates are under test in run #13: an unverified
 episode-boundary assumption in the discounted-return code, and whether
 behaviour-cloning toward a teacher that is itself regime-blind by
-construction is capping what the policy can learn. Tracked on issue #130;
-`--complexity-level`/`--status` (the complexity ladder, the status factorial)
+construction is capping what the policy can learn. A prior question — does
+the task even pay enough for grounding to be worth learning — is answered:
+yes. The blind heuristic's own realized return already differs by 586
+points between regimes with no behaviour change at all; the task is not
+reward-starved, so the bottleneck is attribution, not magnitude. Tracked on
+issue #130; `--complexity-level`/`--status` (the complexity ladder, the
+status factorial)
 remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
@@ -814,6 +819,43 @@ local mirror:
   happens to look partly regime-correlated. Run #13 (episode-boundary fix,
   `freeze_backbone` removed since erosion is ruled out) reports
   `episodes_seen` and `teacher_frac_in_batch` to settle both empirically.
+* **A fifth, prior question, asked by the brain team ahead of run #13: does
+  the TASK pay enough for grounding to be worth learning at all, independent
+  of whether any policy currently learns it?** `measure_reward_ceiling`
+  (`emergence/grounding.py`, `scripts/reward_ceiling.py`) compares the blind
+  heuristic's own realized return (`survival_reward`, telescoped over the
+  episode) against a scripted oracle handed the ground-truth regime directly
+  and never depositing under counterfactual — the most any policy could gain
+  from discriminating this regime, cheap and deterministic (no torch, no CI,
+  seconds). Raw: [`docs/runs/reward-ceiling-1/`](runs/reward-ceiling-1/).
+  * **A real bug caught before trusting the number:** the first oracle
+    returned `None` in place of a deposit, which fell through
+    `HeuristicBrain.decide()` into `_trade_action`'s untested market-
+    primitive loops (offer/accept/repay with no facility to ground them in
+    this minimal sandbox) and starved the agent to death by day 5 — a
+    confound with nothing to do with demurrage. Fixed: `REST` (a net energy
+    *gain*, not a drain) is the minimal non-confounding substitute for "hold
+    the cash, don't bank it."
+  * **The fixed measurement is itself confounded, and says so honestly:**
+    `advantage_counterfactual = -125.4` — the grounded oracle earns *less*
+    than the blind heuristic, not more. Tracing why: the blind heuristic's
+    `_bank_action` also runs a peer-lending branch (`become a banker`,
+    `OFFER`/`REPAY`/`lend`) whenever `bank_here` is unset, and deposit
+    amounts in this sandbox compound to multiples of the starting money
+    (50 → thousands) within 20 days — a large reward channel unrelated to
+    demurrage that the oracle forfeits entirely by resting instead of
+    participating. This isn't a finding about grounding; it's a finding that
+    this sandbox's peer-lending economy dominates its own reward signal,
+    which the oracle wasn't built to also imitate.
+  * **The clean number inside the same run: the blind heuristic's own
+    realized return already differs hugely by regime** —
+    `blind_return_control = 711.2` vs `blind_return_counterfactual = 125.3`,
+    a `585.9`-point within-policy gap with no behaviour change at all. This
+    answers the brain team's actual question directly: the task is **not**
+    reward-starved — demurrage costs even a non-adapting policy the large
+    majority of its return. The bottleneck a value function would need to
+    close is attribution amid a much larger, unrelated co-occurring reward
+    channel (peer lending), not reward magnitude.
 
 ## Why this comes before 3D
 
