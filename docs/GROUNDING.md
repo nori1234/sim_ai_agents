@@ -11,20 +11,27 @@ training prior, the two are indistinguishable, so success proves nothing.
 
 ## Where things stand (see "Current status" below for the full run-by-run record)
 
-**Not confirmed, not refuted — localized.** Across 11 real-engine CI runs and
-three independent structural bug fixes (engine-side: the floor confound;
-brain-side: v1→v2 observation tokenizer, then single-step→discounted credit
-assignment), the sandbox acceptance battery has never returned
-`grounded_confirmed = True`. The most recent finding — a supervised
-regime-decoding probe on frozen `encode_state` output, bias-corrected for a
-population-extinction confound — rules out the leading alternative
-explanation: the representation **does** make the regime linearly decodable,
-both before and after training (0.98 / 0.81 held-out accuracy). So the open
-question is no longer "can the representation see it" — it's "why doesn't the
-policy act on what it can see," which points at RL/credit-assignment or
-exploration, not architecture or observation content. Tracked on issue #130;
-`--complexity-level`/`--status` (the complexity ladder, the status factorial)
-remain queued behind this.
+**Not confirmed, not refuted — narrowing.** Across 12 real-engine CI runs, four
+structural hypotheses have each been investigated to a specific mechanism:
+the floor confound (engine-side, fixed), the v1→v2 observation tokenizer
+(brain-side, fixed), single-step→discounted credit assignment (brain-side,
+fixed), and representation erosion during training (brain-side,
+**ruled out** — `freeze_backbone` kept `encode_state` byte-identical to a
+fresh init, and the policy still didn't ground). The sandbox acceptance
+battery has never returned `grounded_confirmed = True`. A supervised
+regime-decoding probe (bias-corrected for a population-extinction confound)
+independently confirms the representation makes the regime linearly
+decodable, both intact (frozen) and even after unfrozen training (0.98 vs
+0.81 held-out). Raw attempt counts (added to rule out sparse exploration)
+show the counterfactual world was tried *more* than control, not less — the
+wrong direction for a grounded policy, not the signature of too few tries.
+So the open question is no longer "can the representation see it" or "did
+training destroy it" — it's specifically why a policy that can see the
+regime and tries the behaviour in both worlds doesn't modulate its rate in
+the right direction, which points at value/credit-side noise on the deposit
+margin, not architecture, observation content, or representation stability.
+Tracked on issue #130; `--complexity-level`/`--status` (the complexity
+ladder, the status factorial) remain queued behind this.
 
 ## The instrument suite at a glance
 
@@ -720,6 +727,51 @@ local mirror:
     exploration (a memoryless policy has no reason to try `deposit` more
     than a handful of times per episode) and value-estimate noise on the
     deposit/no-deposit margin specifically, not the representation itself.
+* **Run #12: the brain team's `freeze_backbone` test (commit `f8badf1`) —
+  erosion ruled out as the cause, not confirmed as it.** Their hypothesis:
+  the training-time drop in `encode_state`'s decodability (0.98 fresh vs
+  0.81 trained, run #11) was RL gradients from a regime-blind policy
+  actively erasing the regime feature during training, since nothing in an
+  undiscriminating reward stream gives the backbone a reason to preserve
+  it. `freeze_backbone` excludes the backbone from the optimizer
+  (`requires_grad=False`, `encode` under `no_grad`) so only the policy/
+  value/world heads train on top of a fixed representation — a minimal,
+  one-run test of that specific mechanism, pre-registered with two
+  branches: (1) a sanity check that MUST hold if the implementation is
+  correct (trained `encode_state` stays at the fresh level), and (2) the
+  real question (does the policy ground once the representation can no
+  longer be eroded).
+  * **(1) confirmed:** the regime-decoding probe against run #12's
+    checkpoint read held-out `encode_state` accuracy of 0.992 — identical
+    to a fresh/untrained init run the same pass, also 0.992. Freezing
+    worked exactly as implemented; not a bug.
+  * **(2) did not hold: still `grounded_confirmed = False`.**
+    `fraction_grounded` dropped to 0.15 (run #11: 0.25), `bootstrap_ci_
+    mean_excess = [-0.446, -0.148]` (entirely negative, same shape as runs
+    #10/#11), `floor_regression` powered with an even flatter slope
+    (`+0.042`, width `0.917` — tighter than run #11's `+0.427`/`1.986`, and
+    closer to zero). Training never reached `is_stable` over the full 200
+    episodes (39 of 40 probes negative; only the very last, ep200, read
+    positive).
+  * **New in this run: raw attempt counts** (`control_count`/
+    `counterfactual_count` on `GroundingResult`, added specifically for
+    this fallback — the normalised `control_rate`/`counterfactual_rate`
+    can't distinguish "too few tries to learn from" from "plenty of tries,
+    wrong direction"). Summed over the 20 held-out worlds: `control=158`,
+    `counterfactual=178` — the counterfactual world was tried *more*, not
+    less, the opposite of what a sparse-exploration story predicts and the
+    opposite of the direction a grounded policy would need.
+  * **Reading: representation erosion is ruled out as the root cause, not
+    confirmed as it.** The representation stayed intact (byte-for-byte
+    matching a fresh init) and the policy still didn't ground — an even
+    flatter floor-regression slope than run #11's already-flat one. Three
+    of four structural hypotheses (floor confound, tokenizer, erosion) are
+    now closed with a specific mechanism identified for each; erosion is
+    the first one that was investigated and directly ruled out rather than
+    fixed. The raw counts point away from insufficient exploration and
+    toward value/credit-side noise on the deposit margin, or a remaining
+    bug in the discounted-return implementation itself — neither
+    investigated yet.
 
 ## Why this comes before 3D
 
