@@ -30,16 +30,17 @@ training destroy it" — it's specifically why a policy that can see the
 regime and tries the behaviour in both worlds doesn't modulate its rate in
 the right direction, which points at value/credit-side noise on the deposit
 margin, not architecture, observation content, or representation stability.
-Two further candidates are under test in run #13: an unverified
-episode-boundary assumption in the discounted-return code, and whether
-behaviour-cloning toward a teacher that is itself regime-blind by
-construction is capping what the policy can learn. A prior question — does
-the task even pay enough for grounding to be worth learning — is answered:
-yes. The blind heuristic's own realized return already differs by 586
-points between regimes with no behaviour change at all; the task is not
-reward-starved, so the bottleneck is attribution, not magnitude. Tracked on
-issue #130; `--complexity-level`/`--status` (the complexity ladder, the
-status factorial)
+Of three further candidates, one is now ruled out and one is answered: run
+#13's `episodes_seen` diagnostic confirms episode boundaries were detected
+correctly all along (not the leak the brain team's own code audit
+suspected), and the task is not reward-starved (the blind heuristic's own
+realized return already differs by 586 points between regimes with zero
+behaviour change). The third — whether behaviour-cloning toward a teacher
+that is itself regime-blind by construction is capping the policy — remains
+untested: its diagnostic (`teacher_frac_in_batch`) never appeared in run
+#13's output, so it needs a fix on the brain side before it can be
+evaluated, not another run on ours. Tracked on issue #130;
+`--complexity-level`/`--status` (the complexity ladder, the status factorial)
 remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
@@ -856,6 +857,47 @@ local mirror:
     majority of its return. The bottleneck a value function would need to
     close is attribution amid a much larger, unrelated co-occurring reward
     channel (peer lending), not reward magnitude.
+* **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
+  `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
+  `grounded_confirmed = False` with the tightest floor-regression null yet.**
+  Raw: [`docs/runs/run-13/`](runs/run-13/).
+  * **S1 (episode-boundary leak) — ruled out, not just by our code-reading
+    this time.** `episodes_seen` tracked the true training-episode count
+    throughout (e.g. `196` at episode 196, `199` at episode 200) rather than
+    sticking near `1` — the signature a genuine leak would produce. Episode
+    boundaries were being detected correctly this whole time, confirming
+    what inspecting `training_factory`'s `_prev_obs = None` reset had
+    already suggested: this specific failure mode was never actually
+    happening on our pipeline.
+  * **S2 (BC/PG ratio) — undetermined, not ruled out: the diagnostic never
+    appeared.** `teacher_frac_in_batch` occurs zero times across all 200
+    episode log lines, despite `episodes_seen` (from the same commit range)
+    surfacing correctly. Whether behaviour-cloning toward the regime-blind
+    teacher is capping the policy remains an open question — it needs the
+    brain team to fix how/whether that field reaches `last_learn_info`
+    before it can be tested, not a re-run on our side.
+  * **The battery result: same verdict, narrower null.**
+    `mean_excess=-0.2539`, `wilcoxon_p=0.9998`,
+    `bootstrap_ci_mean_excess=[-0.393, -0.129]` (entirely negative again).
+    `floor_regression` powered with the tightest slope CI of any run so far
+    (`slope=-0.062`, width `0.464` — versus run #12's `0.917`) — more
+    statistical certainty that there is no relationship, not less.
+    `grounded_confirmed = False`, `trained_stable = False` (full 200
+    episodes, max probe streak 2, no `is_stable`).
+  * **Raw attempt counts flipped direction, barely: `control=621`,
+    `counterfactual=602`** (run #12: `158`/`178`, the wrong way round). A
+    much larger sample (1223 vs 336 total attempts, consistent with more
+    episodes reaching `CURIOUS`/self-play) and now the *correct* direction
+    for grounding, but the gap is small (3%) relative to the total and the
+    battery's own paired tests still read no signal — not evidence of
+    grounding on its own, just no longer evidence against it either.
+  * **Reading against the brain team's own pre-registered stop rule**
+    ("if S1-S3 all read healthy and it's still POWERED-NO, stop hunting
+    defects and revisit task/reward design"): two of three are in — S1
+    healthy (this run), S3 healthy (the reward ceiling, above) — but S2 is
+    unmeasured, not confirmed healthy, so the stop condition isn't met yet.
+    The immediate next step is fixing `teacher_frac_in_batch`'s exposure,
+    not re-running training again with the same diagnostic gap.
 
 ## Why this comes before 3D
 
