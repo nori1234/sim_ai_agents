@@ -1,0 +1,2310 @@
+﻿
+Current runner version: '2.335.1'
+
+##[group]Runner Image Provisioner
+
+Hosted Compute Agent
+
+Version: 20260624.560
+
+Commit: 925d229a51159bc391ae97e54a2dd1fe20af789d
+
+Build Date: 2026-06-24T18:26:47Z
+
+Worker ID: {3dde865d-310e-45dc-97c4-9eae0f0eb639}
+
+Azure Region: northcentralus
+
+##[endgroup]
+
+##[group]Operating System
+
+Ubuntu
+
+24.04.4
+
+LTS
+
+##[endgroup]
+
+##[group]Runner Image
+
+Image: ubuntu-24.04
+
+Version: 20260628.225.1
+
+Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260628.225/images/ubuntu/Ubuntu2404-Readme.md
+
+Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260628.225
+
+##[endgroup]
+
+##[group]GITHUB_TOKEN Permissions
+
+Contents: read
+
+Metadata: read
+
+Packages: read
+
+##[endgroup]
+
+Secret source: Actions
+
+Prepare workflow directory
+
+Prepare all required actions
+
+Getting action download info
+
+Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+
+Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+
+Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+
+Complete job name: train-and-battery
+
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+##[group]Run actions/checkout@v4
+
+with:
+
+  repository: nori1234/sim_ai_agents
+
+  token: ***
+
+  ssh-strict: true
+
+  ssh-user: git
+
+  persist-credentials: true
+
+  clean: true
+
+  sparse-checkout-cone-mode: true
+
+  fetch-depth: 1
+
+  fetch-tags: false
+
+  show-progress: true
+
+  lfs: false
+
+  submodules: false
+
+  set-safe-directory: true
+
+##[endgroup]
+
+Syncing repository: nori1234/sim_ai_agents
+
+##[group]Getting Git version info
+
+Working directory is '/home/runner/work/sim_ai_agents/sim_ai_agents'
+
+[command]/usr/bin/git version
+
+git version 2.54.0
+
+##[endgroup]
+
+Temporarily overriding HOME='/home/runner/work/_temp/c7609857-3ae9-482d-a85e-5b18178771c7' before making global git config changes
+
+Adding repository directory to the temporary git global config as a safe directory
+
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+
+Deleting the contents of '/home/runner/work/sim_ai_agents/sim_ai_agents'
+
+##[group]Initializing the repository
+
+[command]/usr/bin/git init /home/runner/work/sim_ai_agents/sim_ai_agents
+
+hint: Using 'master' as the name for the initial branch. This default branch name
+
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+
+hint: to use in all of your new repositories, which will suppress this warning,
+
+hint: call:
+
+hint:
+
+hint: 	git config --global init.defaultBranch <name>
+
+hint:
+
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+
+hint: 'development'. The just-created branch can be renamed via this command:
+
+hint:
+
+hint: 	git branch -m <name>
+
+hint:
+
+hint: Disable this message with "git config set advice.defaultBranchName false"
+
+Initialized empty Git repository in /home/runner/work/sim_ai_agents/sim_ai_agents/.git/
+
+[command]/usr/bin/git remote add origin https://github.com/nori1234/sim_ai_agents
+
+##[endgroup]
+
+##[group]Disabling automatic garbage collection
+
+[command]/usr/bin/git config --local gc.auto 0
+
+##[endgroup]
+
+##[group]Setting up auth
+
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+
+[command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+
+##[endgroup]
+
+##[group]Fetching the repository
+
+[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f518a1bf4516b0b232a5bf766f88202569d366f4:refs/remotes/origin/claude/session-handoff-planning-trqqmh
+
+From https://github.com/nori1234/sim_ai_agents
+
+ * [new ref]         f518a1bf4516b0b232a5bf766f88202569d366f4 -> origin/claude/session-handoff-planning-trqqmh
+
+##[endgroup]
+
+##[group]Determining the checkout info
+
+##[endgroup]
+
+[command]/usr/bin/git sparse-checkout disable
+
+[command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+
+##[group]Checking out the ref
+
+[command]/usr/bin/git checkout --progress --force -B claude/session-handoff-planning-trqqmh refs/remotes/origin/claude/session-handoff-planning-trqqmh
+
+Switched to a new branch 'claude/session-handoff-planning-trqqmh'
+
+branch 'claude/session-handoff-planning-trqqmh' set up to track 'origin/claude/session-handoff-planning-trqqmh'.
+
+##[endgroup]
+
+[command]/usr/bin/git log -1 --format=%H
+
+f518a1bf4516b0b232a5bf766f88202569d366f4
+
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+##[group]Run actions/setup-python@v5
+
+with:
+
+  python-version: 3.11
+
+  check-latest: false
+
+  token: ***
+
+  update-environment: true
+
+  allow-prereleases: false
+
+  freethreaded: false
+
+##[endgroup]
+
+##[group]Installed versions
+
+(node:2285) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Successfully set up CPython (3.11.15)
+
+##[endgroup]
+
+##[group]Run pip install -e .
+
+[36;1mpip install -e .[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+Obtaining file:///home/runner/work/sim_ai_agents/sim_ai_agents
+
+  Installing build dependencies: started
+
+  Installing build dependencies: finished with status 'done'
+
+  Checking if build backend supports build_editable: started
+
+  Checking if build backend supports build_editable: finished with status 'done'
+
+  Getting requirements to build editable: started
+
+  Getting requirements to build editable: finished with status 'done'
+
+  Preparing editable metadata (pyproject.toml): started
+
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+
+Building wheels for collected packages: emergence-world
+
+  Building editable for emergence-world (pyproject.toml): started
+
+  Building editable for emergence-world (pyproject.toml): finished with status 'done'
+
+  Created wheel for emergence-world: filename=emergence_world-0.1.0-0.editable-py3-none-any.whl size=12995 sha256=70767133e8a907c0e6536c54bd863d111853ca4860d63638682c97f3fbd2d0ff
+
+  Stored in directory: /tmp/pip-ephem-wheel-cache-aeoq6o_w/wheels/52/8d/d8/bfe3e6ecdd7e97f01df2b7362d9aba166e0556e354d0854f92
+
+Successfully built emergence-world
+
+Installing collected packages: emergence-world
+
+Successfully installed emergence-world-0.1.0
+
+##[group]Run if [ -z "$LLM_TOKEN" ]; then
+
+[36;1mif [ -z "$LLM_TOKEN" ]; then[0m
+
+[36;1m  echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."[0m
+
+[36;1m  exit 1[0m
+
+[36;1mfi[0m
+
+[36;1mgit config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+  LLM_TOKEN: ***
+
+##[endgroup]
+
+##[group]Run pip install "torch"
+
+[36;1mpip install "torch"[0m
+
+[36;1mpip install "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+Collecting torch
+
+  Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (38 kB)
+
+Collecting filelock (from torch)
+
+  Downloading filelock-3.29.7-py3-none-any.whl.metadata (2.0 kB)
+
+Collecting typing-extensions>=4.10.0 (from torch)
+
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch) (79.0.1)
+
+Collecting sympy>=1.13.3 (from torch)
+
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+
+Collecting networkx>=2.5.1 (from torch)
+
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+
+Collecting jinja2 (from torch)
+
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+
+Collecting fsspec>=0.8.5 (from torch)
+
+  Downloading fsspec-2026.6.0-py3-none-any.whl.metadata (10 kB)
+
+Collecting cuda-toolkit==13.0.3 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl.metadata (17 kB)
+
+Collecting cuda-bindings<14,>=13.0.3 (from torch)
+
+  Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.5 kB)
+
+Collecting nvidia-cudnn-cu13==9.20.0.48 (from torch)
+
+  Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)
+
+Collecting nvidia-cusparselt-cu13==0.8.1 (from torch)
+
+  Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)
+
+Collecting nvidia-nccl-cu13==2.29.7 (from torch)
+
+  Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl.metadata (2.1 kB)
+
+Collecting nvidia-nvshmem-cu13==3.4.5 (from torch)
+
+  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)
+
+Collecting triton==3.7.1 (from torch)
+
+  Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-cublas==13.1.1.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+
+Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+
+Collecting nvidia-nvjitlink<14,>=13.0.88 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.8 kB)
+
+Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+
+Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+
+Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+
+Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+
+  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)
+
+Collecting cuda-pathfinder>=1.4.2 (from cuda-bindings<14,>=13.0.3->torch)
+
+  Downloading cuda_pathfinder-1.5.6-py3-none-any.whl.metadata (1.9 kB)
+
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch)
+
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+
+Collecting MarkupSafe>=2.0 (from jinja2->torch)
+
+  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+
+Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl (526.6 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 526.6/526.6 MB 107.3 MB/s  0:00:02
+
+Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl (2.5 kB)
+
+Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl (366.2 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.2/366.2 MB 150.2 MB/s  0:00:01
+
+Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl (170.1 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 170.1/170.1 MB 273.1 MB/s  0:00:00
+
+Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl (206.0 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 206.0/206.0 MB 106.1 MB/s  0:00:01
+
+Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 364.3 MB/s  0:00:00
+
+Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (197.7 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 197.7/197.7 MB 252.5 MB/s  0:00:00
+
+Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.7 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.7/6.7 MB 292.7 MB/s  0:00:00
+
+Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 86.8 MB/s  0:00:03
+
+Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 344.6 MB/s  0:00:00
+
+Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 347.5 MB/s  0:00:00
+
+Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 263.1 MB/s  0:00:00
+
+Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 237.5 MB/s  0:00:00
+
+Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 207.0 MB/s  0:00:00
+
+Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 356.0 MB/s  0:00:00
+
+Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 189.3 MB/s  0:00:01
+
+Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 326.2 MB/s  0:00:00
+
+Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 353.6 MB/s  0:00:00
+
+Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)
+
+Downloading cuda_pathfinder-1.5.6-py3-none-any.whl (52 kB)
+
+Downloading fsspec-2026.6.0-py3-none-any.whl (203 kB)
+
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 261.4 MB/s  0:00:00
+
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 331.0 MB/s  0:00:00
+
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 92.4 MB/s  0:00:00
+
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+
+Downloading filelock-3.29.7-py3-none-any.whl (46 kB)
+
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+
+Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+
+Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, typing-extensions, triton, sympy, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, networkx, MarkupSafe, fsspec, filelock, cuda-pathfinder, nvidia-cusparse, nvidia-cufft, nvidia-cublas, jinja2, cuda-bindings, nvidia-cusolver, nvidia-cudnn-cu13, torch
+
+
+
+Successfully installed MarkupSafe-3.0.3 cuda-bindings-13.3.1 cuda-pathfinder-1.5.6 cuda-toolkit-13.0.3.0 filelock-3.29.7 fsspec-2026.6.0 jinja2-3.1.6 mpmath-1.3.0 networkx-3.6.1 nvidia-cublas-13.1.1.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.20.0.48 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.1 nvidia-nccl-cu13-2.29.7 nvidia-nvjitlink-13.3.33 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 sympy-1.14.0 torch-2.13.0 triton-3.7.1 typing-extensions-4.16.0
+
+Collecting git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd
+
+  Cloning https://github.com/nori1234/llm_model_agi (to revision claude/custom-llm-model-qhtfxd) to /tmp/pip-req-build-i_61wpfm
+
+  Running command git clone --filter=blob:none --quiet https://github.com/nori1234/llm_model_agi /tmp/pip-req-build-i_61wpfm
+
+  Running command git checkout -b claude/custom-llm-model-qhtfxd --track origin/claude/custom-llm-model-qhtfxd
+
+  Switched to a new branch 'claude/custom-llm-model-qhtfxd'
+
+  branch 'claude/custom-llm-model-qhtfxd' set up to track 'origin/claude/custom-llm-model-qhtfxd'.
+
+  Resolved https://github.com/nori1234/llm_model_agi to commit 9bc016c19b99b58dd5981da4dc5e6f23eb996715
+
+  Installing build dependencies: started
+
+  Installing build dependencies: finished with status 'done'
+
+  Getting requirements to build wheel: started
+
+  Getting requirements to build wheel: finished with status 'done'
+
+  Preparing metadata (pyproject.toml): started
+
+  Preparing metadata (pyproject.toml): finished with status 'done'
+
+Requirement already satisfied: torch>=2.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from llm_model_agi==0.1.0) (2.13.0)
+
+Collecting numpy>=1.24 (from llm_model_agi==0.1.0)
+
+  Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+
+Requirement already satisfied: filelock in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.29.7)
+
+Requirement already satisfied: typing-extensions>=4.10.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (4.16.0)
+
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (79.0.1)
+
+Requirement already satisfied: sympy>=1.13.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (1.14.0)
+
+Requirement already satisfied: networkx>=2.5.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.6.1)
+
+Requirement already satisfied: jinja2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.1.6)
+
+Requirement already satisfied: fsspec>=0.8.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2026.6.0)
+
+Requirement already satisfied: cuda-toolkit==13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.3.0)
+
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (13.3.1)
+
+Requirement already satisfied: nvidia-cudnn-cu13==9.20.0.48 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (9.20.0.48)
+
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (0.8.1)
+
+Requirement already satisfied: nvidia-nccl-cu13==2.29.7 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2.29.7)
+
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.4.5)
+
+Requirement already satisfied: triton==3.7.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.7.1)
+
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.1.1.3)
+
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.88)
+
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.96)
+
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.0.61)
+
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.3.33)
+
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (1.15.1.6)
+
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (10.4.0.35)
+
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.4.66)
+
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.6.3.3)
+
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+
+Requirement already satisfied: cuda-pathfinder>=1.4.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-bindings<14,>=13.0.3->torch>=2.2->llm_model_agi==0.1.0) (1.5.6)
+
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from sympy>=1.13.3->torch>=2.2->llm_model_agi==0.1.0) (1.3.0)
+
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from jinja2->torch>=2.2->llm_model_agi==0.1.0) (3.0.3)
+
+Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 199.3 MB/s  0:00:00
+
+Building wheels for collected packages: llm_model_agi
+
+  Building wheel for llm_model_agi (pyproject.toml): started
+
+  Building wheel for llm_model_agi (pyproject.toml): finished with status 'done'
+
+  Created wheel for llm_model_agi: filename=llm_model_agi-0.1.0-py3-none-any.whl size=64932 sha256=cf0f38c69edee12d2a5441f7d7500fd0e909b9aec13d4a5b42979929c64a193b
+
+  Stored in directory: /tmp/pip-ephem-wheel-cache-lu1lpb8n/wheels/86/f3/37/aeb67515d8f9247af544d510620572ae9dbde15327b4c4e5f8
+
+Successfully built llm_model_agi
+
+Installing collected packages: numpy, llm_model_agi
+
+
+
+Successfully installed llm_model_agi-0.1.0 numpy-2.4.6
+
+##[group]Run python - <<'PY'
+
+[36;1mpython - <<'PY'[0m
+
+[36;1mimport importlib.util, sys[0m
+
+[36;1mif importlib.util.find_spec("agent.adapters.emergence") is None:[0m
+
+[36;1m    sys.exit("agent.adapters.emergence did not install — training would "[0m
+
+[36;1m             "silently fall back to the heuristic. Check llm_model_agi_ref.")[0m
+
+[36;1mprint("adapter importable — training for real.")[0m
+
+[36;1mPY[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+adapter importable — training for real.
+
+##[group]Run python scripts/train_neural_grounding.py \
+
+[36;1mpython scripts/train_neural_grounding.py \[0m
+
+[36;1m  --episodes "200" \[0m
+
+[36;1m  --days "20" \[0m
+
+[36;1m  --agents "6" \[0m
+
+[36;1m  --seed "1000" \[0m
+
+[36;1m  --pool-size "12" \[0m
+
+[36;1m  --probe-every "5" \[0m
+
+[36;1m  --window "3" \[0m
+
+[36;1m  --sandbox \[0m
+
+[36;1m  --complexity-level "0" \[0m
+
+[36;1m   \[0m
+
+[36;1m   \[0m
+
+[36;1m  --regime-block-size "10" \[0m
+
+[36;1m  --floor-rollouts "3" \[0m
+
+[36;1m   \[0m
+
+[36;1m  --hparams '{"batch_every": 64, "lr_decay_steps": 500}' \[0m
+
+[36;1m  --out grounding_out[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+[preflight] estimated conclusive yield vs 20 held-out worlds (heuristic proxy, need >= 6 per rule for floor_regression to be powered):
+
+   demurrage: 20/20 conclusive  [ok]
+
+[train] up to 200 episodes x 20 days, 6 agents, persona=guardian, sandbox, complexity_level=0, regime_block_size=10, status=False, rules=demurrage, hparams={'batch_every': 64, 'lr_decay_steps': 500}, train_pool=[1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011] (battery held-out: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61])
+
+[train] episode 1/200 done | {'stage': 'REACTIVE', 'reward': -0.05, 'curiosity': 0.0, 'competence': 0.0926, 'loss': 0.0}
+
+[train] episode 2/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.0, 'competence': 0.2943, 'loss': 0.0}
+
+[train] episode 3/200 done | {'stage': 'INSTRUCTED', 'reward': -0.35, 'curiosity': 0.12300895154476166, 'competence': 0.3337, 'loss': 4.4424848556518555, 'grad_steps': 1, 'lr': 0.0002999973352155785}
+
+[train] episode 4/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.12300895154476166, 'competence': 0.4367, 'loss': 4.4424848556518555, 'grad_steps': 1, 'lr': 0.0002999973352155785}
+
+[train] episode 5/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.14146864414215088, 'competence': 0.348, 'loss': 4.326228618621826, 'grad_steps': 2, 'lr': 0.00029998934096751514}
+
+[probe] ep 5: excess demurrage=-0.1278(streak 0)
+
+[train] episode 6/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.14146864414215088, 'competence': 0.3648, 'loss': 4.326228618621826, 'grad_steps': 2, 'lr': 0.00029998934096751514}
+
+[train] episode 7/200 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'curiosity': 0.1055702492594719, 'competence': 0.3867, 'loss': 5.3719706535339355, 'grad_steps': 3, 'lr': 0.0002999760175714092}
+
+[train] episode 8/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.1055702492594719, 'competence': 0.5963, 'loss': 5.3719706535339355, 'grad_steps': 3, 'lr': 0.0002999760175714092}
+
+[train] episode 9/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.10071898996829987, 'competence': 0.1064, 'loss': 2.469726085662842, 'grad_steps': 5, 'lr': 0.00029993338564937377}
+
+[train] episode 10/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.10071898996829987, 'competence': 0.3969, 'loss': 2.469726085662842, 'grad_steps': 5, 'lr': 0.00029993338564937377}
+
+[probe] ep 10: excess demurrage=-0.2222(streak 0)
+
+[train] episode 11/200 done | {'stage': 'CURIOUS', 'reward': -0.01999999999999999, 'curiosity': 0.0725155621767044, 'competence': 0.5186, 'loss': 7.065504550933838, 'grad_steps': 6, 'lr': 0.0002999040788064795}
+
+[train] episode 12/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.0725155621767044, 'competence': 0.6202, 'loss': 7.065504550933838, 'grad_steps': 6, 'lr': 0.0002999040788064795}
+
+[train] episode 13/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.09320692718029022, 'competence': 0.1234, 'loss': -2.141242027282715, 'grad_steps': 9, 'lr': 0.0002997842092647116}
+
+[train] episode 14/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.09320692718029022, 'competence': 0.3089, 'loss': -2.141242027282715, 'grad_steps': 9, 'lr': 0.0002997842092647116}
+
+[train] episode 15/200 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'curiosity': 0.09320692718029022, 'competence': 0.4621, 'loss': -2.141242027282715, 'grad_steps': 9, 'lr': 0.0002997842092647116}
+
+[probe] ep 15: excess demurrage=-0.3750(streak 0)
+
+[train] episode 16/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.06545419245958328, 'competence': 0.2655, 'loss': 2.3054728507995605, 'grad_steps': 10, 'lr': 0.00029973360833781664}
+
+[train] episode 17/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.06545419245958328, 'competence': 0.3445, 'loss': 2.3054728507995605, 'grad_steps': 10, 'lr': 0.00029973360833781664}
+
+[train] episode 18/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.06345830112695694, 'competence': 0.4086, 'loss': 3.734348773956299, 'grad_steps': 11, 'lr': 0.00029967768835876537}
+
+[train] episode 19/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.06345830112695694, 'competence': 0.5421, 'loss': 3.734348773956299, 'grad_steps': 11, 'lr': 0.00029967768835876537}
+
+[train] episode 20/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.061535969376564026, 'competence': 0.4681, 'loss': 2.9804348945617676, 'grad_steps': 12, 'lr': 0.00029961645153518283}
+
+[probe] ep 20: excess demurrage=-0.3333(streak 0)
+
+[train] episode 21/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.061535969376564026, 'competence': 0.3391, 'loss': 2.9804348945617676, 'grad_steps': 12, 'lr': 0.00029961645153518283}
+
+[train] episode 22/200 done | {'stage': 'INSTRUCTED', 'reward': -0.5700000000000001, 'curiosity': 0.061535969376564026, 'competence': 0.4179, 'loss': 2.9804348945617676, 'grad_steps': 12, 'lr': 0.00029961645153518283}
+
+[train] episode 23/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.0679534375667572, 'competence': 0.2985, 'loss': 2.4819040298461914, 'grad_steps': 13, 'lr': 0.000299549900284594}
+
+[train] episode 24/200 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'curiosity': 0.0679534375667572, 'competence': 0.4541, 'loss': 2.4819040298461914, 'grad_steps': 13, 'lr': 0.000299549900284594}
+
+[train] episode 25/200 done | {'stage': 'REACTIVE', 'reward': 0.54, 'curiosity': 0.06223062053322792, 'competence': 0.0725, 'loss': 2.6097168922424316, 'grad_steps': 16, 'lr': 0.0002993183872924755}
+
+[probe] ep 25: excess demurrage=-0.3750(streak 0)
+
+[train] episode 26/200 done | {'stage': 'REACTIVE', 'reward': 0.1, 'curiosity': 0.06223062053322792, 'competence': 0.0654, 'loss': 2.6097168922424316, 'grad_steps': 16, 'lr': 0.0002993183872924755}
+
+[train] episode 27/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.06852927058935165, 'competence': 0.3908, 'loss': 2.151914358139038, 'grad_steps': 17, 'lr': 0.00029923060670359485}
+
+[train] episode 28/200 done | {'stage': 'CURIOUS', 'reward': 0.08000000000000002, 'curiosity': 0.06852927058935165, 'competence': 0.5655, 'loss': 2.151914358139038, 'grad_steps': 17, 'lr': 0.00029923060670359485}
+
+[train] episode 29/200 done | {'stage': 'INSTRUCTED', 'reward': 0.20000000000000004, 'curiosity': 0.063644640147686, 'competence': 0.4757, 'loss': 3.542569637298584, 'grad_steps': 18, 'lr': 0.0002991375269202011}
+
+[train] episode 30/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.063644640147686, 'competence': 0.5616, 'loss': 3.542569637298584, 'grad_steps': 18, 'lr': 0.0002991375269202011}
+
+[probe] ep 30: excess demurrage=-0.0833(streak 0)
+
+[train] episode 31/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.063644640147686, 'competence': 0.6039, 'loss': 3.542569637298584, 'grad_steps': 18, 'lr': 0.0002991375269202011}
+
+[train] episode 32/200 done | {'stage': 'CURIOUS', 'reward': 0.18000000000000005, 'curiosity': 0.05210592597723007, 'competence': 0.6306, 'loss': 3.2497193813323975, 'grad_steps': 19, 'lr': 0.0002990391516169248}
+
+[train] episode 33/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.08205880224704742, 'competence': 0.141, 'loss': 3.3043315410614014, 'grad_steps': 20, 'lr': 0.0002989354846774545}
+
+[train] episode 34/200 done | {'stage': 'INSTRUCTED', 'reward': 0.43385130167007446, 'curiosity': 0.05762258917093277, 'competence': 0.3786, 'loss': 2.530355215072632, 'grad_steps': 21, 'lr': 0.0002988265301943834}
+
+[train] episode 35/200 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'curiosity': 0.05762258917093277, 'competence': 0.4401, 'loss': 2.530355215072632, 'grad_steps': 21, 'lr': 0.0002988265301943834}
+
+[probe] ep 35: excess demurrage=-0.1944(streak 0)
+
+[train] episode 36/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.05762258917093277, 'competence': 0.6784, 'loss': 2.530355215072632, 'grad_steps': 21, 'lr': 0.0002988265301943834}
+
+[train] episode 37/200 done | {'stage': 'CURIOUS', 'reward': -0.27, 'curiosity': 0.05762258917093277, 'competence': 0.5967, 'loss': 2.530355215072632, 'grad_steps': 21, 'lr': 0.0002988265301943834}
+
+[train] episode 38/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.03887205198407173, 'competence': 0.197, 'loss': 4.654903888702393, 'grad_steps': 23, 'lr': 0.00029859277601135785}
+
+[train] episode 39/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.03887205198407173, 'competence': 0.4577, 'loss': 4.654903888702393, 'grad_steps': 23, 'lr': 0.00029859277601135785}
+
+[train] episode 40/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.0776074230670929, 'competence': 0.5345, 'loss': 4.1357741355896, 'grad_steps': 24, 'lr': 0.00029846798553961835}
+
+[probe] ep 40: excess demurrage=-0.3056(streak 0)
+
+[train] episode 41/200 done | {'stage': 'CURIOUS', 'reward': -0.45, 'curiosity': 0.0776074230670929, 'competence': 0.5567, 'loss': 4.1357741355896, 'grad_steps': 24, 'lr': 0.00029846798553961835}
+
+[train] episode 42/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.06420984119176865, 'competence': 0.0712, 'loss': 1.6701337099075317, 'grad_steps': 26, 'lr': 0.00029820260246806216}
+
+[train] episode 43/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.02334398776292801, 'competence': 0.0551, 'loss': 2.379305362701416, 'grad_steps': 27, 'lr': 0.00029806202034511473}
+
+[train] episode 44/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.02334398776292801, 'competence': 0.2873, 'loss': 2.379305362701416, 'grad_steps': 27, 'lr': 0.00029806202034511473}
+
+[train] episode 45/200 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'curiosity': 0.038382403552532196, 'competence': 0.4412, 'loss': 4.024325847625732, 'grad_steps': 28, 'lr': 0.0002979161851614427}
+
+[probe] ep 45: excess demurrage=-0.3472(streak 0)
+
+[train] episode 46/200 done | {'stage': 'INSTRUCTED', 'reward': -0.6, 'curiosity': 0.038382403552532196, 'competence': 0.4968, 'loss': 4.024325847625732, 'grad_steps': 28, 'lr': 0.0002979161851614427}
+
+[train] episode 47/200 done | {'stage': 'INSTRUCTED', 'reward': -0.5700000000000001, 'curiosity': 0.05116746202111244, 'competence': 0.3339, 'loss': 3.207517147064209, 'grad_steps': 29, 'lr': 0.00029776510267436946}
+
+[train] episode 48/200 done | {'stage': 'INSTRUCTED', 'reward': -0.30000000000000004, 'curiosity': 0.05116746202111244, 'competence': 0.3415, 'loss': 3.207517147064209, 'grad_steps': 29, 'lr': 0.00029776510267436946}
+
+[train] episode 49/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.0554313063621521, 'competence': 0.3563, 'loss': 2.7145676612854004, 'grad_steps': 30, 'lr': 0.000297608778848373}
+
+[train] episode 50/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.07683480530977249, 'competence': 0.1851, 'loss': 6.002396106719971, 'grad_steps': 32, 'lr': 0.0002972804320718733}
+
+[probe] ep 50: excess demurrage=-0.4792(streak 0)
+
+[train] episode 51/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.07683480530977249, 'competence': 0.3913, 'loss': 6.002396106719971, 'grad_steps': 32, 'lr': 0.0002972804320718733}
+
+[train] episode 52/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.07683480530977249, 'competence': 0.308, 'loss': 6.002396106719971, 'grad_steps': 32, 'lr': 0.0002972804320718733}
+
+[train] episode 53/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.04988741874694824, 'competence': 0.5479, 'loss': 5.565553665161133, 'grad_steps': 33, 'lr': 0.0002971084220839387}
+
+[train] episode 54/200 done | {'stage': 'REACTIVE', 'reward': 0.0, 'curiosity': 0.08557754009962082, 'competence': 0.1572, 'loss': 2.9562833309173584, 'grad_steps': 35, 'lr': 0.00029674876286173087}
+
+[train] episode 55/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.08557754009962082, 'competence': 0.3732, 'loss': 2.9562833309173584, 'grad_steps': 35, 'lr': 0.00029674876286173087}
+
+[probe] ep 55: excess demurrage=+0.0417(streak 1)
+
+[train] episode 56/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.057548366487026215, 'competence': 0.4136, 'loss': 6.41834831237793, 'grad_steps': 36, 'lr': 0.0002965611278261879}
+
+[train] episode 57/200 done | {'stage': 'CURIOUS', 'reward': -0.28, 'curiosity': 0.057548366487026215, 'competence': 0.5152, 'loss': 6.41834831237793, 'grad_steps': 36, 'lr': 0.0002965611278261879}
+
+[train] episode 58/200 done | {'stage': 'CURIOUS', 'reward': -0.42000000000000004, 'curiosity': 0.057548366487026215, 'competence': 0.5921, 'loss': 6.41834831237793, 'grad_steps': 36, 'lr': 0.0002965611278261879}
+
+[train] episode 59/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.07165899127721786, 'competence': 0.5039, 'loss': 2.9736742973327637, 'grad_steps': 37, 'lr': 0.0002963682989825871}
+
+[train] episode 60/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.07165899127721786, 'competence': 0.5938, 'loss': 2.9736742973327637, 'grad_steps': 37, 'lr': 0.0002963682989825871}
+
+[probe] ep 60: excess demurrage=-0.5417(streak 0)
+
+[train] episode 61/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.060530055314302444, 'competence': 0.5007, 'loss': 3.2373111248016357, 'grad_steps': 38, 'lr': 0.000296170283943481}
+
+[train] episode 62/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.060530055314302444, 'competence': 0.6492, 'loss': 3.2373111248016357, 'grad_steps': 38, 'lr': 0.000296170283943481}
+
+[train] episode 63/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.060530055314302444, 'competence': 0.6956, 'loss': 3.2373111248016357, 'grad_steps': 38, 'lr': 0.000296170283943481}
+
+[train] episode 64/200 done | {'stage': 'INSTRUCTED', 'reward': -0.12, 'curiosity': 0.086399607360363, 'competence': 0.2755, 'loss': 2.166473150253296, 'grad_steps': 39, 'lr': 0.00029596709052616426}
+
+[train] episode 65/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.06675229966640472, 'competence': 0.3906, 'loss': 2.6869170665740967, 'grad_steps': 40, 'lr': 0.0002957587267523652}
+
+[probe] ep 65: excess demurrage=-0.5500(streak 0)
+
+[train] episode 66/200 done | {'stage': 'INSTRUCTED', 'reward': -0.35000000000000003, 'curiosity': 0.06675229966640472, 'competence': 0.4474, 'loss': 2.6869170665740967, 'grad_steps': 40, 'lr': 0.0002957587267523652}
+
+[train] episode 67/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.06675229966640472, 'competence': 0.6563, 'loss': 2.6869170665740967, 'grad_steps': 40, 'lr': 0.0002957587267523652}
+
+[train] episode 68/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.07300873100757599, 'competence': 0.4385, 'loss': 3.496929168701172, 'grad_steps': 41, 'lr': 0.0002955452008479287}
+
+[train] episode 69/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.07300873100757599, 'competence': 0.5071, 'loss': 3.496929168701172, 'grad_steps': 41, 'lr': 0.0002955452008479287}
+
+[train] episode 70/200 done | {'stage': 'CURIOUS', 'reward': -0.07999999999999999, 'curiosity': 0.04736734926700592, 'competence': 0.5637, 'loss': 3.5229508876800537, 'grad_steps': 42, 'lr': 0.00029532652124249193}
+
+[probe] ep 70: excess demurrage=+0.5167(streak 1)
+
+[train] episode 71/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.04736734926700592, 'competence': 0.6065, 'loss': 3.5229508876800537, 'grad_steps': 42, 'lr': 0.00029532652124249193}
+
+[train] episode 72/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.04736734926700592, 'competence': 0.4872, 'loss': 3.5229508876800537, 'grad_steps': 42, 'lr': 0.00029532652124249193}
+
+[train] episode 73/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.07709503173828125, 'competence': 0.2554, 'loss': 2.367654323577881, 'grad_steps': 43, 'lr': 0.0002951026965691513}
+
+[train] episode 74/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.04944474995136261, 'competence': 0.3331, 'loss': 0.6202399134635925, 'grad_steps': 44, 'lr': 0.00029487373566412155}
+
+[train] episode 75/200 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'curiosity': 0.04944474995136261, 'competence': 0.4624, 'loss': 0.6202399134635925, 'grad_steps': 44, 'lr': 0.00029487373566412155}
+
+[probe] ep 75: excess demurrage=+0.0556(streak 2)
+
+[train] episode 76/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.04944474995136261, 'competence': 0.6083, 'loss': 0.6202399134635925, 'grad_steps': 44, 'lr': 0.00029487373566412155}
+
+[train] episode 77/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.043951090425252914, 'competence': 0.6948, 'loss': 2.218198776245117, 'grad_steps': 45, 'lr': 0.0002946396475663873}
+
+[train] episode 78/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.043951090425252914, 'competence': 0.6436, 'loss': 2.218198776245117, 'grad_steps': 45, 'lr': 0.0002946396475663873}
+
+[train] episode 79/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.043951090425252914, 'competence': 0.7436, 'loss': 2.218198776245117, 'grad_steps': 45, 'lr': 0.0002946396475663873}
+
+[train] episode 80/200 done | {'stage': 'CURIOUS', 'reward': -0.15000000000000002, 'curiosity': 0.03827258199453354, 'competence': 0.6315, 'loss': 0.3354330062866211, 'grad_steps': 46, 'lr': 0.0002944004415173457}
+
+[probe] ep 80: excess demurrage=-0.2976(streak 0)
+
+[train] episode 81/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.03827258199453354, 'competence': 0.3324, 'loss': 0.3354330062866211, 'grad_steps': 46, 'lr': 0.0002944004415173457}
+
+[train] episode 82/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.05255720764398575, 'competence': 0.4215, 'loss': 1.1325068473815918, 'grad_steps': 47, 'lr': 0.0002941561269604421}
+
+[train] episode 83/200 done | {'stage': 'CURIOUS', 'reward': 0.25, 'curiosity': 0.05255720764398575, 'competence': 0.5812, 'loss': 1.1325068473815918, 'grad_steps': 47, 'lr': 0.0002941561269604421}
+
+[train] episode 84/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.05255720764398575, 'competence': 0.5643, 'loss': 1.1325068473815918, 'grad_steps': 47, 'lr': 0.0002941561269604421}
+
+[train] episode 85/200 done | {'stage': 'CURIOUS', 'reward': -0.06999999999999999, 'curiosity': 0.02189895510673523, 'competence': 0.5761, 'loss': 1.842490792274475, 'grad_steps': 48, 'lr': 0.0002939067135407968}
+
+[probe] ep 85: excess demurrage=+0.4931(streak 1)
+
+[train] episode 86/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.02189895510673523, 'competence': 0.5929, 'loss': 1.842490792274475, 'grad_steps': 48, 'lr': 0.0002939067135407968}
+
+[train] episode 87/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.026588529348373413, 'competence': 0.4847, 'loss': 1.1304696798324585, 'grad_steps': 49, 'lr': 0.0002936522111048245}
+
+[train] episode 88/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.026588529348373413, 'competence': 0.3615, 'loss': 1.1304696798324585, 'grad_steps': 49, 'lr': 0.0002936522111048245}
+
+[train] episode 89/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.02455633506178856, 'competence': 0.4736, 'loss': 1.0148305892944336, 'grad_steps': 50, 'lr': 0.0002933926296998457}
+
+[train] episode 90/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.022721849381923676, 'competence': 0.3274, 'loss': 1.3544920682907104, 'grad_steps': 52, 'lr': 0.00029285827117429044}
+
+[probe] ep 90: excess demurrage=-0.1528(streak 0)
+
+[train] episode 91/200 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'curiosity': 0.022721849381923676, 'competence': 0.4133, 'loss': 1.3544920682907104, 'grad_steps': 52, 'lr': 0.00029285827117429044}
+
+[train] episode 92/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.024066977202892303, 'competence': 0.6325, 'loss': 1.3794625997543335, 'grad_steps': 53, 'lr': 0.0002925835151492736}
+
+[train] episode 93/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.024066977202892303, 'competence': 0.6501, 'loss': 1.3794625997543335, 'grad_steps': 53, 'lr': 0.0002925835151492736}
+
+[train] episode 94/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.02275722473859787, 'competence': 0.6859, 'loss': 1.181465983390808, 'grad_steps': 54, 'lr': 0.0002923037223455367}
+
+[train] episode 95/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.02275722473859787, 'competence': 0.6864, 'loss': 1.181465983390808, 'grad_steps': 54, 'lr': 0.0002923037223455367}
+
+[probe] ep 95: excess demurrage=-0.9722(streak 0)
+
+[train] episode 96/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.02275722473859787, 'competence': 0.7553, 'loss': 1.181465983390808, 'grad_steps': 54, 'lr': 0.0002923037223455367}
+
+[train] episode 97/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.024495471268892288, 'competence': 0.5779, 'loss': 0.8044565320014954, 'grad_steps': 55, 'lr': 0.00029201890380882044}
+
+[train] episode 98/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.024495471268892288, 'competence': 0.7057, 'loss': 0.8044565320014954, 'grad_steps': 55, 'lr': 0.00029201890380882044}
+
+[train] episode 99/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.024495471268892288, 'competence': 0.6498, 'loss': 0.8044565320014954, 'grad_steps': 55, 'lr': 0.00029201890380882044}
+
+[train] episode 100/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.016042470932006836, 'competence': 0.6056, 'loss': 0.3281089663505554, 'grad_steps': 56, 'lr': 0.00029172907078327297}
+
+[probe] ep 100: excess demurrage=+0.2560(streak 1)
+
+[train] episode 101/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.016042470932006836, 'competence': 0.6207, 'loss': 0.3281089663505554, 'grad_steps': 56, 'lr': 0.00029172907078327297}
+
+[train] episode 102/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.016042470932006836, 'competence': 0.5755, 'loss': 0.3281089663505554, 'grad_steps': 56, 'lr': 0.00029172907078327297}
+
+[train] episode 103/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.013473469763994217, 'competence': 0.6014, 'loss': 0.3317355811595917, 'grad_steps': 57, 'lr': 0.0002914342347110059}
+
+[train] episode 104/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.013473469763994217, 'competence': 0.6652, 'loss': 0.3317355811595917, 'grad_steps': 57, 'lr': 0.0002914342347110059}
+
+[train] episode 105/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.013473469763994217, 'competence': 0.7144, 'loss': 0.3317355811595917, 'grad_steps': 57, 'lr': 0.0002914342347110059}
+
+[probe] ep 105: excess demurrage=-0.3482(streak 0)
+
+[train] episode 106/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.016499558463692665, 'competence': 0.5922, 'loss': 0.3452281653881073, 'grad_steps': 58, 'lr': 0.00029113440723164263}
+
+[train] episode 107/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.016499558463692665, 'competence': 0.7059, 'loss': 0.3452281653881073, 'grad_steps': 58, 'lr': 0.00029113440723164263}
+
+[train] episode 108/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.016499558463692665, 'competence': 0.5873, 'loss': 0.3452281653881073, 'grad_steps': 58, 'lr': 0.00029113440723164263}
+
+[train] episode 109/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.014282837510108948, 'competence': 0.5799, 'loss': 0.8969465494155884, 'grad_steps': 59, 'lr': 0.0002908296001818584}
+
+[train] episode 110/200 done | {'stage': 'CURIOUS', 'reward': 0.30000000000000004, 'curiosity': 0.014282837510108948, 'competence': 0.5351, 'loss': 0.8969465494155884, 'grad_steps': 59, 'lr': 0.0002908296001818584}
+
+[probe] ep 110: excess demurrage=-0.0357(streak 0)
+
+[train] episode 111/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.014282837510108948, 'competence': 0.6325, 'loss': 0.8969465494155884, 'grad_steps': 59, 'lr': 0.0002908296001818584}
+
+[train] episode 112/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.015713127329945564, 'competence': 0.6666, 'loss': 0.8903354406356812, 'grad_steps': 60, 'lr': 0.00029051982559491393}
+
+[train] episode 113/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.015713127329945564, 'competence': 0.585, 'loss': 0.8903354406356812, 'grad_steps': 60, 'lr': 0.00029051982559491393}
+
+[train] episode 114/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.015713127329945564, 'competence': 0.6405, 'loss': 0.8903354406356812, 'grad_steps': 60, 'lr': 0.00029051982559491393}
+
+[train] episode 115/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.017570460215210915, 'competence': 0.6934, 'loss': 1.6264089345932007, 'grad_steps': 61, 'lr': 0.00029020509570017926}
+
+[probe] ep 115: excess demurrage=+0.0516(streak 1)
+
+[train] episode 116/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.017570460215210915, 'competence': 0.6993, 'loss': 1.6264089345932007, 'grad_steps': 61, 'lr': 0.00029020509570017926}
+
+[train] episode 117/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.017570460215210915, 'competence': 0.6683, 'loss': 1.6264089345932007, 'grad_steps': 61, 'lr': 0.00029020509570017926}
+
+[train] episode 118/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.024777576327323914, 'competence': 0.7177, 'loss': 1.0490769147872925, 'grad_steps': 62, 'lr': 0.0002898854229226518}
+
+[train] episode 119/200 done | {'stage': 'AUTONOMOUS', 'reward': 0.1, 'curiosity': 0.024777576327323914, 'competence': 0.8005, 'loss': 1.0490769147872925, 'grad_steps': 62, 'lr': 0.0002898854229226518}
+
+[train] episode 120/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.024777576327323914, 'competence': 0.771, 'loss': 1.0490769147872925, 'grad_steps': 62, 'lr': 0.0002898854229226518}
+
+[probe] ep 120: excess demurrage=-0.5833(streak 0)
+
+[train] episode 121/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.0386216975748539, 'competence': 0.6519, 'loss': 1.8125455379486084, 'grad_steps': 63, 'lr': 0.0002895608198824655}
+
+[train] episode 122/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.0386216975748539, 'competence': 0.6375, 'loss': 1.8125455379486084, 'grad_steps': 63, 'lr': 0.0002895608198824655}
+
+[train] episode 123/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.0386216975748539, 'competence': 0.6043, 'loss': 1.8125455379486084, 'grad_steps': 63, 'lr': 0.0002895608198824655}
+
+[train] episode 124/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.04118224233388901, 'competence': 0.6158, 'loss': 1.2412896156311035, 'grad_steps': 64, 'lr': 0.00028923129939439245}
+
+[train] episode 125/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.04118224233388901, 'competence': 0.417, 'loss': 1.2412896156311035, 'grad_steps': 64, 'lr': 0.00028923129939439245}
+
+[probe] ep 125: excess demurrage=-0.5119(streak 0)
+
+[train] episode 126/200 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'curiosity': 0.03894788399338722, 'competence': 0.4751, 'loss': 3.009310245513916, 'grad_steps': 65, 'lr': 0.00028889687446733743}
+
+[train] episode 127/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.03894788399338722, 'competence': 0.4842, 'loss': 3.009310245513916, 'grad_steps': 65, 'lr': 0.00028889687446733743}
+
+[train] episode 128/200 done | {'stage': 'INSTRUCTED', 'reward': 0.31824570894241333, 'curiosity': 0.03991914540529251, 'competence': 0.3862, 'loss': 2.794612169265747, 'grad_steps': 66, 'lr': 0.00028855755830382385}
+
+[train] episode 129/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.03991914540529251, 'competence': 0.5375, 'loss': 2.794612169265747, 'grad_steps': 66, 'lr': 0.00028855755830382385}
+
+[train] episode 130/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.03991914540529251, 'competence': 0.5509, 'loss': 2.794612169265747, 'grad_steps': 66, 'lr': 0.00028855755830382385}
+
+[probe] ep 130: excess demurrage=-0.0046(streak 0)
+
+[train] episode 131/200 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'curiosity': 0.04586365818977356, 'competence': 0.4576, 'loss': 2.1036598682403564, 'grad_steps': 67, 'lr': 0.00028821336429947286}
+
+[train] episode 132/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.035878315567970276, 'competence': 0.2713, 'loss': 3.1231956481933594, 'grad_steps': 69, 'lr': 0.0002875103973130508}
+
+[train] episode 133/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.07751035690307617, 'competence': 0.4295, 'loss': 2.0146572589874268, 'grad_steps': 71, 'lr': 0.00028678808451470736}
+
+[train] episode 134/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.05779549479484558, 'competence': 0.5122, 'loss': 2.8672242164611816, 'grad_steps': 72, 'lr': 0.00028641970896146006}
+
+[train] episode 135/200 done | {'stage': 'INSTRUCTED', 'reward': -0.16, 'curiosity': 0.05779549479484558, 'competence': 0.3271, 'loss': 2.8672242164611816, 'grad_steps': 72, 'lr': 0.00028641970896146006}
+
+[probe] ep 135: excess demurrage=-0.0543(streak 0)
+
+[train] episode 136/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.05779549479484558, 'competence': 0.2824, 'loss': 2.8672242164611816, 'grad_steps': 72, 'lr': 0.00028641970896146006}
+
+[train] episode 137/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.06079629808664322, 'competence': 0.4127, 'loss': 2.5534887313842773, 'grad_steps': 73, 'lr': 0.00028604653996600684}
+
+[train] episode 138/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'curiosity': 0.08393865823745728, 'competence': 0.2383, 'loss': 2.4924802780151367, 'grad_steps': 74, 'lr': 0.0002856685922604206}
+
+[train] episode 139/200 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'curiosity': 0.08393865823745728, 'competence': 0.3873, 'loss': 2.4924802780151367, 'grad_steps': 74, 'lr': 0.0002856685922604206}
+
+[train] episode 140/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.06826106458902359, 'competence': 0.4735, 'loss': 1.6342315673828125, 'grad_steps': 75, 'lr': 0.00028528588076542964}
+
+[probe] ep 140: excess demurrage=+0.1258(streak 1)
+
+[train] episode 141/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.06826106458902359, 'competence': 0.3779, 'loss': 1.6342315673828125, 'grad_steps': 75, 'lr': 0.00028528588076542964}
+
+[train] episode 142/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.06826106458902359, 'competence': 0.4749, 'loss': 1.6342315673828125, 'grad_steps': 75, 'lr': 0.00028528588076542964}
+
+[train] episode 143/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.06814039498567581, 'competence': 0.5051, 'loss': 2.701565980911255, 'grad_steps': 76, 'lr': 0.0002848984205898285}
+
+[train] episode 144/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.06814039498567581, 'competence': 0.5249, 'loss': 2.701565980911255, 'grad_steps': 76, 'lr': 0.0002848984205898285}
+
+[train] episode 145/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.06814039498567581, 'competence': 0.3623, 'loss': 2.701565980911255, 'grad_steps': 76, 'lr': 0.0002848984205898285}
+
+[probe] ep 145: excess demurrage=-1.0364(streak 0)
+
+[train] episode 146/200 done | {'stage': 'CURIOUS', 'reward': -0.30000000000000004, 'curiosity': 0.057515934109687805, 'competence': 0.555, 'loss': 2.008927345275879, 'grad_steps': 77, 'lr': 0.00028450622702988146}
+
+[train] episode 147/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.057515934109687805, 'competence': 0.5767, 'loss': 2.008927345275879, 'grad_steps': 77, 'lr': 0.00028450622702988146}
+
+[train] episode 148/200 done | {'stage': 'CURIOUS', 'reward': -0.45000000000000007, 'curiosity': 0.046715766191482544, 'competence': 0.6098, 'loss': 1.3861194849014282, 'grad_steps': 78, 'lr': 0.00028410931556871867}
+
+[train] episode 149/200 done | {'stage': 'INSTRUCTED', 'reward': -0.35, 'curiosity': 0.046715766191482544, 'competence': 0.3718, 'loss': 1.3861194849014282, 'grad_steps': 78, 'lr': 0.00028410931556871867}
+
+[train] episode 150/200 done | {'stage': 'INSTRUCTED', 'reward': 0.43081316351890564, 'curiosity': 0.047762125730514526, 'competence': 0.47, 'loss': 1.7642457485198975, 'grad_steps': 79, 'lr': 0.00028370770187572503}
+
+[probe] ep 150: excess demurrage=-0.5561(streak 0)
+
+[train] episode 151/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.047762125730514526, 'competence': 0.682, 'loss': 1.7642457485198975, 'grad_steps': 79, 'lr': 0.00028370770187572503}
+
+[train] episode 152/200 done | {'stage': 'CURIOUS', 'reward': -0.52, 'curiosity': 0.047762125730514526, 'competence': 0.7037, 'loss': 1.7642457485198975, 'grad_steps': 79, 'lr': 0.00028370770187572503}
+
+[train] episode 153/200 done | {'stage': 'INSTRUCTED', 'reward': -0.15000000000000002, 'curiosity': 0.03643420711159706, 'competence': 0.4015, 'loss': 1.2692152261734009, 'grad_steps': 80, 'lr': 0.00028330140180592156}
+
+[train] episode 154/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.03643420711159706, 'competence': 0.5478, 'loss': 1.2692152261734009, 'grad_steps': 80, 'lr': 0.00028330140180592156}
+
+[train] episode 155/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.03643420711159706, 'competence': 0.6926, 'loss': 1.2692152261734009, 'grad_steps': 80, 'lr': 0.00028330140180592156}
+
+[probe] ep 155: excess demurrage=+0.0528(streak 1)
+
+[train] episode 156/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.03581910952925682, 'competence': 0.3791, 'loss': 1.3380136489868164, 'grad_steps': 83, 'lr': 0.0002820545446572061}
+
+[train] episode 157/200 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'curiosity': 0.03581910952925682, 'competence': 0.4654, 'loss': 1.3380136489868164, 'grad_steps': 83, 'lr': 0.0002820545446572061}
+
+[train] episode 158/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.020427949726581573, 'competence': 0.6459, 'loss': 1.435126781463623, 'grad_steps': 84, 'lr': 0.00028162966132103275}
+
+[train] episode 159/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.020427949726581573, 'competence': 0.7105, 'loss': 1.435126781463623, 'grad_steps': 84, 'lr': 0.00028162966132103275}
+
+[train] episode 160/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.020427949726581573, 'competence': 0.4679, 'loss': 1.435126781463623, 'grad_steps': 84, 'lr': 0.00028162966132103275}
+
+[probe] ep 160: excess demurrage=+0.4083(streak 2)
+
+[train] episode 161/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.0230083204805851, 'competence': 0.3156, 'loss': 1.4046821594238281, 'grad_steps': 87, 'lr': 0.0002803274532794048}
+
+[train] episode 162/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'curiosity': 0.0230083204805851, 'competence': 0.4135, 'loss': 1.4046821594238281, 'grad_steps': 87, 'lr': 0.0002803274532794048}
+
+[train] episode 163/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.023943686857819557, 'competence': 0.5151, 'loss': 1.2155613899230957, 'grad_steps': 88, 'lr': 0.0002798842550422834}
+
+[train] episode 164/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.023943686857819557, 'competence': 0.6499, 'loss': 1.2155613899230957, 'grad_steps': 88, 'lr': 0.0002798842550422834}
+
+[train] episode 165/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.023943686857819557, 'competence': 0.5599, 'loss': 1.2155613899230957, 'grad_steps': 88, 'lr': 0.0002798842550422834}
+
+[probe] ep 165: excess demurrage=-0.7130(streak 0)
+
+[train] episode 166/200 done | {'stage': 'CURIOUS', 'reward': -0.1, 'curiosity': 0.016034727916121483, 'competence': 0.6018, 'loss': 0.602448046207428, 'grad_steps': 89, 'lr': 0.0002794365213714862}
+
+[train] episode 167/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.016034727916121483, 'competence': 0.5966, 'loss': 0.602448046207428, 'grad_steps': 89, 'lr': 0.0002794365213714862}
+
+[train] episode 168/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.016168199479579926, 'competence': 0.6948, 'loss': 0.3618384599685669, 'grad_steps': 90, 'lr': 0.000278984269942772}
+
+[train] episode 169/200 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'curiosity': 0.016168199479579926, 'competence': 0.4966, 'loss': 0.3618384599685669, 'grad_steps': 90, 'lr': 0.000278984269942772}
+
+[train] episode 170/200 done | {'stage': 'CURIOUS', 'reward': -0.4, 'curiosity': 0.016168199479579926, 'competence': 0.5857, 'loss': 0.3618384599685669, 'grad_steps': 90, 'lr': 0.000278984269942772}
+
+[probe] ep 170: excess demurrage=+0.0093(streak 1)
+
+[train] episode 171/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.01246638409793377, 'competence': 0.6152, 'loss': 0.7328171133995056, 'grad_steps': 91, 'lr': 0.0002785275186102528}
+
+[train] episode 172/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.01246638409793377, 'competence': 0.613, 'loss': 0.7328171133995056, 'grad_steps': 91, 'lr': 0.0002785275186102528}
+
+[train] episode 173/200 done | {'stage': 'INSTRUCTED', 'reward': 0.54, 'curiosity': 0.01712944731116295, 'competence': 0.3907, 'loss': 1.8426851034164429, 'grad_steps': 94, 'lr': 0.00027713044639143466}
+
+[train] episode 174/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.01712944731116295, 'competence': 0.6167, 'loss': 1.8426851034164429, 'grad_steps': 94, 'lr': 0.00027713044639143466}
+
+[train] episode 175/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.01712944731116295, 'competence': 0.5776, 'loss': 1.8426851034164429, 'grad_steps': 94, 'lr': 0.00027713044639143466}
+
+[probe] ep 175: excess demurrage=-0.3833(streak 0)
+
+[train] episode 176/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.017809052020311356, 'competence': 0.6415, 'loss': 1.5065693855285645, 'grad_steps': 95, 'lr': 0.0002766558775270658}
+
+[train] episode 177/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.017809052020311356, 'competence': 0.3429, 'loss': 1.5065693855285645, 'grad_steps': 95, 'lr': 0.0002766558775270658}
+
+[train] episode 178/200 done | {'stage': 'INSTRUCTED', 'reward': 0.1962529867887497, 'curiosity': 0.018577810376882553, 'competence': 0.4692, 'loss': 1.3338512182235718, 'grad_steps': 96, 'lr': 0.00027617690067983767}
+
+[train] episode 179/200 done | {'stage': 'CURIOUS', 'reward': 0.15, 'curiosity': 0.018577810376882553, 'competence': 0.6196, 'loss': 1.3338512182235718, 'grad_steps': 96, 'lr': 0.00027617690067983767}
+
+[train] episode 180/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.018577810376882553, 'competence': 0.6878, 'loss': 1.3338512182235718, 'grad_steps': 96, 'lr': 0.00027617690067983767}
+
+[probe] ep 180: excess demurrage=+0.4167(streak 1)
+
+[train] episode 181/200 done | {'stage': 'CURIOUS', 'reward': -0.009999999999999981, 'curiosity': 0.019812611863017082, 'competence': 0.6095, 'loss': 0.990490198135376, 'grad_steps': 97, 'lr': 0.00027569353475893606}
+
+[train] episode 182/200 done | {'stage': 'CURIOUS', 'reward': 0.25, 'curiosity': 0.019812611863017082, 'competence': 0.5995, 'loss': 0.990490198135376, 'grad_steps': 97, 'lr': 0.00027569353475893606}
+
+[train] episode 183/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.019812611863017082, 'competence': 0.7002, 'loss': 0.990490198135376, 'grad_steps': 97, 'lr': 0.00027569353475893606}
+
+[train] episode 184/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.015151137486100197, 'competence': 0.685, 'loss': -0.13145969808101654, 'grad_steps': 98, 'lr': 0.00027520579884681985}
+
+[train] episode 185/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.015151137486100197, 'competence': 0.6865, 'loss': -0.13145969808101654, 'grad_steps': 98, 'lr': 0.00027520579884681985}
+
+[probe] ep 185: excess demurrage=-0.0889(streak 0)
+
+[train] episode 186/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.015151137486100197, 'competence': 0.6254, 'loss': -0.13145969808101654, 'grad_steps': 98, 'lr': 0.00027520579884681985}
+
+[train] episode 187/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.014636650681495667, 'competence': 0.683, 'loss': 0.962476372718811, 'grad_steps': 99, 'lr': 0.0002747137121984676}
+
+[train] episode 188/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'curiosity': 0.014636650681495667, 'competence': 0.4774, 'loss': 0.962476372718811, 'grad_steps': 99, 'lr': 0.0002747137121984676}
+
+[train] episode 189/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.011553819291293621, 'competence': 0.6572, 'loss': 0.7828661203384399, 'grad_steps': 100, 'lr': 0.00027421729424061787}
+
+[train] episode 190/200 done | {'stage': 'CURIOUS', 'reward': -0.05, 'curiosity': 0.011553819291293621, 'competence': 0.6306, 'loss': 0.7828661203384399, 'grad_steps': 100, 'lr': 0.00027421729424061787}
+
+[probe] ep 190: excess demurrage=-0.6241(streak 0)
+
+[train] episode 191/200 done | {'stage': 'CURIOUS', 'reward': 0.20000000000000004, 'curiosity': 0.011553819291293621, 'competence': 0.6319, 'loss': 0.7828661203384399, 'grad_steps': 100, 'lr': 0.00027421729424061787}
+
+[train] episode 192/200 done | {'stage': 'CURIOUS', 'reward': 0.35, 'curiosity': 0.009522895328700542, 'competence': 0.6729, 'loss': -0.10747130960226059, 'grad_steps': 101, 'lr': 0.0002737165645710014}
+
+[train] episode 193/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.009522895328700542, 'competence': 0.7155, 'loss': -0.10747130960226059, 'grad_steps': 101, 'lr': 0.0002737165645710014}
+
+[train] episode 194/200 done | {'stage': 'CURIOUS', 'reward': -0.15000000000000002, 'curiosity': 0.01512589305639267, 'competence': 0.5483, 'loss': 0.4117503762245178, 'grad_steps': 102, 'lr': 0.0002732115429575683}
+
+[train] episode 195/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.01512589305639267, 'competence': 0.7355, 'loss': 0.4117503762245178, 'grad_steps': 102, 'lr': 0.0002732115429575683}
+
+[probe] ep 195: excess demurrage=-0.1481(streak 0)
+
+[train] episode 196/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.01512589305639267, 'competence': 0.7255, 'loss': 0.4117503762245178, 'grad_steps': 102, 'lr': 0.0002732115429575683}
+
+[train] episode 197/200 done | {'stage': 'CURIOUS', 'reward': 0.05000000000000002, 'curiosity': 0.010513084940612316, 'competence': 0.6993, 'loss': 0.10473597049713135, 'grad_steps': 103, 'lr': 0.00027270224933770705}
+
+[train] episode 198/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.010513084940612316, 'competence': 0.6934, 'loss': 0.10473597049713135, 'grad_steps': 103, 'lr': 0.00027270224933770705}
+
+[train] episode 199/200 done | {'stage': 'CURIOUS', 'reward': 0.0, 'curiosity': 0.010513084940612316, 'competence': 0.6471, 'loss': 0.10473597049713135, 'grad_steps': 103, 'lr': 0.00027270224933770705}
+
+[train] episode 200/200 done | {'stage': 'CURIOUS', 'reward': 0.1, 'curiosity': 0.011130212806165218, 'competence': 0.7683, 'loss': 0.36080819368362427, 'grad_steps': 104, 'lr': 0.00027218870381745774}
+
+[probe] ep 200: excess demurrage=-0.5455(streak 0)
+
+[battery] running the acceptance battery (demurrage x held-out worlds [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61], sandbox, complexity_level=0, regime_block_size=10, floor_rollouts=3)...
+
+{
+
+  "trained_stable": false,
+
+  "sandbox": true,
+
+  "complexity_level": 0,
+
+  "status": false,
+
+  "regime_block_size": 10,
+
+  "rules": [
+
+    "demurrage"
+
+  ],
+
+  "replay_inexplicable": false,
+
+  "replay_inexplicable_paired": false,
+
+  "replay_inexplicable_floor_regression": false,
+
+  "replay_inexplicable_confirmed": false,
+
+  "conclusive": true,
+
+  "inconclusive_rules": [],
+
+  "weakest_rule": "demurrage",
+
+  "weakest_excess": -1.1759,
+
+  "per_rule": {
+
+    "demurrage": {
+
+      "rule": "demurrage",
+
+      "seeds": [
+
+        42,
+
+        43,
+
+        44,
+
+        45,
+
+        46,
+
+        47,
+
+        48,
+
+        49,
+
+        50,
+
+        51,
+
+        52,
+
+        53,
+
+        54,
+
+        55,
+
+        56,
+
+        57,
+
+        58,
+
+        59,
+
+        60,
+
+        61
+
+      ],
+
+      "mean_excess": -0.3465,
+
+      "min_excess": -1.1759,
+
+      "n_grounded": 5,
+
+      "n_conclusive": 20,
+
+      "n_worlds": 20,
+
+      "fraction_grounded": 0.25,
+
+      "conclusive": true,
+
+      "sign_test_p": 0.9941,
+
+      "wilcoxon_p": 0.9968,
+
+      "grounded_paired": false,
+
+      "bootstrap_ci_mean_excess": [
+
+        -0.548,
+
+        -0.1497
+
+      ],
+
+      "floor_regression": {
+
+        "n": 20,
+
+        "slope": 0.625,
+
+        "intercept": -0.2443,
+
+        "slope_ci": [
+
+          -0.3423,
+
+          1.6539
+
+        ],
+
+        "slope_ci_width": 1.9962,
+
+        "floor_spread_std": 0.2586,
+
+        "powered": true,
+
+        "residuals": [
+
+          0.4494,
+
+          0.9281,
+
+          -0.9003,
+
+          -0.5678,
+
+          -0.4536,
+
+          0.0574,
+
+          0.1496,
+
+          0.1432,
+
+          0.4844,
+
+          -0.3483,
+
+          0.1402,
+
+          0.025,
+
+          -0.0537,
+
+          -0.6451,
+
+          -0.054,
+
+          0.3832,
+
+          -0.2226,
+
+          0.2931,
+
+          0.5621,
+
+          -0.3702
+
+        ],
+
+        "residual_sign_p": 0.4119,
+
+        "residual_wilcoxon_p": 0.4636
+
+      },
+
+      "floor_regression_grounded": false,
+
+      "grounded_confirmed": false,
+
+      "per_world": [
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.4394,
+
+          "counterfactual_rate": 1.0833,
+
+          "divergence": 0.3561,
+
+          "floor_divergence": 0.2417,
+
+          "excess": 0.1144,
+
+          "conclusive": true,
+
+          "verdict": "grounded (exceeds heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0379,
+
+          "ensemble_floor_divergence": 0.2917,
+
+          "ensemble_excess": 0.0644
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.7963,
+
+          "counterfactual_rate": 0.6333,
+
+          "divergence": 1.163,
+
+          "floor_divergence": 0.7667,
+
+          "excess": 0.3963,
+
+          "conclusive": true,
+
+          "verdict": "grounded (exceeds heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1595,
+
+          "ensemble_floor_divergence": 0.5444,
+
+          "ensemble_excess": 0.6185
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 0.6667,
+
+          "counterfactual_rate": 1.7593,
+
+          "divergence": -1.0926,
+
+          "floor_divergence": 0.0833,
+
+          "excess": -1.1759,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.2935,
+
+          "ensemble_floor_divergence": 0.1778,
+
+          "ensemble_excess": -1.2704
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 0.7,
+
+          "counterfactual_rate": 1.6111,
+
+          "divergence": -0.9111,
+
+          "floor_divergence": -0.1583,
+
+          "excess": -0.7528,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.3076,
+
+          "ensemble_floor_divergence": 0.0917,
+
+          "ensemble_excess": -1.0028
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.3889,
+
+          "counterfactual_rate": 1.5556,
+
+          "divergence": -0.1667,
+
+          "floor_divergence": 0.85,
+
+          "excess": -1.0167,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.3066,
+
+          "ensemble_floor_divergence": 0.4861,
+
+          "ensemble_excess": -0.6528
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.2593,
+
+          "counterfactual_rate": 1.2222,
+
+          "divergence": 0.037,
+
+          "floor_divergence": 0.3583,
+
+          "excess": -0.3213,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1095,
+
+          "ensemble_floor_divergence": 0.2333,
+
+          "ensemble_excess": -0.1963
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.5667,
+
+          "counterfactual_rate": 1.4792,
+
+          "divergence": 0.0875,
+
+          "floor_divergence": 0.2917,
+
+          "excess": -0.2042,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0973,
+
+          "ensemble_floor_divergence": 0.1889,
+
+          "ensemble_excess": -0.1014
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.3167,
+
+          "counterfactual_rate": 1.4074,
+
+          "divergence": -0.0907,
+
+          "floor_divergence": 0.0167,
+
+          "excess": -0.1074,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0312,
+
+          "ensemble_floor_divergence": 0.05,
+
+          "ensemble_excess": -0.1407
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.85,
+
+          "counterfactual_rate": 1.537,
+
+          "divergence": 0.313,
+
+          "floor_divergence": 0.1167,
+
+          "excess": 0.1963,
+
+          "conclusive": true,
+
+          "verdict": "grounded (exceeds heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1398,
+
+          "ensemble_floor_divergence": 0.3139,
+
+          "ensemble_excess": -0.0009
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.6111,
+
+          "counterfactual_rate": 1.8704,
+
+          "divergence": -0.2593,
+
+          "floor_divergence": 0.5333,
+
+          "excess": -0.7926,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.4068,
+
+          "ensemble_floor_divergence": 0.1778,
+
+          "ensemble_excess": -0.437
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.2963,
+
+          "counterfactual_rate": 1.1296,
+
+          "divergence": 0.1667,
+
+          "floor_divergence": 0.4333,
+
+          "excess": -0.2667,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.201,
+
+          "ensemble_floor_divergence": 0.1944,
+
+          "ensemble_excess": -0.0278
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.2963,
+
+          "counterfactual_rate": 1.5,
+
+          "divergence": -0.2037,
+
+          "floor_divergence": 0.025,
+
+          "excess": -0.2287,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0571,
+
+          "ensemble_floor_divergence": 0.0611,
+
+          "ensemble_excess": -0.2648
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.1852,
+
+          "counterfactual_rate": 1.4259,
+
+          "divergence": -0.2407,
+
+          "floor_divergence": 0.0917,
+
+          "excess": -0.3324,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.2048,
+
+          "ensemble_floor_divergence": 0.0139,
+
+          "ensemble_excess": -0.2546
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 0.7778,
+
+          "counterfactual_rate": 1.3704,
+
+          "divergence": -0.5926,
+
+          "floor_divergence": 0.475,
+
+          "excess": -1.0676,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.2518,
+
+          "ensemble_floor_divergence": 0.1694,
+
+          "ensemble_excess": -0.762
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.3,
+
+          "counterfactual_rate": 1.463,
+
+          "divergence": -0.163,
+
+          "floor_divergence": 0.2167,
+
+          "excess": -0.3796,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0953,
+
+          "ensemble_floor_divergence": 0.1,
+
+          "ensemble_excess": -0.263
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.7407,
+
+          "counterfactual_rate": 1.5185,
+
+          "divergence": 0.2222,
+
+          "floor_divergence": 0.1333,
+
+          "excess": 0.0889,
+
+          "conclusive": true,
+
+          "verdict": "grounded (exceeds heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1039,
+
+          "ensemble_floor_divergence": 0.2722,
+
+          "ensemble_excess": -0.05
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.3485,
+
+          "counterfactual_rate": 1.5185,
+
+          "divergence": -0.17,
+
+          "floor_divergence": 0.475,
+
+          "excess": -0.645,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.2044,
+
+          "ensemble_floor_divergence": 0.3222,
+
+          "ensemble_excess": -0.4923
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.9,
+
+          "counterfactual_rate": 1.6481,
+
+          "divergence": 0.2519,
+
+          "floor_divergence": 0.325,
+
+          "excess": -0.0731,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1259,
+
+          "ensemble_floor_divergence": 0.2278,
+
+          "ensemble_excess": 0.0241
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.75,
+
+          "counterfactual_rate": 1.5,
+
+          "divergence": 0.25,
+
+          "floor_divergence": -0.1083,
+
+          "excess": 0.3583,
+
+          "conclusive": true,
+
+          "verdict": "grounded (exceeds heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.1701,
+
+          "ensemble_floor_divergence": 0.1306,
+
+          "ensemble_excess": 0.1194
+
+        },
+
+        {
+
+          "rule": "demurrage",
+
+          "target_behaviour": "deposit",
+
+          "control_rate": 1.0,
+
+          "counterfactual_rate": 1.4375,
+
+          "divergence": -0.4375,
+
+          "floor_divergence": 0.2833,
+
+          "excess": -0.7208,
+
+          "conclusive": true,
+
+          "verdict": "replay/insensitive (within heuristic floor)",
+
+          "days": 20,
+
+          "n_agents": 6,
+
+          "floor_rollouts": 3,
+
+          "floor_divergence_std": 0.0546,
+
+          "ensemble_floor_divergence": 0.2889,
+
+          "ensemble_excess": -0.7264
+
+        }
+
+      ]
+
+    }
+
+  }
+
+}
+
+
+
+[done] replay_inexplicable=False  replay_inexplicable_paired=False  replay_inexplicable_floor_regression=False  replay_inexplicable_CONFIRMED=False  weakest=demurrage (-1.1759)  → paste grounding_out/battery.json to issue #130
+
+
+
+[paired stats + floor-regression diagnostic per rule] (one-sided H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED heuristic floor -- floor_rollouts only adds a side-by-side ensemble read, never moves these. The PRE-REGISTERED verdict is grounded_confirmed -- a strict AND of grounded_paired and floor_regression_grounded, per docs/GROUNDING.md; the two below it are context, not alternate passes.)
+
+   demurrage: fraction_grounded=0.25  sign_p=0.9941  wilcoxon_p=0.9968  grounded_paired=False  bootstrap_ci=[-0.5480, -0.1497]
+
+             floor_regression: slope=+0.625 (CI [-0.342, +1.654], width=1.996) n=20 floor_spread_std=0.2586 powered=True residual_sign_p=0.4119 residual_wilcoxon_p=0.4636 grounded=False
+
+             grounded_CONFIRMED (pre-registered verdict): False  [POWERED-NO (a real negative result -- next: representation learnability, not more metric tuning)]
+
+             ensemble-floor excess per world (cross-check only, not load-bearing): +0.0644, +0.6185, -1.2704, -1.0028, -0.6528, -0.1963, -0.1014, -0.1407, -0.0009, -0.4370, -0.0278, -0.2648, -0.2546, -0.7620, -0.2630, -0.0500, -0.4923, +0.0241, +0.1194, -0.7264
+
+##[group]Run if [ -f grounding_out/battery.json ]; then
+
+[36;1mif [ -f grounding_out/battery.json ]; then[0m
+
+[36;1m  echo '## #130 acceptance battery' >> "$GITHUB_STEP_SUMMARY"[0m
+
+[36;1m  echo '```json' >> "$GITHUB_STEP_SUMMARY"[0m
+
+[36;1m  cat grounding_out/battery.json >> "$GITHUB_STEP_SUMMARY"[0m
+
+[36;1m  echo '```' >> "$GITHUB_STEP_SUMMARY"[0m
+
+[36;1melse[0m
+
+[36;1m  echo 'battery.json was not produced (training aborted?)' >> "$GITHUB_STEP_SUMMARY"[0m
+
+[36;1mfi[0m
+
+shell: /usr/bin/bash -e {0}
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+##[group]Run actions/upload-artifact@v4
+
+with:
+
+  name: grounding-battery-9
+
+  path: grounding_out/
+
+  if-no-files-found: warn
+
+  compression-level: 6
+
+  overwrite: false
+
+  include-hidden-files: false
+
+env:
+
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+
+##[endgroup]
+
+(node:3118) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+With the provided path, there will be 3 files uploaded
+
+Artifact name is valid!
+
+Root directory input is valid!
+
+Beginning upload of artifact content to blob storage
+
+(node:3118) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+
+Uploaded bytes 8388608
+
+Uploaded bytes 16777216
+
+Uploaded bytes 25165824
+
+Uploaded bytes 33554432
+
+Uploaded bytes 41943040
+
+Uploaded bytes 50331648
+
+Uploaded bytes 58720256
+
+Uploaded bytes 67108864
+
+Uploaded bytes 73400585
+
+Finished uploading artifact content to blob storage!
+
+SHA256 digest of uploaded artifact zip is 26ddf4d3af4dd1699a4cf4a609084be1a3b59aa1d444e82735ebc8d8a9b707ec
+
+Finalizing artifact upload
+
+Artifact grounding-battery-9.zip successfully finalized. Artifact ID 8184668951
+
+Artifact grounding-battery-9 has been successfully uploaded! Final size is 73400585 bytes. Artifact ID is 8184668951
+
+Artifact download URL: https://github.com/nori1234/sim_ai_agents/actions/runs/28979092111/artifacts/8184668951
+
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+Post job cleanup.
+
+(node:3130) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+Post job cleanup.
+
+[command]/usr/bin/git version
+
+git version 2.54.0
+
+Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/713fc52a-da0f-4a46-8530-dfabb51aedbe/.gitconfig'
+
+Temporarily overriding HOME='/home/runner/work/_temp/713fc52a-da0f-4a46-8530-dfabb51aedbe' before making global git config changes
+
+Adding repository directory to the temporary git global config as a safe directory
+
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+
+http.https://github.com/.extraheader
+
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+
+Cleaning up orphan processes
+
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
