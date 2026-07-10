@@ -867,3 +867,214 @@ def run_grounding_battery(
         weakest_rule=weakest_rule,
         weakest_excess=sweeps[weakest_rule].min_excess,
         inconclusive_rules=inconclusive)
+
+
+# -- Reward ceiling: does the TASK reward grounding enough to be worth ------
+# learning, independent of whether any policy currently learns it? ---------
+#
+# Every diagnosis so far (floor confound, tokenizer, credit assignment,
+# representation erosion, episode boundaries, the blind-teacher BC anchor)
+# asks variants of "why doesn't the policy learn to discriminate the
+# regime". This asks a different, prior question: is there enough REWARD on
+# the table for discriminating it to be worth learning at all? The
+# regime-decoding probe already established the perception-side ceiling
+# (encode_state makes the regime decodable, ~0.98 held-out) -- this
+# establishes the reward-side one.
+#
+# The method: a scripted ORACLE that is handed the ground-truth regime
+# directly (never from the observation -- CounterfactualConfig.hide_rate
+# hides it deliberately, same as every other brain tested here) and acts on
+# it with the obviously-correct rule for demurrage (deposit under control,
+# never under counterfactual). Comparing its REALIZED RETURN
+# (survival_reward, telescoped over the whole episode -- see
+# emergence/brains/_neural_reward.py) against the existing blind heuristic's
+# own realized return, in the SAME worlds, gives the reward ceiling: the
+# most any policy -- however well it learns -- could gain from
+# discriminating this regime. A small gap means the task itself doesn't pay
+# enough for grounding to be worth learning, independent of any training fix.
+def _grounded_heuristic_brain_class():
+    """Lazily builds (and the caller should cache) ``_GroundedHeuristicBrain``,
+    a proper ``HeuristicBrain`` subclass so ``decide()``, ``persona``, ``rng``
+    etc. are inherited unchanged and only ``_bank_action`` is overridden --
+    lazy so this module doesn't import brain/action internals at import time,
+    matching the rest of this file's lazy-import convention.
+
+    An ORACLE, not a candidate policy: told the ground-truth regime directly
+    at construction (``avoid_deposit``, never read from the observation --
+    ``CounterfactualConfig.hide_rate`` hides it deliberately, same as every
+    other brain tested in this module) and never deposits when it's True.
+    Exists only to measure :func:`measure_reward_ceiling`'s reward gap --
+    never claimed as "solving" grounding, since it cheats by construction."""
+    from .brains.heuristic import BANKER_CAPITAL, LOW_ENERGY, HeuristicBrain
+    from .actions import Action, ActionType
+
+    class _GroundedHeuristicBrain(HeuristicBrain):
+        def __init__(self, persona, rng=None, *, avoid_deposit: bool):
+            super().__init__(persona, rng)
+            self._avoid_deposit = avoid_deposit
+
+        def _bank_action(self, agent, obs):
+            if not self._avoid_deposit:
+                return super()._bank_action(agent, obs)
+            # Identical to HeuristicBrain._bank_action, minus the deposit
+            # branch: an agent that knows better than to feed a bank that
+            # shrinks its savings, otherwise unchanged (still banks/
+            # withdraws under the same triggers where those don't cost it).
+            ec = obs.economy
+            bh = ec.get("bank_here")
+            deps = ec.get("my_deposits") or []
+            here = obs.here["type"] if obs.here else None
+            p = self.persona
+            if bh is None and agent.money >= BANKER_CAPITAL \
+                    and obs.fear_level == 0 and agent.energy > LOW_ENERGY:
+                if here == "bank":
+                    if not any(o.get("maker") == agent.id for o in obs.open_offers):
+                        interest = 1 + round(2 * (1 - p.cooperation))
+                        return Action(ActionType.OFFER,
+                                      {"loan": True, "item": "money",
+                                       "principal": 5, "repay": 5 + interest},
+                                      rationale="lend the bank's reserves")
+                    return Action(ActionType.REST, rationale="keep the bank open")
+                if any(f["type"] == "bank" for f in obs.nearby_facilities):
+                    return Action(ActionType.MOVE, {"facility_type": "bank"},
+                                  rationale="set up as a banker")
+            if not bh:
+                return None
+            if agent.money < 4:
+                d = next((d for d in deps if d.get("bank") == bh), None)
+                if d:
+                    return Action(ActionType.WITHDRAW,
+                                  {"bank": bh, "amount": d["amount"]},
+                                  rationale="withdraw savings")
+            if agent.money >= 12:
+                # The one behavioural change: where HeuristicBrain deposits,
+                # rest instead of falling through to _trade_action -- an
+                # early version returned None here and the agent fell into
+                # untested market-primitive behaviour (offer/accept/repay
+                # loops with no facility to ground them in this minimal
+                # sandbox), starving to death by day 5 on an energy drain
+                # that had nothing to do with the demurrage regime. REST is
+                # the minimal, non-confounding substitute for "don't bank
+                # the surplus" -- it doesn't even cost the tick (REST_ENERGY
+                # is a gain, not a drain), so the comparison isolates the
+                # deposit decision, not a change to what else the agent does.
+                return Action(ActionType.REST,
+                              rationale="holding cash, not banking it under a "
+                                       "punishing regime")
+            return None  # matches HeuristicBrain: nothing to do at this cash level
+
+    return _GroundedHeuristicBrain
+
+
+@dataclass
+class RewardCeilingResult:
+    """Realized-return comparison between the blind heuristic (the existing
+    floor, used everywhere else in this module) and the regime-aware oracle
+    above, across the same worlds. ``advantage_counterfactual`` is the
+    reward ceiling: the most any policy could gain from discriminating this
+    regime, however well it learns. ``advantage_control`` should be ~0 (the
+    oracle behaves identically to the blind heuristic when there is nothing
+    to avoid) -- a nonzero value here would mean the oracle's implementation
+    has a bug, not a finding about the task."""
+
+    rule: str
+    seeds: tuple
+    blind_return_control: float
+    blind_return_counterfactual: float
+    grounded_return_control: float
+    grounded_return_counterfactual: float
+    n_worlds: int
+
+    @property
+    def advantage_control(self) -> float:
+        return self.grounded_return_control - self.blind_return_control
+
+    @property
+    def advantage_counterfactual(self) -> float:
+        return self.grounded_return_counterfactual - self.blind_return_counterfactual
+
+    def as_dict(self) -> dict:
+        return {
+            "rule": self.rule, "n_worlds": self.n_worlds,
+            "blind_return_control": round(self.blind_return_control, 4),
+            "blind_return_counterfactual": round(self.blind_return_counterfactual, 4),
+            "grounded_return_control": round(self.grounded_return_control, 4),
+            "grounded_return_counterfactual": round(self.grounded_return_counterfactual, 4),
+            "advantage_control": round(self.advantage_control, 4),
+            "advantage_counterfactual": round(self.advantage_counterfactual, 4),
+        }
+
+
+def _episode_realized_return(sim, agent) -> float:
+    """The agent's total survival_reward over the whole episode, from the
+    observation at construction (before any tick) to the last observation
+    it's alive to receive (or the final one, if it survives) -- exact
+    because survival_reward is a weighted sum of observation-field deltas,
+    which telescopes over any path to (final - initial), so a single
+    before/after read gives the same total as summing every tick's reward
+    would (see emergence/brains/_neural_reward.py)."""
+    from .brains._neural_reward import survival_reward
+    start = sim._observe(agent)
+    running = True
+    last = start
+    while running:
+        running = sim.step_day()
+        if agent.alive:
+            last = sim._observe(agent)
+    return survival_reward(start, last)
+
+
+def measure_reward_ceiling(
+    persona: str = "guardian",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = tuple(range(42, 62)),
+    days: int = 20,
+    n_agents: int = 6,
+    complexity_level: int = 0,
+) -> RewardCeilingResult:
+    """Measure the reward ceiling for ``rule`` (see the module comment above
+    this section): how much realized return a regime-aware oracle earns over
+    the blind heuristic, in the same held-out worlds the acceptance battery
+    uses. Cheap and deterministic -- no learning, no torch, seconds not
+    hours -- meant to run BEFORE spending training compute on a fix, to
+    check the task itself pays enough for grounding to be worth learning.
+
+    Currently only ``demurrage`` is supported (the only rule the grounded
+    oracle knows how to act on)."""
+    if rule != "demurrage":
+        raise ValueError("measure_reward_ceiling currently only supports demurrage")
+
+    GroundedHeuristicBrain = _grounded_heuristic_brain_class()
+
+    def _blind_factory(agent, persona, rng):
+        from .brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona, rng)
+
+    def _grounded_factory(cf_enabled):
+        def factory(agent, persona, rng):
+            return GroundedHeuristicBrain(persona, rng, avoid_deposit=cf_enabled)
+        return factory
+
+    totals = {("blind", False): [], ("blind", True): [],
+              ("grounded", False): [], ("grounded", True): []}
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            for kind, factory in (("blind", _blind_factory),
+                                  ("grounded", _grounded_factory(cf_enabled))):
+                sim = make_grounding_sandbox(
+                    persona, rule=rule, n_savers=n_agents - 1, seed=seed,
+                    days=days, cf_enabled=cf_enabled, brain_factory=factory,
+                    complexity_level=complexity_level)
+                agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
+                totals[(kind, cf_enabled)].append(_episode_realized_return(sim, agent))
+
+    def _mean(xs):
+        return sum(xs) / len(xs) if xs else 0.0
+
+    return RewardCeilingResult(
+        rule=rule, seeds=tuple(seeds), n_worlds=len(seeds),
+        blind_return_control=_mean(totals[("blind", False)]),
+        blind_return_counterfactual=_mean(totals[("blind", True)]),
+        grounded_return_control=_mean(totals[("grounded", False)]),
+        grounded_return_counterfactual=_mean(totals[("grounded", True)]))

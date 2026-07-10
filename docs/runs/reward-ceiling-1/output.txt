@@ -1,0 +1,13 @@
+{
+  "rule": "demurrage",
+  "n_worlds": 20,
+  "blind_return_control": 711.2345,
+  "blind_return_counterfactual": 125.303,
+  "grounded_return_control": 711.2345,
+  "grounded_return_counterfactual": -0.1,
+  "advantage_control": 0.0,
+  "advantage_counterfactual": -125.403
+}
+
+[reward-ceiling] blind's own within-policy regime gap (control - counterfactual): +585.9315
+[reward-ceiling] grounded oracle's advantage over blind, counterfactual: -125.4030 (control sanity check: +0.0000, must be 0)
