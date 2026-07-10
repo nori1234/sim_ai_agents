@@ -30,8 +30,17 @@ training destroy it" — it's specifically why a policy that can see the
 regime and tries the behaviour in both worlds doesn't modulate its rate in
 the right direction, which points at value/credit-side noise on the deposit
 margin, not architecture, observation content, or representation stability.
-Tracked on issue #130; `--complexity-level`/`--status` (the complexity
-ladder, the status factorial) remain queued behind this.
+Two further candidates are under test in run #13: an unverified
+episode-boundary assumption in the discounted-return code, and whether
+behaviour-cloning toward a teacher that is itself regime-blind by
+construction is capping what the policy can learn. Tracked on issue #130;
+`--complexity-level`/`--status` (the complexity ladder, the status factorial)
+remain queued behind this.
+
+Every number in this document is backed by a committed, byte-exact CI log —
+see [`docs/runs/`](runs/) (index + how to add a new one). Prose here can be
+wrong or drift out of sync; the files in that directory are what the engine
+actually printed.
 
 ## The instrument suite at a glance
 
@@ -559,6 +568,7 @@ local mirror:
   `replay_inexplicable_confirmed = None`. Preflight passed (20/20, 20/20,
   19/20) but did not predict the trained brain's density — a real,
   not-hypothetical instance of the "proxy, not a guarantee" caveat.**
+  Raw: [`docs/runs/run-7/`](runs/run-7/).
   `demurrage`/`vanity`: **undetermined**, `n_conclusive = 0/20` — the trained
   checkpoint deposited and feasted in *zero* of the 20 held-out worlds
   (`trained_stable=False`, `is_stable` was never reached over 60 episodes; the
@@ -587,7 +597,7 @@ local mirror:
   `residual_wilcoxon_p=0.6079` — the sandbox fixed the density problem
   cleanly, but training itself never stabilised (probe excess oscillated
   ep5→ep200 with no visible trend) and, unstable or not, showed no grounding
-  signal either way.
+  signal either way. Raw: [`docs/runs/run-8/`](runs/run-8/).
 * **The non-convergence traced to a real architecture gap, confirmed by the
   brain team from their own code: the deployed policy is memoryless
   step-to-step** — `decide()` is a pure function of the current observation;
@@ -620,7 +630,7 @@ local mirror:
   ([-0.41, -0.19]) is entirely negative — not the directionless oscillation
   of run #8, but a *stable* negative excess, i.e. the policy converged to
   something close to regime-blind (`agent_divergence ≈ 0`) rather than to
-  noise.
+  noise. Raw: [`docs/runs/run-9/`](runs/run-9/), [`docs/runs/run-10/`](runs/run-10/).
 * **That signature pointed at a third structural gap, found and fixed by the
   brain team: single-step credit assignment.** Their policy gradient used
   the immediate-step reward only (no discounted return; `AgentConfig.gamma`
@@ -654,7 +664,7 @@ local mirror:
   independent structural fixes now (floor confound, v1→v2 tokenizer,
   single-step→discounted credit assignment) have each been necessary but
   none has been sufficient to produce a generalising positive-excess trend in
-  the sandbox.
+  the sandbox. Raw: [`docs/runs/run-11/`](runs/run-11/).
 * **Fallback triggered, per the pre-registration: a supervised
   regime-decoding probe directly on frozen `encode_state` output**, bypassing
   RL entirely — trains a classifier on top of the brain's own learned
@@ -675,7 +685,9 @@ local mirror:
   heuristic-driven so the scored behaviour reliably occurs). The first pass
   surfaced a real methodological gap; the corrected second pass gives the
   answer that stands: representation-learnability is fine, the bottleneck is
-  RL/credit-side.**
+  RL/credit-side.** Raw: [`docs/runs/regime-probe-1/`](runs/regime-probe-1/)
+  (unpaired), [`docs/runs/regime-probe-2/`](runs/regime-probe-2/) (paired-only,
+  the trusted result).
   * **Run A (`llm_model_agi` commit `7b40a93`, unpaired):** probe A (raw
     tokens, weight-independent — a sanity check) read 1.000 held-out for
     both checkpoints, as expected. Probe B (frozen `encode_state`) read
@@ -771,7 +783,37 @@ local mirror:
     fixed. The raw counts point away from insufficient exploration and
     toward value/credit-side noise on the deposit margin, or a remaining
     bug in the discounted-return implementation itself — neither
-    investigated yet.
+    investigated yet. Raw: [`docs/runs/run-12/`](runs/run-12/),
+    [`docs/runs/regime-probe-3/`](runs/regime-probe-3/) (the freeze sanity
+    check, run #12's checkpoint vs a fresh init).
+* **Two more candidates surfaced auditing both sides' code, ahead of run
+  #13.** The brain team found their discounted-return implementation had no
+  tested episode-boundary signal — it depended on the engine setting
+  `_prev_obs = None` between episodes, an assumption that lived only in a
+  code comment, never in the contract. Checking our own driver
+  (`scripts/train_neural_grounding.py`) answered their decisive question
+  directly: `training_factory` *has* reset `_prev_obs = None` every episode
+  since the credit-assignment fix (git-verified back to the script's first
+  commit) — so if their detection genuinely keyed off that signal, episode
+  boundaries should have been detected all along. They've since replaced the
+  private-attribute assumption with an explicit `dev.end_episode()` hook
+  (commit `1a1c082`) plus an `episodes_seen` diagnostic to verify empirically
+  rather than trusting either side's code-reading — wired into the driver
+  (`docs/NEURAL_CONTRACT.md`, "5a. Episode boundaries"). Separately,
+  inspecting `emergence/brains/heuristic.py`'s `_bank_action` answered a
+  second question: `training_factory` *has* passed `teacher=HeuristicBrain
+  (persona)` since run #1 (not `None`), but that heuristic's deposit/withdraw
+  decision reads only `agent.money` — no `deposit_rate` or regime-sensitive
+  field anywhere in its logic, and `hide_rate=True` hides `deposit_rate` from
+  the observation regardless. Its own measured `floor_divergence` is
+  positive on average (run #12: mean `+0.273`, 18/20 worlds) but that is
+  best read as a mechanical consequence of demurrage shrinking the balance
+  available to redeposit, not decision-level regime discrimination — so if
+  behaviour-cloning toward this teacher is doing meaningful work, it cannot
+  be teaching genuine regime sensitivity, only a `money >= 12` rule that
+  happens to look partly regime-correlated. Run #13 (episode-boundary fix,
+  `freeze_backbone` removed since erosion is ruled out) reports
+  `episodes_seen` and `teacher_frac_in_batch` to settle both empirically.
 
 ## Why this comes before 3D
 
