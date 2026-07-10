@@ -158,6 +158,29 @@ reward API is added to the engine — it is derived from the observation delta.
   Keep Titans memory **internal** to the brain; don't write back to `TownMemory`
   (no double-management). They coexist without conflict.
 
+## 5a. Episode boundaries — `end_episode()`
+
+The grounding training driver (`scripts/train_neural_grounding.py`) reuses one
+brain instance across many training episodes (rotating worlds/regimes — see
+`docs/GROUNDING.md`), which means the brain needs an explicit signal that an
+episode ended so anything episode-scoped (discounted-return bookkeeping,
+trajectory buffers) doesn't carry state across the boundary. **The engine
+calls `brain.end_episode()` between episodes** (`training_factory` in
+`train_neural_grounding.py`) when the brain exposes that method; for older
+brain builds without it, the driver falls back to clearing `_prev_obs`
+directly — a private-attribute poke kept only for backward compatibility,
+never the contract.
+
+This is documented here because it wasn't, previously: the discounted-return
+credit assignment fix (`db39ffa`) depended on episode boundaries being
+detectable, but nothing in this contract said how, and the assumption
+(`_prev_obs is None` signals a boundary) lived only in a code comment on the
+brain side — an unverified cross-repo dependency of exactly the kind that
+already caused two other real bugs (the v1 observation tokenizer, the
+"Titans memory persists across ticks" documentation error). `end_episode()`
+replaces it with an explicit, testable hook instead of another implicit
+assumption to eventually get wrong.
+
 ## 6. The teacher call — RESOLVED: (a)
 
 `build_brain` receives `teacher: AgentBrain` (e.g. an `LLMBrain`). To imitate it

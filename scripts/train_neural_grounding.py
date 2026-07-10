@@ -316,6 +316,14 @@ def main(argv=None) -> int:
             b = NeuralDevelopmentalBrain(persona, teacher=HeuristicBrain(persona),
                                          hparams=hparams)
             brains[agent.id] = b
+        elif hasattr(b, "end_episode"):
+            # The contract-clean episode-boundary hook (llm_model_agi commit
+            # 1a1c082+): replaces poking the private _prev_obs attribute, which
+            # was this driver's only signal that a new episode started -- an
+            # assumption their discounted-return implementation depended on but
+            # that was never part of the documented contract. Falls back below
+            # for older brain builds that predate the hook.
+            b.end_episode()
         else:
             b._prev_obs = None            # a new episode is a fresh trajectory
         return b
