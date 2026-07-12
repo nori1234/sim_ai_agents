@@ -1,0 +1,13 @@
+{
+  "rule": "demurrage",
+  "n_worlds": 20,
+  "n_teacher_deposit_ticks_control": 1247,
+  "n_teacher_deposit_ticks_counterfactual": 1354,
+  "n_total_ticks_control": 2126,
+  "n_total_ticks_counterfactual": 2196,
+  "teacher_deposit_rate_control": 0.5865,
+  "teacher_deposit_rate_counterfactual": 0.6166,
+  "agreement_control": 0.1219,
+  "agreement_counterfactual": 0.13,
+  "agreement_gap": -0.0081
+}

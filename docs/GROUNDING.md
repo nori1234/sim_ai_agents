@@ -30,18 +30,23 @@ training destroy it" — it's specifically why a policy that can see the
 regime and tries the behaviour in both worlds doesn't modulate its rate in
 the right direction, which points at value/credit-side noise on the deposit
 margin, not architecture, observation content, or representation stability.
-Of three further candidates, one is now ruled out and one is answered: run
-#13's `episodes_seen` diagnostic confirms episode boundaries were detected
-correctly all along (not the leak the brain team's own code audit
-suspected), and the task is not reward-starved (the blind heuristic's own
-realized return already differs by 586 points between regimes with zero
-behaviour change). The third — whether behaviour-cloning toward a teacher
-that is itself regime-blind by construction is capping the policy — remains
-untested: its diagnostic (`teacher_frac_in_batch`) never appeared in run
-#13's output, so it needs a fix on the brain side before it can be
-evaluated, not another run on ours. Tracked on issue #130;
-`--complexity-level`/`--status` (the complexity ladder, the status factorial)
-remain queued behind this.
+Of three further candidates, all three now read healthy against the brain
+team's own pre-registered stop rule. Run #13's `episodes_seen` diagnostic
+confirms episode boundaries were detected correctly all along (not the leak
+the brain team's own code audit suspected). The task is not reward-starved
+(the blind heuristic's own realized return already differs by 586 points
+between regimes with zero behaviour change). And whether behaviour-cloning
+toward the regime-blind teacher was capping the policy — its own diagnostic
+(`teacher_frac_in_batch`) never surfaced, but an external, engine-side
+cross-check (`measure_teacher_agreement`, shadow-querying a blind
+`HeuristicBrain` against a frozen checkpoint) answered it anyway: agreement
+with the teacher is low (~12%) and essentially regime-independent
+(`gap=-0.008`) — the policy has moved well past imitating the teacher, just
+not toward anything regime-sensitive. With S1/S2/S3 all healthy and the
+battery still `POWERED-NO`, the brain team's own stop rule says the next
+step is revisiting task/reward design, not another structural-bug hunt.
+Tracked on issue #130; `--complexity-level`/`--status` (the complexity
+ladder, the status factorial) remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
 see [`docs/runs/`](runs/) (index + how to add a new one). Prose here can be
@@ -898,6 +903,31 @@ local mirror:
     unmeasured, not confirmed healthy, so the stop condition isn't met yet.
     The immediate next step is fixing `teacher_frac_in_batch`'s exposure,
     not re-running training again with the same diagnostic gap.
+* **S2 answered anyway, from outside the training loop:
+  `measure_teacher_agreement` (`emergence/grounding.py`,
+  `scripts/teacher_agreement.py`, `.github/workflows/teacher-agreement.yml`)
+  shadow-queries a blind `HeuristicBrain` at every decision point against
+  run #13's checkpoint and tallies how often the tested policy still agrees
+  with the teacher's deposit call, by regime — no brain-side fix needed.
+  Raw: [`docs/runs/teacher-agreement-1/`](runs/teacher-agreement-1/).**
+  Sanity check passed (`teacher_deposit_rate_control=0.587` vs
+  `counterfactual=0.617` — close, so the two worlds are comparable). The
+  result: `agreement_control=0.122`, `agreement_counterfactual=0.130`,
+  `agreement_gap=-0.008` — **agreement with the teacher is low (~12%) in
+  both regimes, and the gap is essentially zero.** Not the signature
+  expected for either failure mode: high, regime-independent agreement
+  would mean still BC-anchored; a positive gap would mean deviating from
+  the teacher specifically under the punished regime (grounded). Instead
+  the trained policy has moved well past simply imitating the teacher
+  (only ~12% agreement — nowhere near "anchored") but its own behaviour
+  isn't regime-conditioned either — it diverges from the teacher about
+  equally in both worlds, doing something else entirely rather than
+  something *regime-sensitive*. Reading: **S2 (BC anchor) is effectively
+  ruled out as the blocker** — the policy is not still parroting the
+  regime-blind teacher — which means all three of S1/S2/S3 now read
+  healthy against the brain team's own pre-registered stop rule. Per that
+  rule, the next step is revisiting task/reward design rather than
+  continuing to hunt for a sixth structural defect.
 
 ## Why this comes before 3D
 
