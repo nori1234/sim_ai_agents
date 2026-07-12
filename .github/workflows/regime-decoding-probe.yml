@@ -80,9 +80,12 @@ jobs:
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Install torch + the developmental-brain package
+        env:
+          TORCH_SPEC: ${{ inputs.torch_spec }}
+          LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
         run: |
-          pip install "${{ inputs.torch_spec }}"
-          pip install "${{ inputs.llm_model_agi_ref }}"
+          pip install "$TORCH_SPEC"
+          pip install "$LLM_MODEL_AGI_REF"
 
       - name: Check out llm_model_agi (for scripts/probe_regime_readout.py)
         uses: actions/checkout@v4
@@ -93,9 +96,11 @@ jobs:
           path: llm_model_agi_repo
 
       - name: Guard — probe script present
+        env:
+          CHECKOUT_REF: ${{ inputs.llm_model_agi_checkout_ref }}
         run: |
           test -f llm_model_agi_repo/scripts/probe_regime_readout.py || {
-            echo "::error::llm_model_agi_repo/scripts/probe_regime_readout.py not found at ref ${{ inputs.llm_model_agi_checkout_ref }} — pin to commit 7b40a93 or later."
+            echo "::error::llm_model_agi_repo/scripts/probe_regime_readout.py not found at ref $CHECKOUT_REF — pin to commit 7b40a93 or later."
             exit 1
           }
 
@@ -108,11 +113,15 @@ jobs:
           path: checkpoint_in
 
       - name: Generate paired control/counterfactual Observation snapshots
+        env:
+          PERSONA: ${{ inputs.persona }}
+          DAYS: ${{ inputs.days }}
+          AGENTS: ${{ inputs.agents }}
         run: |
           python scripts/generate_probe_pairs.py \
-            --persona "${{ inputs.persona }}" \
-            --days "${{ inputs.days }}" \
-            --agents "${{ inputs.agents }}" \
+            --persona "$PERSONA" \
+            --days "$DAYS" \
+            --agents "$AGENTS" \
             --out probe_pairs.jsonl
 
       - name: Run the probe — trained checkpoint (run #11, ep130)

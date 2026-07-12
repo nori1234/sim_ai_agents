@@ -51,9 +51,18 @@ jobs:
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Install torch + the developmental-brain package
+        # Routed through env vars, not direct ${{ }} interpolation into the
+        # shell command: GitHub substitutes ${{ }} as raw text before bash
+        # parses the line, so a pip-spec value containing a quote could
+        # break out and inject shell commands. workflow_dispatch-only (no
+        # external trigger can supply these inputs), so exposure is low,
+        # but this is GitHub's own recommended mitigation for the pattern.
+        env:
+          TORCH_SPEC: ${{ inputs.torch_spec }}
+          LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
         run: |
-          pip install "${{ inputs.torch_spec }}"
-          pip install "${{ inputs.llm_model_agi_ref }}"
+          pip install "$TORCH_SPEC"
+          pip install "$LLM_MODEL_AGI_REF"
 
       - name: Guard — the adapter must actually import (a skip is NOT a pass)
         run: |
