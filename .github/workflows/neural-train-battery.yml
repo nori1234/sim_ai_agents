@@ -140,9 +140,12 @@ jobs:
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Install torch + the developmental-brain package
+        env:
+          TORCH_SPEC: ${{ inputs.torch_spec }}
+          LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
         run: |
-          pip install "${{ inputs.torch_spec }}"
-          pip install "${{ inputs.llm_model_agi_ref }}"
+          pip install "$TORCH_SPEC"
+          pip install "$LLM_MODEL_AGI_REF"
 
       - name: Guard — the adapter must actually import (a fallback run trains nothing)
         run: |
@@ -173,23 +176,46 @@ jobs:
           PY
 
       - name: Train in the real engine, then run the acceptance battery
+        # Every free-text input goes through an env var, not direct ${{ }}
+        # interpolation into the shell command: GitHub substitutes ${{ }}
+        # as raw text BEFORE bash parses the line, so a value containing a
+        # single quote (most plausible for --hparams, which is a JSON blob)
+        # could break out of its quoting and inject arbitrary shell commands.
+        # An intermediate env var sidesteps this -- "$VAR" expands to the
+        # literal value, quotes and all, without bash re-parsing it as
+        # syntax. workflow_dispatch-only (no external trigger can supply
+        # these inputs), so the practical exposure is low, but the fix is
+        # cheap and this is the standard mitigation GitHub's own docs
+        # recommend for exactly this pattern.
+        env:
+          EPISODES: ${{ inputs.episodes }}
+          DAYS: ${{ inputs.days }}
+          AGENTS: ${{ inputs.agents }}
+          SEED: ${{ inputs.seed }}
+          POOL_SIZE: ${{ inputs.pool_size }}
+          PROBE_EVERY: ${{ inputs.probe_every }}
+          WINDOW: ${{ inputs.window }}
+          COMPLEXITY_LEVEL: ${{ inputs.complexity_level }}
+          REGIME_BLOCK_SIZE: ${{ inputs.regime_block_size }}
+          FLOOR_ROLLOUTS: ${{ inputs.floor_rollouts }}
+          HPARAMS: ${{ inputs.hparams }}
         run: |
           python scripts/train_neural_grounding.py \
-            --episodes "${{ inputs.episodes }}" \
-            --days "${{ inputs.days }}" \
-            --agents "${{ inputs.agents }}" \
-            --seed "${{ inputs.seed }}" \
-            --pool-size "${{ inputs.pool_size }}" \
-            --probe-every "${{ inputs.probe_every }}" \
-            --window "${{ inputs.window }}" \
+            --episodes "$EPISODES" \
+            --days "$DAYS" \
+            --agents "$AGENTS" \
+            --seed "$SEED" \
+            --pool-size "$POOL_SIZE" \
+            --probe-every "$PROBE_EVERY" \
+            --window "$WINDOW" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
-            --complexity-level "${{ inputs.complexity_level }}" \
+            --complexity-level "$COMPLEXITY_LEVEL" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
-            --regime-block-size "${{ inputs.regime_block_size }}" \
-            --floor-rollouts "${{ inputs.floor_rollouts }}" \
+            --regime-block-size "$REGIME_BLOCK_SIZE" \
+            --floor-rollouts "$FLOOR_ROLLOUTS" \
             ${{ inputs.preflight_only == 'true' && '--preflight-only' || '' }} \
-            --hparams '${{ inputs.hparams }}' \
+            --hparams "$HPARAMS" \
             --out grounding_out
 
       - name: Publish the battery result to the job summary

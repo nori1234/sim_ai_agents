@@ -68,9 +68,12 @@ jobs:
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Install torch + the developmental-brain package
+        env:
+          TORCH_SPEC: ${{ inputs.torch_spec }}
+          LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
         run: |
-          pip install "${{ inputs.torch_spec }}"
-          pip install "${{ inputs.llm_model_agi_ref }}"
+          pip install "$TORCH_SPEC"
+          pip install "$LLM_MODEL_AGI_REF"
 
       - name: Guard — the adapter must actually import
         run: |
@@ -90,12 +93,16 @@ jobs:
           path: checkpoint_in
 
       - name: Run teacher-agreement
+        env:
+          PERSONA: ${{ inputs.persona }}
+          DAYS: ${{ inputs.days }}
+          AGENTS: ${{ inputs.agents }}
         run: |
           python scripts/teacher_agreement.py \
             --checkpoint checkpoint_in/agent.pt \
-            --persona "${{ inputs.persona }}" \
-            --days "${{ inputs.days }}" \
-            --agents "${{ inputs.agents }}" \
+            --persona "$PERSONA" \
+            --days "$DAYS" \
+            --agents "$AGENTS" \
             | tee teacher_agreement.log
 
       - name: Publish results to the job summary
