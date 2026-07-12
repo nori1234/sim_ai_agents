@@ -1127,5 +1127,95 @@ class TestRewardCeiling(unittest.TestCase):
         self.assertTrue(agent.alive)
 
 
+class TestTeacherAgreement(unittest.TestCase):
+    """measure_teacher_agreement: an external, engine-side proxy for how
+    BC-anchored a tested policy still is to the blind teacher, independent
+    of any internal training diagnostic (teacher_frac_in_batch)."""
+
+    @staticmethod
+    def _blind_factory(agent, persona, rng):
+        from emergence.brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona, rng)
+
+    def test_the_blind_heuristic_agrees_with_its_own_shadow_perfectly(self):
+        # The load-bearing sanity check: tested against itself, agreement
+        # must be exactly 1.0 in both regimes -- anything less would mean
+        # the rng-desync bug this instrument was built to avoid (two
+        # decide() calls consuming a single shared random.Random stream)
+        # had crept back in, not a real behavioural difference.
+        from emergence.grounding import measure_teacher_agreement
+        result = measure_teacher_agreement(
+            "guardian", seeds=(42, 43, 44), days=10, n_agents=4,
+            brain_factory=self._blind_factory)
+        self.assertEqual(result.agreement_control, 1.0)
+        self.assertEqual(result.agreement_counterfactual, 1.0)
+        self.assertEqual(result.agreement_gap, 0.0)
+
+    def test_a_policy_reacting_to_observed_demurrage_disagrees_more_under_cf(self):
+        # The instrument's actual discriminating power. measure_teacher_agreement's
+        # brain_factory signature is (agent, persona, rng) -- deliberately the
+        # same as every other brain_factory in this module, so it can't be
+        # handed the ground-truth regime the way _grounded_heuristic_brain_class's
+        # oracle is (that would defeat the point: a real trained checkpoint
+        # never gets told the regime either). So this brain reacts to the
+        # actual OBSERVABLE evidence instead -- the "N coin ... vanished"
+        # memory entry demurrage writes (see emergence/simulation.py's
+        # _apply_demurrage) -- which is the same signal a genuinely grounded
+        # policy would have to key off. No memory entry in control -> behaves
+        # exactly like the blind teacher; sees it under counterfactual ->
+        # stops depositing.
+        from emergence.actions import Action, ActionType
+        from emergence.brains.heuristic import HeuristicBrain
+        from emergence.grounding import measure_teacher_agreement
+
+        class ReactiveBrain(HeuristicBrain):
+            def _bank_action(self, agent, obs):
+                if not any("vanished" in m for m in obs.memory):
+                    return super()._bank_action(agent, obs)
+                ec = obs.economy
+                bh = ec.get("bank_here")
+                if not bh:
+                    return None
+                if agent.money < 4:
+                    deps = ec.get("my_deposits") or []
+                    d = next((d for d in deps if d.get("bank") == bh), None)
+                    if d:
+                        return Action(ActionType.WITHDRAW,
+                                      {"bank": bh, "amount": d["amount"]},
+                                      rationale="withdraw savings")
+                if agent.money >= 12:
+                    return Action(ActionType.REST,
+                                  rationale="saw coin vanish -- hold cash instead")
+                return None
+
+        def reactive_factory(agent, persona, rng):
+            return ReactiveBrain(persona, rng)
+
+        result = measure_teacher_agreement(
+            "guardian", seeds=(42, 43, 44), days=10, n_agents=4,
+            brain_factory=reactive_factory)
+        self.assertEqual(result.agreement_control, 1.0)
+        self.assertLess(result.agreement_counterfactual, 1.0)
+        self.assertGreater(result.agreement_gap, 0.0)
+
+    def test_as_dict_round_trips_the_key_fields(self):
+        from emergence.grounding import measure_teacher_agreement
+        result = measure_teacher_agreement(
+            "guardian", seeds=(42,), days=10, n_agents=4,
+            brain_factory=self._blind_factory)
+        d = result.as_dict()
+        self.assertEqual(d["rule"], "demurrage")
+        self.assertEqual(d["n_worlds"], 1)
+        self.assertAlmostEqual(d["agreement_gap"],
+                               d["agreement_control"] - d["agreement_counterfactual"],
+                               places=4)
+
+    def test_only_demurrage_is_supported(self):
+        from emergence.grounding import measure_teacher_agreement
+        with self.assertRaises(ValueError):
+            measure_teacher_agreement("guardian", rule="vanity", seeds=(42,),
+                                      brain_factory=self._blind_factory)
+
+
 if __name__ == "__main__":
     unittest.main()
