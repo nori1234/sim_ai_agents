@@ -1078,3 +1078,194 @@ def measure_reward_ceiling(
         blind_return_counterfactual=_mean(totals[("blind", True)]),
         grounded_return_control=_mean(totals[("grounded", False)]),
         grounded_return_counterfactual=_mean(totals[("grounded", True)]))
+
+
+# -- Teacher agreement: an external, engine-side proxy for how BC-anchored --
+# a trained policy still is, independent of any internal training
+# diagnostic (teacher_frac_in_batch) -----------------------------------
+#
+# Run #13's episode-boundary fix (S1) was ruled out and the reward ceiling
+# (S3) was answered, but S2 -- is the policy still anchored to a regime-
+# blind teacher via behaviour cloning -- is stuck: teacher_frac_in_batch
+# never appeared in the brain's own training-time diagnostics. This
+# measures the same question from OUTSIDE the training loop, on a frozen
+# checkpoint, without needing any brain-side instrumentation: at every
+# decision point, ask a blind HeuristicBrain what it would have done in the
+# SAME observation (a shadow query -- computed, never applied, so it cannot
+# perturb the real simulation) and tally how often the tested policy agrees.
+#
+# The read: HeuristicBrain's deposit rule is regime-blind by construction
+# (money >= 12 -> deposit, see _grounded_heuristic_brain_class's module
+# comment) and recommends depositing at roughly the same rate in both
+# regimes. If the tested policy still agrees with that recommendation
+# equally often in both regimes, it is still anchored to the teacher's
+# regime-blind rule. If agreement drops specifically in the counterfactual
+# world (the policy deposits less often than the teacher would, precisely
+# when the teacher's advice is bad), that is a positive, engine-verified
+# signal of having moved past the anchor -- independent of whatever
+# teacher_frac_in_batch would have said, and available today.
+@dataclass
+class TeacherAgreementResult:
+    """How often the tested policy's action matches the blind teacher's
+    shadow recommendation, split by regime, restricted to ticks where the
+    teacher recommends the scored behaviour (``deposit`` for ``demurrage``)
+    -- the ticks where agreement vs disagreement is actually informative.
+    ``teacher_deposit_rate_*`` is a sanity check: HeuristicBrain is
+    regime-blind, so these two should read close to each other regardless
+    of what's being tested (a large gap would mean the *worlds*, not the
+    policy, differ between regimes -- a confound to rule out first)."""
+
+    rule: str
+    n_worlds: int
+    n_teacher_deposit_ticks_control: int
+    n_teacher_deposit_ticks_counterfactual: int
+    n_total_ticks_control: int
+    n_total_ticks_counterfactual: int
+    agreement_control: float
+    agreement_counterfactual: float
+
+    @property
+    def teacher_deposit_rate_control(self) -> float:
+        return (self.n_teacher_deposit_ticks_control / self.n_total_ticks_control
+                if self.n_total_ticks_control else 0.0)
+
+    @property
+    def teacher_deposit_rate_counterfactual(self) -> float:
+        return (self.n_teacher_deposit_ticks_counterfactual / self.n_total_ticks_counterfactual
+                if self.n_total_ticks_counterfactual else 0.0)
+
+    @property
+    def agreement_gap(self) -> float:
+        """agreement_control - agreement_counterfactual. Positive means the
+        policy follows the teacher's (bad) advice less often specifically
+        under the punished regime -- the signal this instrument exists to
+        detect. Near zero means still anchored equally in both worlds."""
+        return self.agreement_control - self.agreement_counterfactual
+
+    def as_dict(self) -> dict:
+        return {
+            "rule": self.rule, "n_worlds": self.n_worlds,
+            "n_teacher_deposit_ticks_control": self.n_teacher_deposit_ticks_control,
+            "n_teacher_deposit_ticks_counterfactual":
+                self.n_teacher_deposit_ticks_counterfactual,
+            "n_total_ticks_control": self.n_total_ticks_control,
+            "n_total_ticks_counterfactual": self.n_total_ticks_counterfactual,
+            "teacher_deposit_rate_control": round(self.teacher_deposit_rate_control, 4),
+            "teacher_deposit_rate_counterfactual":
+                round(self.teacher_deposit_rate_counterfactual, 4),
+            "agreement_control": round(self.agreement_control, 4),
+            "agreement_counterfactual": round(self.agreement_counterfactual, 4),
+            "agreement_gap": round(self.agreement_gap, 4),
+        }
+
+
+def _teacher_shadow_brain_class():
+    """Lazily builds ``_TeacherAgreementBrain`` (see measure_teacher_agreement):
+    wraps a tested brain so every decide() call is also shadow-queried
+    against a blind HeuristicBrain -- computed, never applied, so it cannot
+    change simulation behaviour. The shadow's own rng is independent of the
+    simulation's, so the extra decide() call doesn't perturb determinism
+    (same reasoning as the day-snapshot capture in
+    scripts/generate_probe_pairs.py)."""
+    from .actions import ActionType
+    from .brains.heuristic import HeuristicBrain
+
+    class _TeacherAgreementBrain:
+        def __init__(self, inner, persona, rng=None):
+            self._inner = inner
+            # An INDEPENDENT rng, never shared with the inner brain's: two
+            # brains consuming the same random.Random from a single decide()
+            # call would desync (the second caller sees an already-advanced
+            # stream), corrupting the comparison with pure RNG-plumbing
+            # noise rather than a real behavioural difference.
+            import random as _random
+            self._shadow = HeuristicBrain(persona, _random.Random())
+            self.n_ticks = 0
+            self.n_teacher_deposits = 0
+            self.n_agree_on_teacher_deposit = 0
+
+        def decide(self, agent, obs):
+            # When the inner brain is itself a random.Random-driven policy
+            # (HeuristicBrain, or anything exposing the same .rng), snapshot
+            # its state and hand the shadow an identical copy first, so both
+            # walk the exact same stochastic branches (survival-attend rolls,
+            # fear, aggression, ...) up to the point where they might part
+            # ways on the deposit decision -- isolating disagreement to a
+            # real policy difference rather than independent randomness in
+            # HeuristicBrain's own upstream gates. Trained neural brains
+            # don't expose this (different sampling mechanism entirely), so
+            # they fall through to the shadow's own independent stream --
+            # correct for that case, since there's no shared stochastic
+            # process to synchronise in the first place.
+            inner_rng = getattr(self._inner, "rng", None)
+            if inner_rng is not None and hasattr(inner_rng, "getstate"):
+                self._shadow.rng.setstate(inner_rng.getstate())
+            action = self._inner.decide(agent, obs)
+            shadow_action = self._shadow.decide(agent, obs)
+            self.n_ticks += 1
+            if shadow_action.type is ActionType.DEPOSIT:
+                self.n_teacher_deposits += 1
+                if action.type is ActionType.DEPOSIT:
+                    self.n_agree_on_teacher_deposit += 1
+            return action
+
+    return _TeacherAgreementBrain
+
+
+def measure_teacher_agreement(
+    persona: str = "guardian",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = tuple(range(42, 62)),
+    days: int = 20,
+    n_agents: int = 6,
+    complexity_level: int = 0,
+    brain_factory,
+) -> TeacherAgreementResult:
+    """Measure how often ``brain_factory``'s tested policy agrees with a
+    blind heuristic teacher's shadow recommendation, split by regime (see
+    the module comment above this section). ``brain_factory`` is typically a
+    frozen trained checkpoint (``learn=False``); passing the blind heuristic
+    itself is a sanity check that should read ``agreement_control ==
+    agreement_counterfactual == 1.0`` exactly (it agrees with itself).
+
+    Currently only ``demurrage`` is supported (the only rule the shadow
+    teacher knows how to act on)."""
+    if rule != "demurrage":
+        raise ValueError("measure_teacher_agreement currently only supports demurrage")
+
+    TeacherAgreementBrain = _teacher_shadow_brain_class()
+
+    def _wrapped_factory(cf_enabled):
+        def factory(agent, persona, rng):
+            inner = brain_factory(agent, persona, rng)
+            return TeacherAgreementBrain(inner, persona, rng)
+        return factory
+
+    totals = {False: {"deposits": 0, "agree": 0, "ticks": 0},
+              True: {"deposits": 0, "agree": 0, "ticks": 0}}
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            sim = make_grounding_sandbox(
+                persona, rule=rule, n_savers=n_agents - 1, seed=seed, days=days,
+                cf_enabled=cf_enabled, brain_factory=_wrapped_factory(cf_enabled),
+                complexity_level=complexity_level)
+            agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
+            sim.run()
+            wrapped = sim.brains[agent.id]
+            totals[cf_enabled]["deposits"] += wrapped.n_teacher_deposits
+            totals[cf_enabled]["agree"] += wrapped.n_agree_on_teacher_deposit
+            totals[cf_enabled]["ticks"] += wrapped.n_ticks
+
+    def _rate(cf_enabled):
+        d = totals[cf_enabled]
+        return d["agree"] / d["deposits"] if d["deposits"] else 0.0
+
+    return TeacherAgreementResult(
+        rule=rule, n_worlds=len(seeds),
+        n_teacher_deposit_ticks_control=totals[False]["deposits"],
+        n_teacher_deposit_ticks_counterfactual=totals[True]["deposits"],
+        n_total_ticks_control=totals[False]["ticks"],
+        n_total_ticks_counterfactual=totals[True]["ticks"],
+        agreement_control=_rate(False),
+        agreement_counterfactual=_rate(True))

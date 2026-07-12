@@ -1,0 +1,115 @@
+name: teacher-agreement
+
+# S2 (is the trained policy still anchored to the regime-blind teacher via
+# behaviour cloning) is stuck: the brain team's own teacher_frac_in_batch
+# diagnostic never appeared in run #13's training-time output, despite
+# episodes_seen (from the same commit range) surfacing correctly (see
+# docs/GROUNDING.md, "Run #13"). This workflow answers the same question
+# from OUTSIDE the training loop, on a frozen checkpoint, without needing
+# any brain-side fix: scripts/teacher_agreement.py (backed by
+# emergence.grounding.measure_teacher_agreement) shadow-queries a blind
+# HeuristicBrain at every decision point and tallies how often the tested
+# checkpoint still agrees with the teacher's (regime-blind) deposit call, by
+# regime. No training, just inference -- fast relative to a training run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      llm_model_agi_ref:
+        description: pip spec for the brain package (agent.adapters.emergence)
+        required: true
+        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+      torch_spec:
+        required: false
+        default: "torch"
+      persona:
+        required: false
+        default: "guardian"
+      days:
+        required: false
+        default: "20"
+      agents:
+        required: false
+        default: "6"
+      checkpoint_run_id:
+        description: >-
+          workflow run id of the neural-train-battery run whose
+          grounding-battery-<N> artifact holds the checkpoint (agent.pt) to
+          test. Default is run #13 (29090036131, the end_episode()-fix run
+          this answers S2 for).
+        required: false
+        default: "29090036131"
+      checkpoint_artifact_name:
+        description: name of that run's uploaded artifact
+        required: false
+        default: "grounding-battery-13"
+
+jobs:
+  agreement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install the engine (this repo)
+        run: pip install -e .
+
+      - name: Auth for the private brain repo
+        env:
+          LLM_TOKEN: ${{ secrets.LLM_MODEL_AGI_TOKEN }}
+        run: |
+          if [ -z "$LLM_TOKEN" ]; then
+            echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."
+            exit 1
+          fi
+          git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install torch + the developmental-brain package
+        run: |
+          pip install "${{ inputs.torch_spec }}"
+          pip install "${{ inputs.llm_model_agi_ref }}"
+
+      - name: Guard — the adapter must actually import
+        run: |
+          python - <<'PY'
+          import importlib.util, sys
+          if importlib.util.find_spec("agent.adapters.emergence") is None:
+              sys.exit("agent.adapters.emergence did not install — check llm_model_agi_ref.")
+          print("adapter importable.")
+          PY
+
+      - name: Download the checkpoint
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.checkpoint_artifact_name }}
+          run-id: ${{ inputs.checkpoint_run_id }}
+          github-token: ${{ github.token }}
+          path: checkpoint_in
+
+      - name: Run teacher-agreement
+        run: |
+          python scripts/teacher_agreement.py \
+            --checkpoint checkpoint_in/agent.pt \
+            --persona "${{ inputs.persona }}" \
+            --days "${{ inputs.days }}" \
+            --agents "${{ inputs.agents }}" \
+            | tee teacher_agreement.log
+
+      - name: Publish results to the job summary
+        if: always()
+        run: |
+          echo '## teacher agreement (S2, external cross-check)' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat teacher_agreement.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teacher-agreement-${{ github.run_number }}
+          path: teacher_agreement.log
+          if-no-files-found: warn
