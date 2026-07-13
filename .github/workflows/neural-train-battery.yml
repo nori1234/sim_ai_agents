@@ -116,6 +116,9 @@ on:
         required: false
         default: "false"
 
+permissions:
+  contents: read
+
 jobs:
   train-and-battery:
     runs-on: ubuntu-latest
