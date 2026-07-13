@@ -558,14 +558,20 @@ class HeuristicBrain(AgentBrain):
         return self.rng.random() < p.conformity * enforcement
 
     def _nearby_foe(self, obs: Observation) -> dict | None:
-        """The closest agent we distrust the most (someone who wronged us)."""
-        foes = [o for o in obs.others if o.get("trust", 0.0) <= -0.3 and o["distance"] <= 6]
+        """The closest agent we distrust the most (someone who wronged us) --
+        skipping anyone sheltered at home (#113; the key is absent unless the
+        psyche layer is live, in which case .get() is always False)."""
+        foes = [o for o in obs.others if o.get("trust", 0.0) <= -0.3 and o["distance"] <= 6
+               and not o.get("sheltered", False)]
         if not foes:
             return None
         return min(foes, key=lambda o: (o["distance"], o.get("trust", 0.0)))
 
     def _nearby_target(self, obs: Observation) -> dict | None:
-        reachable = [o for o in obs.others if o["distance"] <= 6]
+        # Home safety (#113): a target sheltered at home is a poor mark for
+        # opportunistic crime -- skipped, same inert-when-off shape as above.
+        reachable = [o for o in obs.others if o["distance"] <= 6
+                    and not o.get("sheltered", False)]
         if not reachable:
             return None
         # Prefer the richest nearby mark.
