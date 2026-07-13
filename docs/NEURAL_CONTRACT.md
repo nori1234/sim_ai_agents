@@ -122,6 +122,8 @@ enum, so it cannot drift). Categories:
   **`money`** (int, material) and **`reputation`** (social standing).
   `illness` (0..100 float, added in v1.1) is a contagious-disease severity
   signal — 0 healthy, stays 0 unless `IllnessConfig.enabled`.
+  `skill` (0..1 float, added in v1.1) is learning-by-doing human capital that
+  scales gather/craft yield up — see `InnovationConfig`; stays 0 unless enabled.
 * **There is no "trust toward me" scalar.** `observation.others[i]["trust"]` is
   *this* agent's trust *of* neighbour `i`. The reward's social term therefore uses
   `reputation`, falling back to the mean of `others[*].trust` only when the status

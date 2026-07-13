@@ -107,7 +107,8 @@ PARAM_SPEC: dict[str, dict] = {
 SELF_VIEW_KEYS: frozenset[str] = frozenset({
     "id", "name", "profession", "alive", "energy", "money", "food", "materials",
     "hunger", "fatigue", "libido", "reputation", "fear", "weapons", "addiction",
-    "illness", "gang", "faith", "age_days", "crimes", "last_crime_day", "frauds",
+    "illness", "skill", "gang", "faith", "age_days", "crimes", "last_crime_day",
+    "frauds",
 })
 
 #: Top-level ``Observation`` fields the adapter/tokenizer may consume. (The engine

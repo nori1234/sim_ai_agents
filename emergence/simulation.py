@@ -16,6 +16,7 @@ from .esteem import StatusConfig, esteem_urge
 from .ecology import EcologyConfig
 from .grounding import CounterfactualConfig
 from .illness import IllnessConfig, capability_factor as illness_capability_factor
+from .innovation import DISCOVERY_POOL, InnovationConfig, skill_yield_mult
 from .psyche import PsycheConfig, actualization_pull, fear_level
 from .rumour import RumourConfig
 from .society import Gang, Religion, SocietyConfig, discontent
@@ -121,6 +122,11 @@ class Simulation:
     society: SocietyConfig = field(default_factory=SocietyConfig)
     illness: IllnessConfig = field(default_factory=IllnessConfig)
     rumour: RumourConfig = field(default_factory=RumourConfig)
+    innovation: InnovationConfig = field(default_factory=InnovationConfig)
+    # The simulation's own working copy of MK.RECIPES -- a discovery (#97)
+    # overwrites an entry here, never the shared module dict, so one town's
+    # invention never leaks into another's (or a test's) recipe book.
+    recipes: dict = field(default_factory=lambda: dict(MK.RECIPES))
     ecology: EcologyConfig = field(default_factory=EcologyConfig)
     # Counterfactual-world transfer test (grounding falsification probe); opt-in.
     # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
@@ -351,7 +357,7 @@ class Simulation:
             economy=({"enabled": True,
                       "tradable": (list(MK.TRADABLE) if self.ecology.enabled
                                    else [t for t in MK.TRADABLE if t != "livestock"]),
-                      "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
+                      "recipes": {k: v[0] for k, v in self.recipes.items()},
                       "price_food_in_money": self.emergent_price("food", "money"),
                       # A capability hint (what you produce well), not a valuation
                       # — the agent judges worth itself, weighing it against price.
@@ -775,6 +781,11 @@ class Simulation:
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
         amount = self._illness_scaled_yield(agent, amount)
+        # Innovation: learning-by-doing raises skill with every gather, which in
+        # turn scales the yield up (#97). Gated on the layer, so it's a no-op off.
+        if self.innovation.enabled and amount:
+            amount = max(amount, round(amount * skill_yield_mult(agent.skill, self.innovation)))
+            self._gain_skill(agent)
         agent.add(resource, amount)
         ev = Event(kind="take", actor=agent, other=None, site=f,
                    items={resource: amount} if amount else {})
@@ -1649,7 +1660,10 @@ class Simulation:
         if not self.economy:
             return
         item = str(action.params.get("item", ""))
-        recipe = MK.RECIPES.get(item)
+        # This town's own working recipe book (see Simulation.recipes) -- a
+        # discovery (#97) can have replaced the entry here without touching the
+        # shared MK.RECIPES default, so keys stay identical either way.
+        recipe = self.recipes.get(item)
         if recipe is None:
             return
         inputs, need_facility = recipe
@@ -1661,9 +1675,49 @@ class Simulation:
             return
         for k, q in inputs.items():
             agent.take(k, q)
-        agent.add(item, 1)
+        amount = 1
+        if self.innovation.enabled:
+            amount = max(1, round(1 * skill_yield_mult(agent.skill, self.innovation)))
+        agent.add(item, amount)
         self.metrics.crafted += 1
-        self.world.log("craft", by=agent.id, item=item)
+        self.world.log("craft", by=agent.id, item=item, amount=amount)
+        if self.innovation.enabled:
+            self._gain_skill(agent)
+            self._maybe_invent(agent, item)
+
+    def _gain_skill(self, agent: Agent) -> None:
+        """Learning-by-doing: skill rises a little with each gather/craft,
+        saturating at skill_cap (#97)."""
+        cfg = self.innovation
+        agent.skill = min(cfg.skill_cap, agent.skill + cfg.skill_gain_per_use)
+
+    def _maybe_invent(self, agent: Agent, item: str) -> None:
+        """Invention as discovery (#97): an experienced crafter occasionally
+        finds a better recipe, drawn from a small predefined pool (never
+        generated) -- it replaces this town's own recipe going forward and, if
+        a library exists, is written down so it persists (and can be lost the
+        way any book can, #22's rot)."""
+        cfg = self.innovation
+        if agent.skill < cfg.discovery_skill_min:
+            return
+        pool = DISCOVERY_POOL.get(item)
+        if not pool or self.rng.random() >= cfg.discovery_chance:
+            return
+        current = self.recipes.get(item)
+        for candidate in pool:
+            if candidate == current:
+                continue
+            self.recipes[item] = candidate
+            self.metrics.inventions += 1
+            inputs, need_facility = candidate
+            self.world.log("invention", item=item, by=agent.id, inputs=dict(inputs))
+            if self.library is not None:
+                inputs_str = ", ".join(f"{q} {k}" for k, q in inputs.items())
+                self.library.write(
+                    self.world.day, agent.id, agent.name,
+                    f"{agent.name} discovered a better way to make {item}: "
+                    f"{inputs_str} now suffices.")
+            break
 
     def emergent_price(self, give_item: str, want_item: str):
         """The average recent settled ratio (price of give_item in want_item)."""
