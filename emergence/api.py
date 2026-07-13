@@ -102,7 +102,7 @@ class EmergenceAPI:
     # -- world lifecycle ------------------------------------------------
     def create_world(self, *, persona="guardian", seed=42, days=30, ticks=8,
                      agents=10, rich=False, economy=False, environment=False,
-                     library=False,
+                     library=False, individuals=False,
                      public_works=False, brain="heuristic", provider="openai",
                      model="llama3.1", base_url=None, api_key=None,
                      temperature=0.8, llm_client=None, replay=None) -> dict:
@@ -114,6 +114,12 @@ class EmergenceAPI:
         everyone (#109). Still a fixed set of four either way; free-text
         custom personalities are a separate, larger step (gated on the
         security hardening in #41).
+
+        ``individuals`` gives each citizen its own point in the trait space
+        (vertical/genetic inheritance, #24) plus a heritable physical vector
+        — sex, body build, gait (#76) — surfaced per-agent for the observatory
+        to render distinct silhouettes. Only applies with the default
+        heuristic brain.
 
         ``rich`` turns on the human-feel layers (drives, esteem, psyche,
         society) so possessed citizens have inner lives.
@@ -152,6 +158,7 @@ class EmergenceAPI:
             economy=bool(economy),
             environment=bool(environment),
             library=bool(library),
+            individuals=bool(individuals),
             public_works=bool(public_works),
             brain_factory=brain_factory,
         )
@@ -363,8 +370,16 @@ class EmergenceAPI:
 
     @staticmethod
     def _agent_summary(a) -> dict:
-        return {
+        v = {
             "id": a.id, "name": a.name, "profession": a.profession,
             "persona": a.persona, "x": a.x, "y": a.y, "alive": a.alive,
             "energy": round(a.energy, 1), "money": a.money,
         }
+        # Physical individuation (#76): only populated under individuals=True,
+        # so a plain world's response is unchanged (no "" sex / neutral 0.5
+        # noise) unless the caller actually turned the layer on.
+        if a.sex:
+            v["sex"] = a.sex
+            v["build"] = round(a.build, 2)
+            v["gait"] = round(a.gait, 2)
+        return v

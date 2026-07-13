@@ -26,6 +26,15 @@ class Agent:
     x: int
     y: int
 
+    # Physical individuation (#76) -- inert, heritable identity data the
+    # engine's simulation logic never branches on; populated only under
+    # individuals=True (see personality.PhysicalTraitPool) and read only by
+    # the API/observer for rendering distinct silhouettes. "" / 0.5 (neutral)
+    # when the layer is off.
+    sex: str = ""
+    build: float = 0.5
+    gait: float = 0.5
+
     energy: float = MAX_ENERGY
     inventory: dict[str, int] = field(default_factory=lambda: {"food": 3, "materials": 0})
     # Money is NOT a privileged field — it is an ordinary inventory item,

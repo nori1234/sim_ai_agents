@@ -48,6 +48,18 @@ class TestWorldLifecycle(unittest.TestCase):
         self.assertLessEqual(st["config"]["days"], 60)
         self.assertGreaterEqual(st["config"]["ticks"], 1)
 
+    def test_individuals_off_by_default_no_physical_fields(self):
+        st = self.api.create_world(persona="guardian", seed=1, days=2)
+        self.assertNotIn("sex", st["agents"][0])
+
+    def test_individuals_true_surfaces_physical_traits(self):
+        st = self.api.create_world(persona="guardian", seed=1, days=2,
+                                   individuals=True)
+        for a in st["agents"]:
+            self.assertIn(a["sex"], ("f", "m"))
+            self.assertGreaterEqual(a["build"], 0.0); self.assertLessEqual(a["build"], 1.0)
+            self.assertGreaterEqual(a["gait"], 0.0); self.assertLessEqual(a["gait"], 1.0)
+
     def test_step_advances_and_reports_new_events(self):
         st = self.api.create_world(persona="philosopher", seed=42, days=15)
         wid = st["world_id"]

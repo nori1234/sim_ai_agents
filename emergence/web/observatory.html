@@ -84,6 +84,8 @@
     <option value="api" data-i18n="b_api">Hosted API</option>
   </select>
   <label title="inner lives"><input id="rich" type="checkbox" checked /> <span data-i18n="rich">rich</span></label>
+  <label title="each citizen an individual: distinct traits + heritable physical build/gait/sex (#24, #76)">
+    <input id="individuals" type="checkbox" /> <span data-i18n="individuals">individuals</span></label>
   <button class="primary" id="create" data-i18n="create">New world</button>
   <button id="step1" title="advance the town by one day — citizens move once, then hold" data-i18n="step1">+1 day</button>
   <button id="step5" title="advance the town by five days — citizens move once, then hold" data-i18n="step5">+5 days</button>
@@ -165,7 +167,7 @@ const I18N = {
     p_guardian:"Guardian (Claude)", p_philosopher:"Philosopher (Gemini)",
     p_idealist:"Idealist (GPT)", p_predator:"Predator (Grok)",
     seed:"seed", b_heuristic:"Heuristic (free)", b_local:"Local LLM", b_api:"Hosted API",
-    rich:"rich", create:"New world", step1:"+1 day", step5:"+5 days",
+    rich:"rich", individuals:"individuals", create:"New world", step1:"+1 day", step5:"+5 days",
     play:"▶ Play", pause:"⏸ Pause", narrate:"✨ Narrate",
     hint:"Click a citizen to possess + follow · scroll to zoom · drag to pan · double-click to reset.",
     l_guardian:"Guardian", l_philosopher:"Philosopher", l_idealist:"Idealist", l_predator:"Predator",
@@ -192,7 +194,7 @@ const I18N = {
     p_guardian:"守護者 (Claude)", p_philosopher:"哲学者 (Gemini)",
     p_idealist:"理想家 (GPT)", p_predator:"捕食者 (Grok)",
     seed:"シード", b_heuristic:"ヒューリスティック（無料）", b_local:"ローカルLLM", b_api:"ホストAPI",
-    rich:"内面", create:"新しい世界", step1:"＋1日", step5:"＋5日",
+    rich:"内面", individuals:"個体化", create:"新しい世界", step1:"＋1日", step5:"＋5日",
     play:"▶ 再生", pause:"⏸ 一時停止", narrate:"✨ 物語化",
     hint:"住人をクリックで憑依＋追従・ホイールでズーム・ドラッグで移動・ダブルクリックで戻す。",
     l_guardian:"守護者", l_philosopher:"哲学者", l_idealist:"理想家", l_predator:"捕食者",
@@ -632,13 +634,20 @@ function drawFacility(f){
 
 // A little vector citizen: head + trapezoid torso on swinging legs/arms, kept
 // smaller than the facilities it stands on. `vx` is horizontal heading (facing).
-function drawPeg(x,y,persona,prof,alive,sel,moving,vx){
+function drawPeg(x,y,persona,prof,alive,sel,moving,vx,build=0.5,gait=0.5,sex=""){
   const col=alive?(PC[persona]||"#9aa"):"#3a3f47";
-  const h=cell*0.66;
-  const headR=h*0.20, bodyH=h*0.40, topW=h*0.20, botW=h*0.30, legH=h*0.22;
+  // Physical individuation (#76): build scales the whole silhouette (0.5 =
+  // neutral = today's fixed size, so a world without --individuals renders
+  // pixel-identical to before); sex gives a mild shoulder/hip taper cue.
+  const h=cell*0.66*(0.85+0.3*build);
+  const headR=h*0.20, bodyH=h*0.40, legH=h*0.22;
+  let topW=h*0.20, botW=h*0.30;
+  if(sex==="f"){ topW*=0.85; botW*=1.08; } else if(sex==="m"){ topW*=1.12; botW*=0.95; }
   const groundY=y+h*0.42;                          // planted feet
   const t=performance.now();
-  const stride=(alive&&moving)?Math.sin(t/95+x*0.4):0;     // -1..1 gait phase
+  // gait scales the stride cycle's tempo (0.5 = neutral = today's fixed 95ms).
+  const strideRate=95/(0.6+0.8*gait);
+  const stride=(alive&&moving)?Math.sin(t/strideRate+x*0.4):0;     // -1..1 gait phase
   const bob=alive ? (moving?Math.abs(stride)*cell*0.05:Math.sin(t/700+x)*cell*0.012) : 0;
   const hipY=groundY-legH-bob, bodyTopY=hipY-bodyH;
   const face=Math.sign(vx||0)*headR*0.18;          // lean the head the way it walks
@@ -708,7 +717,8 @@ function draw(){
   const order=agents.slice().sort((a,b)=>pdepth(a)-pdepth(b));
   for(const a of order){ const p=disp.get(a.id)||{x:a.x,y:a.y};
     const ddx=a.x-p.x, moving=Math.abs(ddx)>0.02||Math.abs(p.y-a.y)>0.02;
-    drawPeg(gx(p.x,p.y), gy(p.x,p.y), a.persona, a.profession, a.alive, a.id===selected, moving, ddx); }
+    drawPeg(gx(p.x,p.y), gy(p.x,p.y), a.persona, a.profession, a.alive, a.id===selected, moving, ddx,
+            a.build, a.gait, a.sex); }
   // event flashes float up and fade
   const now=performance.now();
   for(const fl of flashes){ const t=(now-fl.t0)/900; if(t>=1) continue;
@@ -970,7 +980,8 @@ async function createWorld(){
   const extra=$("#personaMix").value.trim();
   const persona=extra ? `${$("#persona").value},${extra}` : $("#persona").value;
   const body={persona,seed:+$("#seed").value,days:15,
-              rich:$("#rich").checked,brain:$("#brain").value,
+              rich:$("#rich").checked,individuals:$("#individuals").checked,
+              brain:$("#brain").value,
               environment:true,   // seasons + weather drive the world's sky/look
               economy:true, library:true};   // populate the Town panel
   if(!$("#town").classList.contains("hidden")) showTab("chronicle");
