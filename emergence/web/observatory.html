@@ -346,6 +346,16 @@ const SEASON_GROUND = {            // base grass tint per season (RGB)
   _:[80,130,64] };
 function envSeason(){ return (lastState&&lastState.environment&&lastState.environment.season)||"_"; }
 function envWeather(){ return (lastState&&lastState.environment&&lastState.environment.weather)||null; }
+// Civilization progress, made visible (#71): buildings grow taller as the
+// town develops. `prosperity` is a live 0-100 index (food security, order,
+// wealth, knowledge, infrastructure breadth -- emergence/development.py),
+// read fresh every state update, not just at the final report. 1.0x at 0
+// (today's fixed size) rising to 1.6x at 100 -- a visible but not cartoonish
+// skyline lift.
+function prosperityHeightMult(){
+  const p=(lastState&&typeof lastState.prosperity==="number")?lastState.prosperity:0;
+  return 1.0 + Math.max(0,Math.min(100,p))/100*0.6;
+}
 function tintCell(type, shade){
   const s=envSeason(), grass=SEASON_GROUND[s]||SEASON_GROUND._;
   let c;
@@ -564,7 +574,8 @@ function vPlaza(cx,baseY,w){ ctx.fillStyle="rgba(200,205,215,.5)"; ctx.beginPath
 // An isometric block for a facility (used in ISO view): left/right faces + lit
 // roof on the tile's diamond, with the per-type palette + emblem on the front.
 function isoBox(f){ const art=ART[f.type]||ART.house, cx=gx(f.x,f.y), cyb=gy(f.x,f.y);
-  const hw=cell, hh=cell*ISO_PITCH, h=cell*(f.type==="monument"?2.2:1.5), nf=nightFactor();
+  const hw=cell, hh=cell*ISO_PITCH;
+  const h=cell*(f.type==="monument"?2.2:1.5)*prosperityHeightMult(), nf=nightFactor();
   const B={x:cx,y:cyb+hh},R={x:cx+hw,y:cyb},T={x:cx,y:cyb-hh},L={x:cx-hw,y:cyb};
   const up=p=>({x:p.x,y:p.y-h}); const poly=(pts,fill)=>{ ctx.fillStyle=fill; ctx.beginPath();
     ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath(); ctx.fill(); };
@@ -608,7 +619,7 @@ function drawFacility(f){
     } else { isoBox(f);
       if(cell>=14){ ctx.font=`${Math.max(8,Math.round(cell*0.5))}px system-ui`;
         ctx.fillStyle="rgba(230,237,243,.8)"; ctx.textAlign="center"; ctx.textBaseline="bottom";
-        ctx.fillText(facName(f.type), gx(f.x,f.y), gy(f.x,f.y)-cell*(f.type==="monument"?2.2:1.5)-cell*0.2); } }
+        ctx.fillText(facName(f.type), gx(f.x,f.y), gy(f.x,f.y)-cell*(f.type==="monument"?2.2:1.5)*prosperityHeightMult()-cell*0.2); } }
     drawLibraryShelf(f);
     return;
   }
@@ -623,7 +634,7 @@ function drawFacility(f){
   else if(f.type==="forest") vForest(x,baseY,w);
   else if(f.type==="mine")   vMine(x,baseY,w);
   else if(f.type==="plaza")  vPlaza(x,baseY,w);
-  else vBuilding(x, baseY, w, wh, ART[f.type]||ART.house, nf);  // draws its own cast shadow
+  else vBuilding(x, baseY, w, wh*prosperityHeightMult(), ART[f.type]||ART.house, nf);  // draws its own cast shadow
   // a small name label so each landmark stays identifiable
   if(cell>=16){ ctx.font=`${Math.max(8,Math.round(cell*0.24))}px system-ui`;
     ctx.fillStyle="rgba(230,237,243,.74)"; ctx.textAlign="center"; ctx.textBaseline="top";
