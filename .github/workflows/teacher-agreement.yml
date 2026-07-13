@@ -44,6 +44,10 @@ on:
         required: false
         default: "grounding-battery-13"
 
+permissions:
+  contents: read
+  actions: read   # actions/download-artifact needs this to fetch a cross-run artifact
+
 jobs:
   agreement:
     runs-on: ubuntu-latest

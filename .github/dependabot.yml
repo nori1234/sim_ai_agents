@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # This repo has zero third-party runtime dependencies (stdlib only; torch
+  # is an opt-in extra installed from PyPI directly, not pinned here), so the
+  # only real supply-chain surface worth watching is the CI Actions
+  # themselves (action versions, e.g. actions/checkout@v4).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
