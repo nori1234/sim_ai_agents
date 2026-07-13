@@ -83,6 +83,7 @@ def make_simulation(
     memory: bool = False,
     memory_path: str = ":memory:",
     library: bool = False,
+    library_path: str = ":memory:",
     individuals: bool = False,
     world: "World | None" = None,
     brain_factory=None,
@@ -103,6 +104,12 @@ def make_simulation(
     genetic inheritance — see :mod:`emergence.personality` and issue #24). It
     only applies to the default heuristic path (no ``brain_factory``); off, every
     agent is the exact preset Persona and the baseline contract is unchanged.
+
+    ``library`` turns on the town's shared knowledge store. With ``memory``
+    also on, the shelf is backed by memory-agent's ``GameWorld`` instead of
+    the zero-dep default (:class:`memory_backend.MemoryBackedLibrary`,
+    issue #23) — cross-run persistence and supersession at ``library_path``,
+    same optional dependency as ``memory``/``memory_path`` already need.
     """
     config = config or SimulationConfig()
     if isinstance(governance, str):
@@ -184,8 +191,15 @@ def make_simulation(
 
     town_library = None
     if library:
-        from .library import TownLibrary
-        town_library = TownLibrary()
+        if memory:
+            # A memory-agent-backed shelf: cross-run persistence + contradictory-
+            # fact supersession (#23), swapped in for the zero-dep default only
+            # when --memory is also on (same optional dependency either way).
+            from .memory_backend import MemoryBackedLibrary
+            town_library = MemoryBackedLibrary(path=library_path)
+        else:
+            from .library import TownLibrary
+            town_library = TownLibrary()
 
     legislature = Legislature(gov_cfg)
     policy = PolicyEngine(gov_cfg)
