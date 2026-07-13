@@ -24,7 +24,10 @@ from dataclasses import dataclass
 
 # Goods the primitives operate over. "money" is just one tradable quantity here,
 # deliberately not privileged — agents decide whether to treat it as currency.
-TRADABLE = ("food", "materials", "tools", "money")
+# "livestock" (#111) only ever has a non-zero balance under --ecology; the
+# engine surfaces it as tradable to a brain's observation only then (see
+# Simulation._observe), so an economy-only run's tradable list is unchanged.
+TRADABLE = ("food", "materials", "tools", "money", "livestock")
 
 # Production physics: output -> (inputs, facility-type value required or None).
 # A value chain the economy can build on (raw materials -> tools).

@@ -343,7 +343,9 @@ class Simulation:
                           if self.public_works else {}),
             open_offers=([o.as_dict() for o in self.offers[:8]]
                          if self.economy else []),
-            economy=({"enabled": True, "tradable": list(MK.TRADABLE),
+            economy=({"enabled": True,
+                      "tradable": (list(MK.TRADABLE) if self.ecology.enabled
+                                   else [t for t in MK.TRADABLE if t != "livestock"]),
                       "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
                       "price_food_in_money": self.emergent_price("food", "money"),
                       # A capability hint (what you produce well), not a valuation
@@ -2145,6 +2147,45 @@ class Simulation:
                 if born:
                     a.add("livestock", min(born, eco.herd_cap - herd))
 
+    def _feed_livestock(self) -> None:
+        """Daily: a herd needs feed (#111) -- with feed_cost_per_head configured,
+        it's drawn from the owner's own food stock; short on feed and the herd
+        goes hungry, losing head to starvation. 0 cost (default) is a no-op, so
+        livestock stays free growth as it was before this was split off."""
+        eco = self.ecology
+        if not eco.feed_cost_per_head:
+            return
+        for a in self.agents:
+            if not a.alive:
+                continue
+            herd = a.inventory.get("livestock", 0)
+            need = int(round(herd * eco.feed_cost_per_head))
+            if need <= 0:
+                continue
+            fed = a.take("food", need)
+            if fed < need:
+                lost = min(herd, max(1, int(round(herd * eco.starve_loss_rate))))
+                a.take("livestock", lost)
+                self.world.log("livestock_starved", owner=a.id, lost=lost)
+
+    def _raid_livestock(self) -> None:
+        """Daily: a predator may cull a herd and frighten its owner (#111) --
+        keeping a herd gets a downside. 0 chance (default) is a no-op."""
+        eco = self.ecology
+        if not eco.predator_daily_chance:
+            return
+        for a in self.agents:
+            if not a.alive:
+                continue
+            herd = a.inventory.get("livestock", 0)
+            if herd <= 0 or self.rng.random() >= eco.predator_daily_chance:
+                continue
+            lost = min(herd, max(1, int(round(herd * eco.predator_loss_rate))))
+            a.take("livestock", lost)
+            if self.psyche.enabled:
+                a.fear = min(100.0, a.fear + eco.predator_fear)
+            self.world.log("predator_raid", owner=a.id, lost=lost)
+
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
             return self.newborn_brain_factory(child, persona_key, self.rng)
@@ -2219,7 +2260,9 @@ class Simulation:
                 if a.alive:
                     a.reputation = max(0.0, a.reputation - self.status.rep_decay_per_day)
         if self.ecology.enabled:
+            self._feed_livestock()
             self._breed_livestock()
+            self._raid_livestock()
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
