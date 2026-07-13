@@ -715,7 +715,15 @@ class Simulation:
         f = self.world.facility_at(agent.pos)
         if f is None or f.ftype is not FacilityType.FARM:
             return
+        # Seed & storage (#105): sowing can cost seed grain -- keeping seed-corn
+        # vs eating it becomes a real choice. seed_cost=0 (default) is free, as
+        # before this was split out of #95.
+        cost = self.environment.config.seed_cost
+        if cost and agent.food() < cost:
+            return  # not enough seed-corn on hand to plant
         if self.environment.sow(f):
+            if cost:
+                agent.take("food", cost)
             self._spend(agent, ActionType.SOW)
             self.world.log("sow", by=agent.id, farm=f.name)
 
