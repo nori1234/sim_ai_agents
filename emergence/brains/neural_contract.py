@@ -92,7 +92,9 @@ PARAM_SPEC: dict[str, dict] = {
     "use": {"item": "str", "qty": "int", "on": "agent_id (optional; default self)"},
     "strike": {"target": "agent_id", "|facility_name": "str"},
     "make": {"output": "'work' | a recipe item", "title": "str (for a work)"},
-    "say": {"text": "str", "to": "agent_id (optional)"},
+    "say": {"text": "str", "to": "agent_id (optional)",
+            "about": "agent_id (optional; a claim's subject, rumour layer)",
+            "sentiment": "float -1..1 (optional; how the claim casts `about`)"},
     "bond": {"proposal_id": "int", "support": "bool", "|with": "agent_id"},
 }
 
@@ -116,6 +118,7 @@ OBSERVATION_FIELDS: frozenset[str] = frozenset({
     "can_reproduce", "mating_urge", "esteem_urge", "fear_level", "actualization_pull",
     "society", "discontent", "here_roles", "nearest_roles", "environment", "role",
     "affordances", "norms", "laws", "public_works", "open_offers", "economy", "debts",
+    "rumour",
 })
 
 

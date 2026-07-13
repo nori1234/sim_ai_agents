@@ -158,6 +158,13 @@ class HeuristicBrain(AgentBrain):
         if econ is not None:
             return econ
 
+        # 6.5 Rumour: minimal, spontaneous gossip about a nearby third party
+        #     the agent has a strong opinion of. Inert off the rumour layer;
+        #     the rich, strategic use (lies, propaganda) is the LLM's.
+        gossip = self._gossip_action(agent, obs)
+        if gossip is not None:
+            return gossip
+
         # 7. Talk a lot? Make a speech.
         if self.rng.random() < p.talkativeness * 0.5:
             return Action(
@@ -395,6 +402,28 @@ class HeuristicBrain(AgentBrain):
             return None
         return Action(ActionType.ACCEPT, {"offer_id": best[1]},
                       rationale="pay a doctor for care rather than trek for food")
+
+    def _gossip_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Rumour (#96): minimal, spontaneous gossip — pass an opinion of a
+        nearby third party on to another bystander, word of mouth. Only fires
+        when the rumour layer is live (no `rumour` key otherwise)."""
+        if not obs.rumour.get("enabled"):
+            return None
+        if self.rng.random() >= obs.rumour.get("gossip_chance", 0.02):
+            return None
+        subject = next((o for o in obs.others if abs(o["trust"]) >= 0.5), None)
+        if subject is None:
+            return None
+        listener = next((o for o in obs.others if o["id"] != subject["id"]), None)
+        if listener is None:
+            return None
+        sentiment = 1.0 if subject["trust"] > 0 else -1.0
+        return Action(
+            ActionType.SAY,
+            {"to": listener["id"], "about": subject["id"], "sentiment": sentiment,
+             "text": f"word about {subject['name']}"},
+            rationale="pass along word of mouth",
+        )
 
     def _buy_feast_action(self, agent: Agent, obs: Observation) -> Action | None:
         """Conspicuous consumption: an esteem-hungry, cash-rich agent buys honour

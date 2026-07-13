@@ -84,6 +84,10 @@ class Observation:
     economy: dict = field(default_factory=dict)
     debts: list = field(default_factory=list)
 
+    # Rumour layer: whether hearsay is live and how far a claim carries.
+    # Empty unless RumourConfig.enabled (#96).
+    rumour: dict = field(default_factory=dict)
+
 
 def _facility_view(f: Facility, dist: int) -> dict:
     v = {"name": f.name, "type": f.ftype.value, "distance": dist}
