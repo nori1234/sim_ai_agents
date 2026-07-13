@@ -33,6 +33,7 @@ from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .governance import GOVERNANCE_PRESETS
 from .ecology import EcologyConfig
+from .illness import IllnessConfig
 from .psyche import PsycheConfig
 from .society import SocietyConfig
 from .personas import ALIASES, PERSONAS
@@ -59,6 +60,10 @@ def _psyche_from_args(args) -> PsycheConfig:
 
 def _society_from_args(args) -> SocietyConfig:
     return SocietyConfig(enabled=bool(getattr(args, "society", False)))
+
+
+def _illness_from_args(args) -> IllnessConfig:
+    return IllnessConfig(enabled=bool(getattr(args, "illness", False)))
 
 
 def _llm_factory(args):
@@ -105,6 +110,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           status=_status_from_args(args),
                           psyche=_psyche_from_args(args),
                           society=_society_from_args(args),
+                          illness=_illness_from_args(args),
                           ecology=EcologyConfig(enabled=True) if getattr(args, "ecology", False) else None,
                           environment=bool(getattr(args, "environment", False)),
                           public_works=bool(getattr(args, "public_works", False)),
@@ -205,6 +211,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="enable fear/safety and self-actualization (恐怖・自己実現)")
     parser.add_argument("--society", action="store_true",
                         help="enable weapons, drugs, gangs, religion (裏社会・文化)")
+    parser.add_argument("--illness", action="store_true",
+                        help="enable a contagious illness that spreads by proximity "
+                             "and is eased by a doctor's care (病気・伝染)")
     parser.add_argument("--ecology", action="store_true",
                         help="enable livestock that breeds and is slaughtered for food (家畜・生態系)")
     parser.add_argument("--environment", action="store_true",

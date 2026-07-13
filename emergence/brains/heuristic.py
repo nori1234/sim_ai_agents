@@ -25,6 +25,7 @@ WORKPLACES = {"workshop", "market"}
 LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
+SICK_ILLNESS = 45.0     # a contagious illness this bad is worth seeing a doctor
 BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
 BRIBE_PRICE = 6         # what a wanted offender slips a guard to be let off
 HARSH_WEATHER = {"storm", "heatwave", "cold snap"}  # conditions worth sheltering from
@@ -371,7 +372,8 @@ class HeuristicBrain(AgentBrain):
         the psyche / society layers are live."""
         if not obs.economy.get("enabled"):
             return None
-        afflicted = obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION
+        afflicted = obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION \
+            or agent.illness >= SICK_ILLNESS
         # A free meal fixes hunger-energy, but not a wounded mind or withdrawal —
         # so only let food crowd out care when the sole reason is being run down.
         if not afflicted and agent.food() > 0:
@@ -443,7 +445,8 @@ class HeuristicBrain(AgentBrain):
         # Affliction (trauma / withdrawal) warrants a doctor even when fed and
         # rested — a meal mends neither. Inert unless the psyche / society layers
         # are live (the reasons stay 0) and a healing offer is in reach.
-        if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION:
+        if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION \
+                or agent.illness >= SICK_ILLNESS:
             care = self._buy_care_action(agent, obs)
             if care is not None:
                 return care
