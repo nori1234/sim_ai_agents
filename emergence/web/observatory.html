@@ -75,6 +75,8 @@
     <option value="gpt" data-i18n="p_idealist">Idealist (GPT)</option>
     <option value="grok" data-i18n="p_predator">Predator (Grok)</option>
   </select>
+  <input id="personaMix" size="10" placeholder="+mix"
+         title="optional: comma-separated extra personas to mix in round-robin (e.g. grok,gemini) -- leave blank for one persona for everyone" />
   <label><span data-i18n="seed">seed</span> <input id="seed" type="number" value="42" /></label>
   <select id="brain" title="who does the thinking">
     <option value="heuristic" data-i18n="b_heuristic">Heuristic (free)</option>
@@ -962,7 +964,12 @@ document.querySelectorAll(".tabs button[data-tab]").forEach(b=>b.onclick=()=>sho
 // --- controls -------------------------------------------------------------
 async function createWorld(){
   stopPlay();
-  const body={persona:$("#persona").value,seed:+$("#seed").value,days:15,
+  // A mix (e.g. "guardian,predator") rides round-robin across agents instead
+  // of one persona for everyone (#109); the +mix field is optional and empty
+  // by default, so a bare persona pick behaves exactly as before.
+  const extra=$("#personaMix").value.trim();
+  const persona=extra ? `${$("#persona").value},${extra}` : $("#persona").value;
+  const body={persona,seed:+$("#seed").value,days:15,
               rich:$("#rich").checked,brain:$("#brain").value,
               environment:true,   // seasons + weather drive the world's sky/look
               economy:true, library:true};   // populate the Town panel
