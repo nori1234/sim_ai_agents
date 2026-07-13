@@ -130,7 +130,7 @@ const PROF = { farmer:"🌾", builder:"🔨", teacher:"📚", merchant:"🪙", d
   guard:"🛡️", miner:"⛏️", librarian:"📖", smith:"⚒️", "council clerk":"⚖️", child:"🧸",
   mayor:"🎖️", priest:"⛪", banker:"🏦" };
 const FLASH = { violence:"⚔️", theft:"🥷", arson:"🔥", death:"💀",
-  trade:"🪙", service:"💚", birth:"✨", arrest:"🔗", praise:"👏" };
+  trade:"🪙", service:"💚", birth:"✨", arrest:"🔗", praise:"👏", library_burned:"🔥📚" };
 // Per-event particle burst: colours + style. Anything not listed just floats
 // its emoji. Drawn as cheap procedural specks so the file stays asset-free.
 const BURST = {
@@ -141,8 +141,9 @@ const BURST = {
   trade:   {n:10,col:["#ffd24a","#f0b429"],spd:1.8,life:700,grav:-0.07,kind:"coin"},
   service: {n:10,col:["#3fb950","#9af0b0"],spd:1.4,life:700,grav:-0.06,kind:"plus"},
   birth:   {n:14,col:["#fff","#ffe9a8","#9ad8ff"],spd:1.6,life:800,grav:-0.03,kind:"spark"},
+  library_burned:{n:18,col:["#ff7b00","#ffd24a","#7a7a7a"],spd:2.0,life:900,grav:-0.05,kind:"ember"},
 };
-const SHAKE = { violence:5, arson:6, death:4, rebellion:8 };  // screen-shake by event
+const SHAKE = { violence:5, arson:6, death:4, rebellion:8, library_burned:5 };  // screen-shake by event
 // Facility names per language (so a tile is identifiable even if the emoji icon
 // doesn't render on a given system).
 const FACNAME = {
@@ -566,6 +567,25 @@ function isoBox(f){ const art=ART[f.type]||ART.house, cx=gx(f.x,f.y), cyb=gy(f.x
   if(nf>0.05){ ctx.fillStyle=`rgba(255,200,100,${(0.3+0.5*nf).toFixed(2)})`;
     ctx.fillRect(cx-hw*0.12, cyb-h*0.55, hw*0.1, hh*0.5); }
 }
+// The town's shared knowledge, made visible: a small stack of book-spines
+// beside every library-type building, growing with the shelf and vanishing
+// on arson (#25). `lastState.library.books` is the town's shared shelf
+// count (the library store is one town-wide TownLibrary, not per-building),
+// so every library-type facility shows the same growing stack.
+function drawLibraryShelf(f){
+  if(f.type!=="library") return;
+  const books=(lastState&&lastState.library&&lastState.library.books)||0;
+  if(!books) return;
+  const n=Math.min(6, Math.ceil(books/4));           // caps so the stack never overruns
+  const bw=cell*0.30, bh=cell*0.16;
+  const bx=gx(f.x,f.y)+cell*(ISO?0.55:0.42) - bw/2;
+  const baseY=gy(f.x,f.y)+(ISO?cell*0.15:cell*0.55);
+  const cols=["#8b5a3c","#4a7a9a","#9a5a5a","#5a9a6a","#9a8a4a","#7a5a9a"];
+  for(let i=0;i<n;i++){
+    ctx.fillStyle=cols[i%cols.length];
+    ctx.fillRect(bx, baseY-(i+1)*bh, bw, bh*0.86);
+  }
+}
 function drawFacility(f){
   const nf=nightFactor();
   if(ISO){
@@ -579,6 +599,7 @@ function drawFacility(f){
       if(cell>=14){ ctx.font=`${Math.max(8,Math.round(cell*0.5))}px system-ui`;
         ctx.fillStyle="rgba(230,237,243,.8)"; ctx.textAlign="center"; ctx.textBaseline="bottom";
         ctx.fillText(facName(f.type), gx(f.x,f.y), gy(f.x,f.y)-cell*(f.type==="monument"?2.2:1.5)-cell*0.2); } }
+    drawLibraryShelf(f);
     return;
   }
   const x=gx(f.x,f.y), y=gy(f.x,f.y), t=cell*0.46, baseY=y+t*0.92;
@@ -598,6 +619,7 @@ function drawFacility(f){
     ctx.fillStyle="rgba(230,237,243,.74)"; ctx.textAlign="center"; ctx.textBaseline="top";
     ctx.fillText(facName(f.type), x, baseY+t*0.12); }
   ctx.restore();
+  drawLibraryShelf(f);
 }
 
 // A little vector citizen: head + trapezoid torso on swinging legs/arms, kept
