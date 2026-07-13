@@ -65,6 +65,10 @@ class Agent:
     fulfillment: float = 0.0
     works_created: int = 0
 
+    # Health layer — a lingering wound, distinct from momentary energy loss.
+    # Under HealthConfig (see emergence.health).
+    injury: float = 0.0
+
     # Society layer — weapons, addiction, gang and faith affiliation.
     weapons: int = 0
     addiction: float = 0.0
@@ -161,6 +165,7 @@ class Agent:
             "libido": round(self.libido, 1),
             "reputation": round(self.reputation, 1),
             "fear": round(self.fear, 1),
+            "injury": round(self.injury, 1),
             "weapons": self.weapons,
             "addiction": round(self.addiction, 1),
             "illness": round(self.illness, 1),
