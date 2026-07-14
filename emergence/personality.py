@@ -157,6 +157,84 @@ class TraitPool:
         return self._traits.get(agent_id)
 
 
+# --- Physical individuation (#76): sex, body build, gait ------------------
+#
+# The *behavioural* counterpart above (cooperation, aggression, ...) lives in
+# the brain's Persona and the engine never reads it. Physical traits are
+# different: they exist to be *rendered* (a crowd of distinct silhouettes,
+# not interchangeable pegs), so they're carried on the Agent itself, the same
+# way the coarse `agent.persona` culture-key already is -- inert data the
+# engine's simulation logic never branches on, read only by the API/observer.
+# Heritable with the same shape as behavioural traits (Gaussian founder
+# sample, midpoint-of-parents-plus-mutation for a child), but centred on a
+# neutral 0.5 rather than a culture: there is no "culture" for physique to
+# vary around.
+PHYSICAL_SPREAD = 0.15
+PHYSICAL_MUTATION = 0.08
+
+
+@dataclasses.dataclass(frozen=True)
+class PhysicalTraits:
+    sex: str      # "f" or "m" -- an independent coin flip, not a spectrum
+    build: float  # 0..1 height/stockiness -- scales the rendered silhouette
+    gait: float   # 0..1 walking tempo -- an animation-speed cue, not engine movement
+
+
+def sample_physical(rng: random.Random, *, spread: float = PHYSICAL_SPREAD) -> PhysicalTraits:
+    """A founder's physical vector, drawn around a neutral (0.5) centre."""
+    return PhysicalTraits(
+        sex="f" if rng.random() < 0.5 else "m",
+        build=_clamp(0.5 + rng.gauss(0.0, spread)),
+        gait=_clamp(0.5 + rng.gauss(0.0, spread)),
+    )
+
+
+def blend_physical(a: PhysicalTraits, b: PhysicalTraits, rng: random.Random,
+                   *, mutation: float = PHYSICAL_MUTATION) -> PhysicalTraits:
+    """A child's physical vector: build/gait are the midpoint of both parents
+    plus a small mutation (the same heredity shape as ``blend``); sex is an
+    independent coin flip each birth, since it isn't a point on a spectrum."""
+    return PhysicalTraits(
+        sex="f" if rng.random() < 0.5 else "m",
+        build=_clamp((a.build + b.build) / 2.0 + rng.gauss(0.0, mutation)),
+        gait=_clamp((a.gait + b.gait) / 2.0 + rng.gauss(0.0, mutation)),
+    )
+
+
+class PhysicalTraitPool:
+    """Owns each agent's physical vector, keyed by id, outside the engine --
+    the physical-trait mirror of :class:`TraitPool`."""
+
+    def __init__(self, rng: random.Random, *, spread: float = PHYSICAL_SPREAD,
+                 mutation: float = PHYSICAL_MUTATION):
+        self.rng = rng
+        self.spread = spread
+        self.mutation = mutation
+        self._physical: dict[str, PhysicalTraits] = {}
+
+    def found(self, agent_id: str) -> PhysicalTraits:
+        vec = sample_physical(self.rng, spread=self.spread)
+        self._physical[agent_id] = vec
+        return vec
+
+    def inherit(self, child_id: str, parent_ids: tuple[str, ...]) -> PhysicalTraits:
+        """Both parents known -> blend + mutate. One known -> a fresh sample
+        around that parent. Neither (shouldn't happen for a birth) -> a fresh
+        neutral-centred sample."""
+        known = [self._physical[p] for p in parent_ids if p in self._physical]
+        if len(known) >= 2:
+            vec = blend_physical(known[0], known[1], self.rng, mutation=self.mutation)
+        elif len(known) == 1:
+            vec = blend_physical(known[0], known[0], self.rng, mutation=self.mutation)
+        else:
+            vec = sample_physical(self.rng, spread=self.spread)
+        self._physical[child_id] = vec
+        return vec
+
+    def get(self, agent_id: str) -> Optional[PhysicalTraits]:
+        return self._physical.get(agent_id)
+
+
 class DevelopingBrain(AgentBrain):
     """A heuristic whose effective personality matures over a developmental window.
 

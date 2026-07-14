@@ -106,6 +106,9 @@ def make_simulation(
     genetic inheritance — see :mod:`emergence.personality` and issue #24). It
     only applies to the default heuristic path (no ``brain_factory``); off, every
     agent is the exact preset Persona and the baseline contract is unchanged.
+    Also assigns heritable *physical* traits (sex, body build, gait — #76),
+    inert engine-side, surfaced on ``Agent`` (``.sex``/``.build``/``.gait``)
+    for the observatory to render distinct silhouettes and walking tempo.
 
     ``library`` turns on the town's shared knowledge store. With ``memory``
     also on, the shelf is backed by memory-agent's ``GameWorld`` instead of
@@ -140,17 +143,25 @@ def make_simulation(
     # culture, with newborns blending both parents. Lives outside the engine; we
     # hand the engine only a newborn-brain factory that closes over the pool.
     pool = None
+    physical_pool = None
     newborn_factory = None
     if individuals and brain_factory is None:
-        from .personality import TraitPool, DevelopingBrain, DEFAULT_WINDOW_DAYS
-        # A dedicated, seed-derived RNG so trait draws are reproducible and don't
-        # disturb the brain-RNG stream used by the default path.
+        from .personality import (TraitPool, PhysicalTraitPool, DevelopingBrain,
+                                  DEFAULT_WINDOW_DAYS)
+        # Dedicated, seed-derived RNGs so trait draws are reproducible and don't
+        # disturb the brain-RNG stream used by the default path. Physical traits
+        # get their own stream (distinct salt) so they vary independently of
+        # the behavioural ones, not in lockstep.
         trait_rng = random.Random((config.seed or 0) ^ 0x70017)
+        physical_rng = random.Random((config.seed or 0) ^ 0x7A1CE)
         pool = TraitPool(trait_rng)
+        physical_pool = PhysicalTraitPool(physical_rng)
         window = DEFAULT_WINDOW_DAYS
 
         def newborn_factory(child, persona_key, sim_rng):
             vec = pool.inherit(child.id, child.parent_ids, get_persona(persona_key))
+            phys = physical_pool.inherit(child.id, child.parent_ids)
+            child.sex, child.build, child.gait = phys.sex, phys.build, phys.gait
             return DevelopingBrain(
                 vec, random.Random(sim_rng.randint(0, 2**31)), window)
 
@@ -165,6 +176,8 @@ def make_simulation(
             # developmental window (founders start mature, so this is a no-op
             # for them).
             vec = pool.found(agent.id, persona)
+            phys = physical_pool.found(agent.id)
+            agent.sex, agent.build, agent.gait = phys.sex, phys.build, phys.gait
             brains[agent.id] = DevelopingBrain(
                 vec, random.Random(rng.randint(0, 2**31)), DEFAULT_WINDOW_DAYS)
         else:
