@@ -308,8 +308,12 @@ function buildTerrain(){
     for(let x=0;x<W;x++){
       const e=elev(x*fz,y*fz), m=moist(x*fz+10,y*fz+10);
       let type;
-      if(e<0.30) type="water";
-      else if(e<0.36) type="sand";
+      // The engine has no water concept — every in-grid cell is walkable and
+      // may hold a facility, so "water" must never be a cell type here (it
+      // used to be, which put houses on the sea and citizens on water). Low
+      // elevation reads as beach instead; the sea itself is a backdrop drawn
+      // behind the grid (see drawSeaBackdrop), never a cell agents stand on.
+      if(e<0.36) type="sand";
       else if(e>0.74) type="rock";
       else type=m>0.62?"forest":"grass";    // damp ground reads lusher
       row.push({type, shade:(elev(x*0.9,y*0.9)-0.5)*0.10});
@@ -352,6 +356,15 @@ function tintCell(type, shade){
 function isoDiamond(x,y,fill){ const cx=gx(x,y), cy=gy(x,y), hw=cell, hh=cell*ISO_PITCH;
   ctx.fillStyle=fill; ctx.beginPath();
   ctx.moveTo(cx,cy-hh); ctx.lineTo(cx+hw,cy); ctx.lineTo(cx,cy+hh); ctx.lineTo(cx-hw,cy); ctx.closePath(); ctx.fill(); }
+// The sea: a static backdrop behind the whole canvas, not terrain cells, so
+// the town reads as an island/coast and nothing ever stands on it (#107).
+function drawSeaBackdrop(){
+  const W=canvas.clientWidth, H=canvas.clientHeight;
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, tintCell("water",0.06));
+  g.addColorStop(1, tintCell("water",-0.10));
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
 function drawTerrain(){
   if(!terrain) return;
   if(ISO){                       // isometric diamonds, back-to-front by (x+y)
@@ -370,13 +383,6 @@ function drawTerrain(){
       ctx.fillStyle="rgba(120,98,66,.5)";
       ctx.fillRect(gx(x,y)-o, gy(x,y)-o, cell+1, cell+1);
     }
-  }
-  // gentle water shimmer
-  const sh=(Math.sin(performance.now()/700)+1)/2;
-  for(let y=0;y<terrain.H;y++) for(let x=0;x<terrain.W;x++){
-    if(terrain.cells[y][x].type!=="water") continue;
-    ctx.fillStyle=`rgba(150,200,230,${0.05+0.05*((x+y+Math.floor(performance.now()/500))%3===0?sh:0)})`;
-    ctx.fillRect(gx(x,y)-o, gy(x,y)-o, cell+1, cell*0.5);
   }
 }
 // Day/night: a slow real-time clock gives the world a living sky. Returns the
@@ -666,6 +672,7 @@ function roundRect(x,y,w,h,r){ ctx.beginPath();
 function draw(){
   if(!world) return; geom(); buildTerrain();
   const W=canvas.clientWidth, H=canvas.clientHeight; ctx.clearRect(0,0,W,H);
+  drawSeaBackdrop();                                // the sea, behind the island
   ctx.save();
   if(shake>0.2) ctx.translate((Math.random()*2-1)*shake, (Math.random()*2-1)*shake);
   drawTerrain();                                   // the land
