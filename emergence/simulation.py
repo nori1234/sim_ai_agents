@@ -95,6 +95,8 @@ ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arres
 LIE_EXPOSURE_REP_LOSS = 3.0
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
 ATTACK_DAMAGE = 15.0  # energy a victim loses when attacked
+BURGLARY_LOOT_MONEY = 10   # a home holds more than a purse (#113) -- worth the risk
+BURGLARY_ENERGY_COST = 8.0  # forcing a door costs more than snatching a purse
 
 
 @dataclass
@@ -299,6 +301,11 @@ class Simulation:
                 # enforcement / protecting your own (#38). Absent off the layer.
                 **({"gang": o.gang_id} if (self.society.enabled
                                            and self.society.gangs) else {}),
+                # Home safety (#113): being indoors, especially at home, is
+                # safer from street crime. Only surfaced under the psyche
+                # layer (the home of "safety" concepts) -- absent, the
+                # heuristic's targeting reads exactly as before.
+                **({"sheltered": self._is_sheltered(o)} if self.psyche.enabled else {}),
             })
         eligible = self._eligible_voters()
         proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
@@ -544,6 +551,15 @@ class Simulation:
         elif ev.kind == "strike" and ev.other is not None:
             # Force against a person is the crime of violence.
             self._register_crime(ev.actor, "violence", ev.other)
+        elif (ev.kind == "strike" and ev.other is None and self.society.enabled
+              and ev.site is not None and ev.site.ftype is FacilityType.HOUSE
+              and ev.site.owner is not None and ev.site.owner != ev.actor.id):
+            # Breaking into an OWNED home is burglary (#113), not arson --
+            # reusing strike(building), keyed off the owner (#93/#102). Gated
+            # on --society (the underworld layer) so plain --economy towns
+            # (owner set, society off) still read every house-strike as arson,
+            # exactly as before.
+            self._burgle(ev.actor, ev.site)
         elif ev.kind == "strike" and ev.other is None:
             # Force against a structure is arson (no victim, so the crime is
             # accounted inline and dread radiates from the site).
@@ -2126,6 +2142,42 @@ class Simulation:
                 return None
         return target
 
+    def _burgle(self, offender: Agent, house) -> None:
+        """Breaking into an owned home (#113): a costlier, rarer counter to
+        the safety a house affords (#73). Unlike _register_crime, the
+        epicentre is the house's location, not wherever the (possibly
+        absent) owner currently stands -- a burglary happens at the house."""
+        offender.energy -= BURGLARY_ENERGY_COST
+        owner = self._by_id.get(house.owner)
+        loot = min(BURGLARY_LOOT_MONEY, owner.money) if owner is not None else 0
+        if owner is not None and loot:
+            offender.money += owner.take("money", loot)
+        offender.crimes_committed += 1
+        offender.last_crime_day = self.world.day
+        self.metrics.record_crime("burglary")
+        self.world.log("burglary", offender=offender.id, facility=house.name,
+                       owner=house.owner, loot=loot, pos=house.pos)
+        if owner is not None:
+            owner.times_victimized += 1
+            owner.adjust_trust(offender.id, -0.6)
+            owner.remember(f"Day {self.world.day}: my home was broken into.")
+        self._strike_fear(owner, epicentre=house.pos, offender_id=offender.id)
+        if self.policy.has_punishment_law() and owner is not None:
+            nearest_police = self.world.nearest(house.pos, FacilityType.POLICE_STATION)
+            if nearest_police and chebyshev(house.pos, nearest_police.pos) <= self.policy.config.police_range:
+                fine = min(offender.money, self.policy.config.fine_amount)
+                if self.economy:
+                    paid = offender.take("money", fine)
+                    half = paid // 2
+                    owner.add("money", half)
+                    self.treasury += paid - half
+                else:
+                    offender.money -= fine
+                    owner.money += fine // 2
+                    self.world.granary_food += 1
+                self.world.log("fine", offender=offender.id, amount=fine)
+                self.metrics.fines_collected += 1
+
     def _register_crime(self, offender: Agent, kind: str, victim: Agent) -> None:
         offender.crimes_committed += 1
         offender.last_crime_day = self.world.day   # now "wanted" for a short while
@@ -2750,6 +2802,14 @@ class Simulation:
             if f and chebyshev(agent.pos, f.pos) <= self.psyche.safe_radius:
                 return True
         return False
+
+    def _is_sheltered(self, agent: Agent) -> bool:
+        """Indoors, specifically at home (#113) -- a narrower, harder bar than
+        _near_safety's "within comforting reach": you must actually be
+        standing in a house, not merely nearby, to be a poor street-crime
+        target."""
+        f = self.world.facility_at(agent.pos)
+        return f is not None and f.ftype is FacilityType.HOUSE
 
     # ==================================================================
     @staticmethod
