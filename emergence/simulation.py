@@ -69,6 +69,7 @@ HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
 HEAL_ILLNESS_RELIEF = 18.0    # a doctor's care speeds recovery from illness (#86)
 HEAL_INJURY_RELIEF = 25.0     # mending the wounded body (health layer) -- the
                                # fast path back, vs. slow unattended healing
+RENT_ENERGY = 18.0            # paid use of a property (#102) -- like rest, but bought
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
@@ -922,14 +923,32 @@ class Simulation:
         self._recognise(taker, rep, self.status.achievement_relief, "feast")
         self.world.log("feast", host=taker.id, spent=fee)
 
+    def _serve_rent(self, provider: Agent, taker: Agent, fee: int) -> None:
+        """Paid use of a property (#102): the taker gets a rest-shaped energy
+        benefit for occupying an owner's building for a fee, instead of it
+        being free like ordinary REST. The going rate is emergent (the
+        accepted fee), same as healing/feast; ownership itself is validated
+        at offer time (_do_offer), not here."""
+        taker.energy = min(MAX_ENERGY, taker.energy + RENT_ENERGY)
+
     @property
     def _service_effects(self):
-        return {"healing": self._serve_healing, "feast": self._serve_feast}
+        return {"healing": self._serve_healing, "feast": self._serve_feast,
+                "rent": self._serve_rent}
 
     def _do_work(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
         if f is None or not f.is_workplace():
             return
+        # Exclusion (#102): working an owned facility without the owner's
+        # consent reads as trespass -- the existing crime primitives, so
+        # enforcement is the owner's/a guard's choice, not a hard block. The
+        # act still succeeds; only unowned commons (and the offline baseline,
+        # where owner is always None) are exempt.
+        if f.owner is not None and f.owner != agent.id:
+            owner = self._by_id.get(f.owner)
+            if owner is not None and owner.alive:
+                self._register_crime(agent, "trespass", owner)
         used = agent.take("materials", 1)
         pay = 3 + 2 * used  # bare work pays a little; with materials, more
         if self.environment is not None and f.ftype == FacilityType.MARKET:
@@ -1591,6 +1610,12 @@ class Simulation:
             # economy-only baseline free of feast offers entirely).
             if service == "feast" and not self.status.enabled:
                 return
+            if service == "rent":
+                # Can only rent out a property you actually own (#102) -- unlike
+                # healing/feast, "anyone capable" isn't enough here.
+                here = self.world.facility_at(agent.pos)
+                if here is None or here.owner != agent.id:
+                    return
             offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
                              give_qty=0, want_item=wi, want_qty=wq,
                              day=self.world.day, service=service)
@@ -1598,6 +1623,22 @@ class Simulation:
             self.offers.append(offer)
             self.world.log("offer", id=offer.id, by=agent.id,
                            service=service, want=f"{wq} {wi}")
+            return
+        gf = p.get("give_facility")
+        if gf:
+            # A property-sale offer (#102): sell a facility you own for money
+            # (or any tradable) on the same OFFER/ACCEPT book as a goods swap.
+            gf = str(gf)
+            f = next((x for x in self.world.facilities if x.name == gf), None)
+            if f is None or f.owner != agent.id or wi not in MK.TRADABLE or wq <= 0:
+                return
+            offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
+                             give_qty=0, want_item=wi, want_qty=wq,
+                             day=self.world.day, give_facility=gf)
+            self._next_offer_id += 1
+            self.offers.append(offer)
+            self.world.log("offer", id=offer.id, by=agent.id,
+                           sell=gf, want=f"{wq} {wi}")
             return
         gi = str(p.get("give_item", ""))
         gq = int(p.get("give_qty", 0) or 0)
@@ -1667,6 +1708,24 @@ class Simulation:
             self.world.log("service", offer=offer.id, provider=maker.id,
                            taker=agent.id, service=offer.service,
                            fee=f"{offer.want_qty} {offer.want_item}")
+            return
+        if offer.give_facility is not None:
+            # A property sale (#102): transfer the transferable ownership
+            # claim (the same one inheritance already moves at death, #92)
+            # instead of a fungible good.
+            f = next((x for x in self.world.facilities if x.name == offer.give_facility), None)
+            if f is None or f.owner != maker.id:
+                self.offers.remove(offer)
+                return
+            apply_transfer(agent, maker, offer.want_item, offer.want_qty)
+            f.owner = agent.id
+            self.offers.remove(offer)
+            self.metrics.trades += 1
+            maker.adjust_trust(agent.id, 0.05)
+            agent.adjust_trust(maker.id, 0.05)
+            self.world.log("property_sale", offer=offer.id, seller=maker.id,
+                           buyer=agent.id, facility=f.name,
+                           price=f"{offer.want_qty} {offer.want_item}")
             return
         # Both sides must still hold the goods — conservation, no credit here.
         if MK.holdings(maker, offer.give_item) < offer.give_qty:
