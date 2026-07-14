@@ -1,4 +1,4 @@
-# Neural brain integration contract — v1.0
+# Neural brain integration contract — v1.1
 
 The versioned interface between the Emergence World engine (`sim_ai_agents`) and
 an external developmental brain (`llm_model_agi`). This is the **single source of
@@ -120,6 +120,8 @@ enum, so it cannot drift). Categories:
 * `observation.self_view` (= `Agent.snapshot()`) keys are frozen in
   `SELF_VIEW_KEYS`. The reward uses **`energy`** (0..100 float, survival),
   **`money`** (int, material) and **`reputation`** (social standing).
+  `illness` (0..100 float, added in v1.1) is a contagious-disease severity
+  signal — 0 healthy, stays 0 unless `IllnessConfig.enabled`.
 * **There is no "trust toward me" scalar.** `observation.others[i]["trust"]` is
   *this* agent's trust *of* neighbour `i`. The reward's social term therefore uses
   `reputation`, falling back to the mean of `others[*].trust` only when the status

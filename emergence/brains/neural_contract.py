@@ -19,7 +19,7 @@ from ..actions import ActionType
 
 #: Semantic version of this contract. The adapter should record the version it
 #: was built against; a major mismatch means the mapping must be revisited.
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"
 
 #: The engine's canonical no-op, for the out-of-vocab / unresolvable-target clamp.
 #: ``_do_idle`` is literally ``pass`` (no effect, only the per-tick upkeep runs).
@@ -105,7 +105,7 @@ PARAM_SPEC: dict[str, dict] = {
 SELF_VIEW_KEYS: frozenset[str] = frozenset({
     "id", "name", "profession", "alive", "energy", "money", "food", "materials",
     "hunger", "fatigue", "libido", "reputation", "fear", "weapons", "addiction",
-    "gang", "faith", "age_days", "crimes", "last_crime_day", "frauds",
+    "illness", "gang", "faith", "age_days", "crimes", "last_crime_day", "frauds",
 })
 
 #: Top-level ``Observation`` fields the adapter/tokenizer may consume. (The engine

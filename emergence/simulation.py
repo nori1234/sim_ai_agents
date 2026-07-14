@@ -15,6 +15,7 @@ from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicita
 from .esteem import StatusConfig, esteem_urge
 from .ecology import EcologyConfig
 from .grounding import CounterfactualConfig
+from .illness import IllnessConfig, capability_factor as illness_capability_factor
 from .psyche import PsycheConfig, actualization_pull, fear_level
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
@@ -61,6 +62,7 @@ HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the
 # the baseline is untouched. The hospital bonus applies to all of it.
 HEAL_FEAR_RELIEF = 20.0       # treating the wounded mind (psyche layer)
 HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
+HEAL_ILLNESS_RELIEF = 18.0    # a doctor's care speeds recovery from illness (#86)
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
@@ -116,6 +118,7 @@ class Simulation:
     status: StatusConfig = field(default_factory=StatusConfig)
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
     society: SocietyConfig = field(default_factory=SocietyConfig)
+    illness: IllnessConfig = field(default_factory=IllnessConfig)
     ecology: EcologyConfig = field(default_factory=EcologyConfig)
     # Counterfactual-world transfer test (grounding falsification probe); opt-in.
     # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
@@ -719,6 +722,13 @@ class Simulation:
             self._spend(agent, ActionType.SOW)
             self.world.log("sow", by=agent.id, farm=f.name)
 
+    def _illness_scaled_yield(self, agent: Agent, amount: int) -> int:
+        """A badly ill gatherer works slower — a fraction of yield lost past
+        the severe threshold, never dropping to zero (#86)."""
+        if not self.illness.enabled or amount <= 0:
+            return amount
+        return max(1, round(amount * illness_capability_factor(agent, self.illness)))
+
     def _harvest(self, agent: Agent, f) -> Event:
         """Take from a world resource node: the node *produces* a yield (shaped
         by the environment), which flows into the gatherer. No counterparty, so
@@ -728,6 +738,7 @@ class Simulation:
         if (self.environment is not None and self.environment.config.agriculture
                 and f.ftype is FacilityType.FARM):
             amount = self.environment.harvest_crop(f)
+            amount = self._illness_scaled_yield(agent, amount)
             if amount:
                 agent.add("food", amount)
             ev = Event(kind="take", actor=agent, other=None, site=f,
@@ -743,6 +754,7 @@ class Simulation:
             amount = max(1, round(amount * gather_multiplier(agent.profession, resource)))
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
+        amount = self._illness_scaled_yield(agent, amount)
         agent.add(resource, amount)
         ev = Event(kind="take", actor=agent, other=None, site=f,
                    items={resource: amount} if amount else {})
@@ -824,6 +836,8 @@ class Simulation:
             taker.fear = max(0.0, taker.fear - HEAL_FEAR_RELIEF * boost)
         if self.society.enabled and self.society.drugs and taker.addiction > 0:
             taker.addiction = max(0.0, taker.addiction - HEAL_ADDICTION_RELIEF * boost)
+        if self.illness.enabled and taker.illness > 0:
+            taker.illness = max(0.0, taker.illness - HEAL_ILLNESS_RELIEF * boost)
 
     def _serve_feast(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Conspicuous consumption: the taker hosts a feast (the provider caters,
@@ -1981,6 +1995,29 @@ class Simulation:
             # Withdrawal: the craving sickness drains the body.
             if agent.addiction > self.society.withdrawal_threshold:
                 agent.energy -= self.society.withdrawal_energy_penalty
+        if self.illness.enabled:
+            if agent.illness > 0:
+                # The body fights it off, quietly -- faster resting under a
+                # roof meant for it (#86).
+                decay = self.illness.illness_decay_per_tick
+                f = self.world.facility_at(agent.pos)
+                if f is not None and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}:
+                    decay += self.illness.illness_decay_shelter_bonus
+                agent.illness = max(0.0, agent.illness - decay)
+                if agent.illness > self.illness.severe_threshold:
+                    agent.energy -= self.illness.energy_penalty
+            else:
+                # Contagion: proximity to an ill agent may spread it, per
+                # tick -- denser clusters / longer exposure -> faster spread,
+                # an emergent epidemic rather than a scripted one.
+                for other in self.agents:
+                    if other.id == agent.id or not other.alive or other.illness <= 0:
+                        continue
+                    if chebyshev(agent.pos, other.pos) <= self.illness.contagion_radius \
+                            and self.rng.random() < self.illness.contagion_chance:
+                        agent.illness = self.illness.onset_severity
+                        self.world.log("illness_caught", agent=agent.id, source=other.id)
+                        break
         if self.drives.enabled and agent.age_days > self.drives.senescence_age_days:
             # Senescence: the old body tires faster (a gentle, rising drain). Pure
             # decline — natural death itself is the daily hazard in _end_of_day.
@@ -2202,6 +2239,15 @@ class Simulation:
                     self.treasury += a.take("money", PW.CIVIC_LEVY_PER_AGENT)
         self._apply_daily_policy()
         self._maybe_elect_mayor()
+        if self.illness.enabled:
+            # Spontaneous onset, once per day (#86); contagion + decay/
+            # recovery run per tick, in _tick_upkeep, so denser/longer
+            # exposure matters the way the issue asks for.
+            for a in self.agents:
+                if a.alive and a.illness <= 0 \
+                        and self.rng.random() < self.illness.daily_strike_chance:
+                    a.illness = self.illness.onset_severity
+                    self.world.log("illness_onset", agent=a.id)
         if self.environment is not None:
             # New weather/season, regen resources, reprice, maybe a disaster.
             self.environment.advance_day(self)

@@ -11,6 +11,7 @@ from .drives import DrivesConfig
 from .ecology import EcologyConfig
 from .esteem import StatusConfig
 from .grounding import CounterfactualConfig
+from .illness import IllnessConfig
 from .psyche import PsycheConfig
 from .society import SocietyConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
@@ -68,6 +69,7 @@ def make_simulation(
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
+    illness: IllnessConfig | None = None,
     ecology: "EcologyConfig | None" = None,
     counterfactual: "CounterfactualConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
@@ -190,6 +192,7 @@ def make_simulation(
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
+        illness=illness or IllnessConfig(),
         ecology=eco_cfg,
         counterfactual=counterfactual or CounterfactualConfig(),
         environment=env,

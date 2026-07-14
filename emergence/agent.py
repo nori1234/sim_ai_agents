@@ -73,6 +73,11 @@ class Agent:
     rebellions_joined: int = 0
     last_rebelled_day: Optional[int] = None
 
+    # Illness/contagion layer — a transmissible disease, distinct from
+    # addiction's withdrawal sickness. Under IllnessConfig (see
+    # emergence.illness).
+    illness: float = 0.0
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -153,6 +158,7 @@ class Agent:
             "fear": round(self.fear, 1),
             "weapons": self.weapons,
             "addiction": round(self.addiction, 1),
+            "illness": round(self.illness, 1),
             "gang": self.gang_id,
             "faith": self.faith,
             "age_days": self.age_days,
