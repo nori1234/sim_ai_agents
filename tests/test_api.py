@@ -43,6 +43,19 @@ class TestWorldLifecycle(unittest.TestCase):
             self.api.create_world(persona="nope")
         self.assertEqual(cm.exception.status, 400)
 
+    def test_prosperity_is_a_live_bounded_index(self):
+        # Live every call (not just the final report, #71) so the observatory
+        # can grow building height as the town develops -- works for any
+        # world, not only --founding ones.
+        st = self.api.create_world(persona="guardian", seed=1, days=10)
+        self.assertIn("prosperity", st)
+        self.assertGreaterEqual(st["prosperity"], 0.0)
+        self.assertLessEqual(st["prosperity"], 100.0)
+        wid = st["world_id"]
+        after = self.api.step(wid, days=9)
+        self.assertGreaterEqual(after["prosperity"], 0.0)
+        self.assertLessEqual(after["prosperity"], 100.0)
+
     def test_inputs_are_clamped(self):
         st = self.api.create_world(persona="guardian", days=9999, ticks=0)
         self.assertLessEqual(st["config"]["days"], 60)

@@ -24,6 +24,7 @@ import uuid
 from .affordances import role_of
 from .chronicle import (chronicle, chronicle_text, life_story, life_story_text,
                         narrate)
+from . import development
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .personas import ALIASES, PERSONAS
@@ -345,6 +346,12 @@ class EmergenceAPI:
                 for f in sim.world.facilities
             ],
             "granary_food": sim.world.granary_food,
+            # A 0-100 development index (food security, order, wealth, knowledge,
+            # infrastructure breadth) -- read live every call, not just at the
+            # final report, so the observatory can grow building height as the
+            # town develops (#71). A pure function of already-present sim state;
+            # works for any world, not only --founding ones.
+            "prosperity": development.prosperity(sim),
             "environment": (sim.environment.snapshot()
                             if getattr(sim, "environment", None) is not None else None),
             # Town-panel data: what the town has legislated, its economy, its library.
