@@ -73,6 +73,25 @@ class EnvironmentConfig:
     crop_yield: int = 4              # food per harvest from a ripe (productive) field
     crop_harvests: int = 5           # how many harvests a ripe field bears before going fallow
 
+    # Seed & storage (#105): sowing can cost seed grain, so keeping seed-corn vs
+    # eating it becomes a real choice, and the granary matters more. 0 (default)
+    # = free sowing, as before this was split out of #95.
+    seed_cost: int = 0
+
+    # Crop failure (#105): severe weather can wipe a still-*growing* (unripe)
+    # field outright -- real famine pressure, distinct from a merely lean
+    # harvest. 0 chance (default) = a crop never fails, as before.
+    crop_failure_chance: float = 0.0
+    crop_failure_conditions: frozenset = frozenset({"storm", "cold snap", "heatwave"})
+
+    # Soil / fallow benefit (#105): repeated cropping depletes a field's
+    # fertility (scaling its harvest yield down); resting it while fallow
+    # restores fertility -- rotation/rest becomes a real tradeoff. Both 0
+    # (default) leave fertility fixed at 1.0, as before.
+    soil_depletion_per_harvest: float = 0.0
+    soil_min_fertility: float = 0.3
+    soil_regen_per_fallow_day: float = 0.0
+
     # Dynamic weather: instead of an independent daily draw, weather moves in
     # *fronts* — a condition persists for a few days, then shifts — so spells of
     # fair weather and multi-day storms emerge rather than day-to-day flicker.
@@ -149,6 +168,10 @@ class Environment:
         # productive now, some still ripening) so there's an opening harvest.
         self.grow: dict[str, float] = {}
         self.ripe: dict[str, int] = {}
+        # Soil fertility (#105): 1.0 = fresh, scales harvest yield; depletes per
+        # harvest, recovers while a field rests fallow. Only moves off 1.0 when
+        # soil_depletion_per_harvest/soil_regen_per_fallow_day are configured.
+        self.soil: dict[str, float] = {}
         if config.agriculture:
             # Start every field productive so the town has a standing food supply
             # to live on while it learns its own sow/harvest rhythm; once a field's
@@ -156,6 +179,7 @@ class Environment:
             for f in world.facilities:
                 if f.ftype is FacilityType.FARM:
                     self.ripe[f.name] = config.crop_harvests
+                    self.soil[f.name] = 1.0
         # Active disaster: (kind, days_left) or None.
         self.active_disaster: Optional[tuple[str, int]] = None
         # Tallies for the report.
@@ -223,15 +247,20 @@ class Environment:
         return "empty"
 
     def harvest_crop(self, farm) -> int:
-        """A productive (ripe) field bears a harvest (shaped by weather/famine) and
-        loses one of its remaining harvests; when spent it goes fallow. An unripe
-        or fallow field gives nothing."""
+        """A productive (ripe) field bears a harvest (shaped by weather/famine and
+        the field's own soil fertility) and loses one of its remaining harvests;
+        when spent it goes fallow. An unripe or fallow field gives nothing."""
         if self.ripe.get(farm.name, 0) <= 0:
             return 0
         self.ripe[farm.name] -= 1
         mult = self.weather.yield_mult if self.config.weather else 1.0
         if self.active_disaster and self.active_disaster[0] == "famine":
             mult *= self.config.famine_yield_mult
+        mult *= self.soil.get(farm.name, 1.0)
+        if self.config.soil_depletion_per_harvest:
+            self.soil[farm.name] = max(
+                self.config.soil_min_fertility,
+                self.soil.get(farm.name, 1.0) - self.config.soil_depletion_per_harvest)
         return max(1, round(self.config.crop_yield * mult))
 
     # ----------------------------------------------------------------- economy
@@ -271,12 +300,28 @@ class Environment:
             for name, val in list(self.grow.items()):
                 if val <= 0.0:
                     continue
+                # Crop failure (#105): severe weather can wipe a still-growing
+                # field outright, losing the season's work -- the field returns
+                # to empty and must be re-sown. Off (chance 0) is a no-op.
+                if (self.config.crop_failure_chance
+                        and self.weather.condition in self.config.crop_failure_conditions
+                        and self.rng.random() < self.config.crop_failure_chance):
+                    self.grow[name] = 0.0
+                    self.world.log("crop_failure", farm=name, cause=self.weather.condition)
+                    continue
                 val += step
                 if val >= mature:
                     self.grow[name] = 0.0
                     self.ripe[name] = self.config.crop_harvests
                 else:
                     self.grow[name] = val
+            # Soil / fallow benefit (#105): a field left empty (not sown, not
+            # ripe) rests and recovers fertility. Off (regen 0) is a no-op.
+            if self.config.soil_regen_per_fallow_day:
+                for name in self.soil:
+                    if self.grow.get(name, 0.0) <= 0.0 and self.ripe.get(name, 0) <= 0:
+                        self.soil[name] = min(
+                            1.0, self.soil[name] + self.config.soil_regen_per_fallow_day)
         self._recompute_prices(sim.agents)
         self._tick_disaster(sim)
 
