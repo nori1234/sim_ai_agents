@@ -38,6 +38,7 @@ from .innovation import InnovationConfig
 from .psyche import PsycheConfig
 from .rumour import RumourConfig
 from .society import SocietyConfig
+from .health import HealthConfig
 from .personas import ALIASES, PERSONAS
 from .report import format_report, one_line_verdict
 from .scenario import make_simulation
@@ -74,6 +75,10 @@ def _rumour_from_args(args) -> RumourConfig:
 
 def _innovation_from_args(args) -> InnovationConfig:
     return InnovationConfig(enabled=bool(getattr(args, "innovation", False)))
+
+
+def _health_from_args(args) -> HealthConfig:
+    return HealthConfig(enabled=bool(getattr(args, "health", False)))
 
 
 def _llm_factory(args):
@@ -123,6 +128,7 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           illness=_illness_from_args(args),
                           rumour=_rumour_from_args(args),
                           innovation=_innovation_from_args(args),
+                          health=_health_from_args(args),
                           ecology=EcologyConfig(enabled=True) if getattr(args, "ecology", False) else None,
                           environment=bool(getattr(args, "environment", False)),
                           public_works=bool(getattr(args, "public_works", False)),
@@ -233,6 +239,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--innovation", action="store_true",
                         help="enable learning-by-doing skill and recipe "
                              "discovery/diffusion (needs --economy) (技術革新)")
+    parser.add_argument("--health", action="store_true",
+                        help="enable lingering injury from violence: a wound that "
+                             "persists, saps capability, and needs tending (怪我)")
     parser.add_argument("--ecology", action="store_true",
                         help="enable livestock that breeds and is slaughtered for food (家畜・生態系)")
     parser.add_argument("--environment", action="store_true",

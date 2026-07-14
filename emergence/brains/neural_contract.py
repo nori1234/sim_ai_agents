@@ -19,7 +19,14 @@ from ..actions import ActionType
 
 #: Semantic version of this contract. The adapter should record the version it
 #: was built against; a major mismatch means the mapping must be revisited.
-CONTRACT_VERSION = "1.1"
+#: 1.1: additive — SELF_VIEW_KEYS gained "illness" (#86) and "skill" (#97);
+#: OBSERVATION_FIELDS gained "rumour" and `say` gained optional about/sentiment
+#: params (#96).
+#: 1.2: additive — SELF_VIEW_KEYS gained "injury" (health layer, #85). A brain
+#: built against an older minor still works: self_view just carries extra keys
+#: it never reads, and each field is 0 unless its (opt-in, off by default)
+#: layer is enabled, so nothing already deployed changes behaviour.
+CONTRACT_VERSION = "1.2"
 
 #: The engine's canonical no-op, for the out-of-vocab / unresolvable-target clamp.
 #: ``_do_idle`` is literally ``pass`` (no effect, only the per-tick upkeep runs).
@@ -106,9 +113,9 @@ PARAM_SPEC: dict[str, dict] = {
 #: OF them).
 SELF_VIEW_KEYS: frozenset[str] = frozenset({
     "id", "name", "profession", "alive", "energy", "money", "food", "materials",
-    "hunger", "fatigue", "libido", "reputation", "fear", "weapons", "addiction",
-    "illness", "skill", "gang", "faith", "age_days", "crimes", "last_crime_day",
-    "frauds",
+    "hunger", "fatigue", "libido", "reputation", "fear", "injury", "weapons",
+    "addiction", "illness", "skill", "gang", "faith", "age_days", "crimes",
+    "last_crime_day", "frauds",
 })
 
 #: Top-level ``Observation`` fields the adapter/tokenizer may consume. (The engine

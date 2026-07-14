@@ -26,6 +26,7 @@ LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
 SICK_ILLNESS = 45.0     # a contagious illness this bad is worth seeing a doctor
+SICK_INJURY = 45.0      # a wound this deep is worth a doctor, and worth avoiding a fight
 BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
 BRIBE_PRICE = 6         # what a wanted offender slips a guard to be let off
 HARSH_WEATHER = {"storm", "heatwave", "cold snap"}  # conditions worth sheltering from
@@ -94,16 +95,19 @@ class HeuristicBrain(AgentBrain):
             return soc
 
         # 2. Retaliation against whoever wronged us (vengeful personas) — unless
-        #    a published, enforced crime norm stays the agent's hand. The only
-        #    thing between temptation and the act is now the agent's own choice
-        #    to comply, not an aura cast by a building.
+        #    a published, enforced crime norm stays the agent's hand, or the
+        #    agent is already badly hurt and knows better than to pick a fight.
+        #    The only thing between temptation and the act is now the agent's
+        #    own choice to comply, not an aura cast by a building.
         foe = self._nearby_foe(obs)
         if foe is not None and self.rng.random() < p.vengefulness \
-                and not self._norm_restrains(p, obs):
+                and not self._norm_restrains(p, obs) and agent.injury < SICK_INJURY:
             return self._aggress(agent, foe, p, reason="retaliation")
 
-        # 3. Unprovoked aggression (predators, chaotic philosophers).
-        if self.rng.random() < p.aggression * 0.6 and not self._norm_restrains(p, obs):
+        # 3. Unprovoked aggression (predators, chaotic philosophers) — likewise
+        #    stayed by a wound bad enough to make a fight a bad idea.
+        if self.rng.random() < p.aggression * 0.6 and not self._norm_restrains(p, obs) \
+                and agent.injury < SICK_INJURY:
             victim = self._nearby_target(obs)
             if victim is not None:
                 return self._aggress(agent, victim, p, reason="aggression")
@@ -379,8 +383,9 @@ class HeuristicBrain(AgentBrain):
         the psyche / society layers are live."""
         if not obs.economy.get("enabled"):
             return None
-        afflicted = obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION \
-            or agent.illness >= SICK_ILLNESS
+        afflicted = (obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION
+                     or agent.illness >= SICK_ILLNESS
+                     or agent.injury >= SICK_INJURY)
         # A free meal fixes hunger-energy, but not a wounded mind or withdrawal —
         # so only let food crowd out care when the sole reason is being run down.
         if not afflicted and agent.food() > 0:
@@ -475,7 +480,7 @@ class HeuristicBrain(AgentBrain):
         # rested — a meal mends neither. Inert unless the psyche / society layers
         # are live (the reasons stay 0) and a healing offer is in reach.
         if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION \
-                or agent.illness >= SICK_ILLNESS:
+                or agent.illness >= SICK_ILLNESS or agent.injury >= SICK_INJURY:
             care = self._buy_care_action(agent, obs)
             if care is not None:
                 return care

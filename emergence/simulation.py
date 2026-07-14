@@ -15,6 +15,7 @@ from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicita
 from .esteem import StatusConfig, esteem_urge
 from .ecology import EcologyConfig
 from .grounding import CounterfactualConfig
+from .health import HealthConfig, capability_factor
 from .illness import IllnessConfig, capability_factor as illness_capability_factor
 from .innovation import DISCOVERY_POOL, InnovationConfig, skill_yield_mult
 from .psyche import PsycheConfig, actualization_pull, fear_level
@@ -65,6 +66,8 @@ HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the
 HEAL_FEAR_RELIEF = 20.0       # treating the wounded mind (psyche layer)
 HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
 HEAL_ILLNESS_RELIEF = 18.0    # a doctor's care speeds recovery from illness (#86)
+HEAL_INJURY_RELIEF = 25.0     # mending the wounded body (health layer) -- the
+                               # fast path back, vs. slow unattended healing
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
@@ -123,6 +126,7 @@ class Simulation:
     illness: IllnessConfig = field(default_factory=IllnessConfig)
     rumour: RumourConfig = field(default_factory=RumourConfig)
     innovation: InnovationConfig = field(default_factory=InnovationConfig)
+    health: HealthConfig = field(default_factory=HealthConfig)
     # The simulation's own working copy of MK.RECIPES -- a discovery (#97)
     # overwrites an entry here, never the shared module dict, so one town's
     # invention never leaks into another's (or a test's) recipe book.
@@ -660,6 +664,10 @@ class Simulation:
                 damage += self.society.weapon_attack_bonus  # armed: far deadlier
             victim.energy -= damage
             agent.money += victim.take("money", 3)  # violence robs coin too
+            if self.health.enabled:
+                # A lingering wound, distinct from the momentary energy loss —
+                # a meal or a nap doesn't erase it, only time or a doctor does.
+                victim.injury = min(100.0, victim.injury + self.health.injury_per_strike)
         ev = Event(kind="strike", actor=agent, other=victim, site=facility)
         self._interpret(ev)
         # Burning a granary spills the commons (structural after-effect).
@@ -765,6 +773,13 @@ class Simulation:
             return amount
         return max(1, round(amount * illness_capability_factor(agent, self.illness)))
 
+    def _injury_scaled_yield(self, agent: Agent, amount: int) -> int:
+        """A badly hurt gatherer works at reduced capability — never zeroed
+        out by injury alone, just diminished (#85). Inert off the health layer."""
+        if not self.health.enabled or amount <= 0:
+            return amount
+        return max(1, round(amount * capability_factor(agent, self.health)))
+
     def _harvest(self, agent: Agent, f) -> Event:
         """Take from a world resource node: the node *produces* a yield (shaped
         by the environment), which flows into the gatherer. No counterparty, so
@@ -775,6 +790,7 @@ class Simulation:
                 and f.ftype is FacilityType.FARM):
             amount = self.environment.harvest_crop(f)
             amount = self._illness_scaled_yield(agent, amount)
+            amount = self._injury_scaled_yield(agent, amount)
             if amount:
                 agent.add("food", amount)
             ev = Event(kind="take", actor=agent, other=None, site=f,
@@ -791,6 +807,7 @@ class Simulation:
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
         amount = self._illness_scaled_yield(agent, amount)
+        amount = self._injury_scaled_yield(agent, amount)
         # Innovation: learning-by-doing raises skill with every gather, which in
         # turn scales the yield up (#97). Gated on the layer, so it's a no-op off.
         if self.innovation.enabled and amount:
@@ -866,10 +883,11 @@ class Simulation:
     # deposit/loan, an inn's lodging) register an entry + a handler the same way.
     def _serve_healing(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Care mends more than exhaustion. It restores energy (more at a
-        hospital) and, where those layers are live, also calms trauma (fear) and
-        eases the sickness of withdrawal (addiction) — a doctor treats the wounded
-        body, mind, and the addicted alike. Each relief is gated on its layer, so
-        without them this is exactly the old energy-only care (baseline intact)."""
+        hospital) and, where those layers are live, also calms trauma (fear),
+        eases the sickness of withdrawal (addiction), and mends a lingering
+        wound (injury) — a doctor treats the wounded body, mind, and the
+        addicted alike. Each relief is gated on its layer, so without them
+        this is exactly the old energy-only care (baseline intact)."""
         f = self.world.facility_at(taker.pos)
         boost = HOSPITAL_HEAL_BONUS if f and f.ftype is FacilityType.HOSPITAL else 1.0
         taker.energy = min(MAX_ENERGY, taker.energy + HEAL_ENERGY * boost)
@@ -879,6 +897,8 @@ class Simulation:
             taker.addiction = max(0.0, taker.addiction - HEAL_ADDICTION_RELIEF * boost)
         if self.illness.enabled and taker.illness > 0:
             taker.illness = max(0.0, taker.illness - HEAL_ILLNESS_RELIEF * boost)
+        if self.health.enabled and taker.injury > 0:
+            taker.injury = max(0.0, taker.injury - HEAL_INJURY_RELIEF * boost)
 
     def _serve_feast(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Conspicuous consumption: the taker hosts a feast (the provider caters,
@@ -1411,6 +1431,8 @@ class Simulation:
             target = self._by_id[deposed]
             if target.alive:
                 target.energy -= ATTACK_DAMAGE
+                if self.health.enabled:
+                    target.injury = min(100.0, target.injury + self.health.injury_per_strike)
                 self._strike_fear(target, epicentre=target.pos, offender_id=agent.id)
         for r in rebels:
             r.last_rebelled_day = self.world.day
@@ -2148,6 +2170,17 @@ class Simulation:
                         agent.illness = self.illness.onset_severity
                         self.world.log("illness_caught", agent=agent.id, source=other.id)
                         break
+        if self.health.enabled and agent.injury > 0:
+            # The body heals on its own, quietly — faster resting under a roof
+            # meant for it.
+            decay = self.health.injury_decay_per_tick
+            f = self.world.facility_at(agent.pos)
+            if f is not None and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}:
+                decay += self.health.injury_decay_shelter_bonus
+            agent.injury = max(0.0, agent.injury - decay)
+            # A bad wound is a steady drain, same shape as chronic fear/withdrawal.
+            if agent.injury > self.health.injury_severe_threshold:
+                agent.energy -= self.health.injury_energy_penalty
         if self.drives.enabled and agent.age_days > self.drives.senescence_age_days:
             # Senescence: the old body tires faster (a gentle, rising drain). Pure
             # decline — natural death itself is the daily hazard in _end_of_day.
