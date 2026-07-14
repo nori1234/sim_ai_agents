@@ -241,11 +241,17 @@ class Simulation:
     # Observation
     # ==================================================================
     def _observe(self, agent: Agent) -> Observation:
+        # Hot path (#40): agent.pos is a property that allocates a fresh tuple
+        # on every access; this function calls it once per facility/other, so
+        # reading it once up front measurably cuts per-tick cost on larger
+        # towns with no change in output (the value is invariant for the
+        # whole call -- observation never mutates the observing agent).
+        apos = agent.pos
         nearby = sorted(
-            (_facility_view(f, chebyshev(agent.pos, f.pos)) for f in self.world.facilities),
+            (_facility_view(f, chebyshev(apos, f.pos)) for f in self.world.facilities),
             key=lambda d: d["distance"],
         )[:12]
-        here_f = self.world.facility_at(agent.pos)
+        here_f = self.world.facility_at(apos)
         here = {"name": here_f.name, "type": here_f.ftype.value} if here_f else None
         # Agriculture: surface each farm's crop state (empty/growing/ripe) so a
         # farmer knows whether to sow, wait, or harvest. Inert unless agriculture.
@@ -262,12 +268,11 @@ class Simulation:
         if self.society.enabled:
             for f in self.world.facilities:
                 for role in f.roles:
-                    d = chebyshev(agent.pos, f.pos)
+                    d = chebyshev(apos, f.pos)
                     if role not in nearest_roles or d < nearest_roles[role][1]:
                         nearest_roles[role] = (f.pos, d)
             nearest_roles = {r: pos for r, (pos, _d) in nearest_roles.items()}
         others = []
-        apos = agent.pos
         for o in self.agents:
             if o.id == agent.id or not o.alive:
                 continue
@@ -314,7 +319,7 @@ class Simulation:
             day=self.world.day,
             tick=self.world.tick,
             self_view=agent.snapshot(),
-            position=agent.pos,
+            position=apos,
             nearby_facilities=nearby,
             here=here,
             others=others,
