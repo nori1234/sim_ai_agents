@@ -70,6 +70,45 @@ class TestWorldLifecycle(unittest.TestCase):
             self.api.world_state(wid)
 
 
+class TestPersonaMix(unittest.TestCase):
+    """A world can be seeded with a mix of personas, round-robin across
+    agents, instead of one for everyone -- exposing scenario.make_simulation's
+    existing persona_mix support through the API (#109)."""
+
+    def setUp(self):
+        self.api = EmergenceAPI()
+
+    def test_a_single_persona_is_unaffected(self):
+        st = self.api.create_world(persona="claude", seed=1, days=3)
+        self.assertTrue(all(a["persona"] == "guardian" for a in st["agents"]))
+
+    def test_a_comma_separated_mix_alternates_across_agents(self):
+        st = self.api.create_world(persona="claude,grok", seed=1, days=3, agents=6)
+        keys = {a["persona"] for a in st["agents"]}
+        self.assertEqual(keys, {"guardian", "predator"})
+        # Round-robin: alternating, not all-of-one-then-all-of-the-other.
+        self.assertEqual([a["persona"] for a in st["agents"]],
+                         ["guardian", "predator"] * 3)
+
+    def test_whitespace_around_commas_is_tolerated(self):
+        st = self.api.create_world(persona=" claude , grok ", seed=1, days=3, agents=4)
+        self.assertEqual({a["persona"] for a in st["agents"]}, {"guardian", "predator"})
+
+    def test_one_bad_key_in_a_mix_rejects_the_whole_request(self):
+        with self.assertRaises(APIError):
+            self.api.create_world(persona="claude,nope")
+
+    def test_mixed_and_single_persona_worlds_at_the_same_seed_agree_on_the_shared_culture(self):
+        # Determinism check: the mix path must not perturb anything upstream
+        # of persona assignment (world layout, agent starting positions/names).
+        single = self.api.create_world(persona="claude", seed=7, days=2)
+        mixed = self.api.create_world(persona="claude,grok", seed=7, days=2)
+        self.assertEqual([a["name"] for a in single["agents"]],
+                         [a["name"] for a in mixed["agents"]])
+        self.assertEqual([(a["x"], a["y"]) for a in single["agents"]],
+                         [(a["x"], a["y"]) for a in mixed["agents"]])
+
+
 class TestBrainSelector(unittest.TestCase):
     def setUp(self):
         self.api = EmergenceAPI()

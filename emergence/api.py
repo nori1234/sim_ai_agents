@@ -80,6 +80,19 @@ class EmergenceAPI:
             )
         return key
 
+    def _valid_persona_mix(self, persona) -> str | list[str]:
+        """A single persona, or a comma-separated mix -- a world seeded with
+        several of the four cultures round-robin across agents, instead of one
+        for everyone (#109). Still a fixed set either way: still no free text
+        reaching a prompt (see the module docstring's safety note)."""
+        text = str(persona or "")
+        if "," not in text:
+            return self._valid_persona(text)
+        keys = [self._valid_persona(p.strip()) for p in text.split(",") if p.strip()]
+        if not keys:
+            raise APIError(f"unknown persona {persona!r}")
+        return keys
+
     def _get(self, world_id: str):
         sim = self._worlds.get(world_id)
         if sim is None:
@@ -95,6 +108,13 @@ class EmergenceAPI:
                      temperature=0.8, llm_client=None, replay=None) -> dict:
         """Create a world.
 
+        ``persona`` is a single key/alias applied to every agent, or a
+        comma-separated mix (e.g. ``"claude,grok"``) assigned round-robin
+        across them — a town seeded with several cultures instead of one for
+        everyone (#109). Still a fixed set of four either way; free-text
+        custom personalities are a separate, larger step (gated on the
+        security hardening in #41).
+
         ``rich`` turns on the human-feel layers (drives, esteem, psyche,
         society) so possessed citizens have inner lives.
 
@@ -107,7 +127,7 @@ class EmergenceAPI:
         LLM brains fall back to the heuristic per-agent if the model is
         unreachable, so a world always runs.
         """
-        persona = self._valid_persona(persona)
+        persona = self._valid_persona_mix(persona)
         seed = _clamp(seed, 0, 2**31 - 1, 42)
         days = _clamp(days, 1, MAX_DAYS, 30)
         ticks = _clamp(ticks, 1, MAX_TICKS, 8)
