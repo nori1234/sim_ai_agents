@@ -127,7 +127,12 @@ enum, so it cannot drift). Categories:
   `reputation`, falling back to the mean of `others[*].trust` only when the status
   layer leaves reputation inert.
 * Top-level fields are frozen in `OBSERVATION_FIELDS`. Layer dicts (`society`,
-  `economy`, `environment`, …) are present but may be empty when the layer is off.
+  `economy`, `environment`, `rumour`, …) are present but may be empty when the
+  layer is off.
+* **Rumour (v1.1).** A `say` naming an `about` agent_id carries a claim (a
+  `sentiment` -1..1 toward that absent third party) that nearby listeners may
+  adopt as hearsay, weighted by their trust in the speaker — see
+  `RumourConfig`. `observation.rumour` is `{}` unless the layer is enabled.
 
 ## 4. Reward (engine side, no torch)
 

@@ -17,6 +17,7 @@ from .ecology import EcologyConfig
 from .grounding import CounterfactualConfig
 from .illness import IllnessConfig, capability_factor as illness_capability_factor
 from .psyche import PsycheConfig, actualization_pull, fear_level
+from .rumour import RumourConfig
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
 from . import publicworks as PW
@@ -119,6 +120,7 @@ class Simulation:
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
     society: SocietyConfig = field(default_factory=SocietyConfig)
     illness: IllnessConfig = field(default_factory=IllnessConfig)
+    rumour: RumourConfig = field(default_factory=RumourConfig)
     ecology: EcologyConfig = field(default_factory=EcologyConfig)
     # Counterfactual-world transfer test (grounding falsification probe); opt-in.
     # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
@@ -377,6 +379,9 @@ class Simulation:
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
                    if self.economy else []),
+            rumour=({"enabled": True, "hearing_radius": self.rumour.hearing_radius,
+                     "gossip_chance": self.rumour.gossip_chance}
+                    if self.rumour.enabled else {}),
         )
 
     # ==================================================================
@@ -545,6 +550,11 @@ class Simulation:
         elif ev.kind == "say" and ev.intent == "sermon":
             # A sermon founds or spreads a faith.
             self._preach_faith(ev.actor)
+        elif ev.kind == "say" and ev.intent == "rumour" and ev.payload:
+            # Hearsay: a claim about a third party spreads to nearby listeners
+            # (#96).
+            self._spread_rumour(ev.actor, ev.payload.get("about"),
+                                ev.payload.get("sentiment", 0.0))
         elif ev.kind == "say" and ev.intent == "proposal":
             # A proposal put to the town: the legislature takes it up.
             self._make_proposal(ev.actor, ev.payload or {})
@@ -1131,18 +1141,19 @@ class Simulation:
                        text=str(action.params.get("text", "shared project")))
 
     def _say(self, agent: Agent, *, content: str = "",
-             to: Optional[Agent] = None, kind: str = "speech") -> Event:
+             to: Optional[Agent] = None, kind: str = "speech",
+             payload: Optional[dict] = None) -> Event:
         """Broadcast a signal. A plain statement is logged as speech; a signal
         aimed at an offender is an accusation. Meaning beyond the log (a
-        proposal, a sermon) is left to richer interpretation later."""
+        proposal, a sermon, a rumour) is left to richer interpretation later."""
         if kind == "accusation":
             if to is not None:
                 self.world.log("crime_report", reporter=agent.id, accused=to.id)
-        elif kind in ("praise", "sermon"):
+        elif kind in ("praise", "sermon", "rumour"):
             pass  # the effects + log are handled in _interpret
         else:
             self.world.log("speech", agent=agent.id, text=content)
-        ev = Event(kind="say", actor=agent, other=to, intent=kind)
+        ev = Event(kind="say", actor=agent, other=to, intent=kind, payload=payload)
         self._interpret(ev)
         return ev
 
@@ -1151,9 +1162,18 @@ class Simulation:
         self._say(agent, content=str(action.params.get("text", "")))
 
     def _do_say(self, agent: Agent, action: Action) -> None:
-        """Raw primitive (LLM): broadcast a statement, optionally at a target."""
+        """Raw primitive (LLM): broadcast a statement, optionally at a target.
+        A say naming an ``about`` third party carries a claim (a sentiment
+        toward them) that nearby listeners may adopt as hearsay (#96);
+        inert unless the rumour layer is live."""
         to = self._by_id.get(action.params.get("to") or action.params.get("target"))
         self._spend(agent, ActionType.SAY)
+        about = self._by_id.get(action.params.get("about")) if self.rumour.enabled else None
+        if about is not None and about is not agent:
+            sentiment = max(-1.0, min(1.0, float(action.params.get("sentiment", -1.0))))
+            self._say(agent, content=str(action.params.get("text", "")), to=to,
+                      kind="rumour", payload={"about": about.id, "sentiment": sentiment})
+            return
         self._say(agent, content=str(action.params.get("text", "")), to=to)
 
     def _do_praise(self, agent: Agent, action: Action) -> None:
@@ -1412,6 +1432,42 @@ class Simulation:
                 o.adjust_trust(agent.id, 0.15)
                 self.world.log("conversion", faith=religion.name, convert=o.id)
                 break
+
+    def _spread_rumour(self, speaker: Agent, about_id: Optional[str],
+                       sentiment: float) -> None:
+        """Hearsay: a claim about a third party (not present) spreads to
+        listeners nearby the speaker, nudging their trust of that party --
+        and, where honour matters, the party's public reputation -- weighted
+        by how much the listener trusts the speaker. An untrusted source
+        persuades no one. A claim may mutate in transit: misinformation
+        emerges from the channel rather than being scripted (#96)."""
+        if not self.rumour.enabled or not about_id or about_id == speaker.id:
+            return
+        about = self._by_id.get(about_id)
+        if about is None or not about.alive:
+            return
+        c = self.rumour
+        for listener in self.agents:
+            if listener.id in (speaker.id, about_id) or not listener.alive:
+                continue
+            if chebyshev(listener.pos, speaker.pos) > c.hearing_radius:
+                continue
+            credence = listener.trust_of(speaker.id)
+            if credence < c.min_speaker_trust:
+                continue  # a claim from someone this untrusted moves no one
+            heard = sentiment
+            distorted = self.rng.random() < c.distortion_chance
+            if distorted:
+                heard = max(-1.0, min(1.0,
+                    heard + self.rng.uniform(-1.0, 1.0) * c.distortion_strength))
+                self.metrics.rumours_distorted += 1
+            weight = c.trust_weight * max(0.0, credence)
+            listener.adjust_trust(about_id, heard * weight)
+            if self.status.enabled:
+                about.reputation += heard * weight * c.rep_weight
+            self.metrics.rumours_spread += 1
+            self.world.log("rumour", speaker=speaker.id, about=about_id,
+                           to=listener.id, sentiment=round(heard, 2))
 
     def _do_worship(self, agent: Agent, action: Action) -> None:
         # A macro: worship is a bond of allegiance to one's faith at a temple;

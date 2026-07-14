@@ -13,6 +13,7 @@ from .esteem import StatusConfig
 from .grounding import CounterfactualConfig
 from .illness import IllnessConfig
 from .psyche import PsycheConfig
+from .rumour import RumourConfig
 from .society import SocietyConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
 from .personas import get_persona
@@ -70,6 +71,7 @@ def make_simulation(
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
     illness: IllnessConfig | None = None,
+    rumour: RumourConfig | None = None,
     ecology: "EcologyConfig | None" = None,
     counterfactual: "CounterfactualConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
@@ -193,6 +195,7 @@ def make_simulation(
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
         illness=illness or IllnessConfig(),
+        rumour=rumour or RumourConfig(),
         ecology=eco_cfg,
         counterfactual=counterfactual or CounterfactualConfig(),
         environment=env,
