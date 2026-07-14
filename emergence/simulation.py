@@ -475,6 +475,11 @@ class Simulation:
             if entry not in held:
                 agent.remember(entry)
                 break
+        # A librarian tending the shelf recopies its most-neglected book,
+        # resetting its decay clock -- diligent towns sustain a canon;
+        # neglected shelves rot regardless of who merely visits (#22).
+        if agent.profession == "librarian":
+            self.library.recopy(self.world.day)
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
@@ -2412,6 +2417,12 @@ class Simulation:
                         and self.rng.random() < self.illness.daily_strike_chance:
                     a.illness = self.illness.onset_severity
                     self.world.log("illness_onset", agent=a.id)
+        if self.library is not None:
+            # Slow rot: unmaintained books fade (#22) -- burning is not the
+            # only way a shelf empties; neglect does it too, just slowly.
+            lost = self.library.decay(self.world.day)
+            if lost:
+                self.world.log("library_rot", books_lost=lost)
         if self.environment is not None:
             # New weather/season, regen resources, reprice, maybe a disaster.
             self.environment.advance_day(self)
