@@ -73,6 +73,15 @@ class LawEffect(str, Enum):
     FOOD_REDISTRIBUTION = "food_redistribution"  # daily commons top-up from rich
     TAX = "tax"                             # daily wealth tax → redistribution
     PUNISHMENT = "punishment"               # fine offenders reported to police
+    # Per-offence norms (#35): a bill can target a *specific* crime kind
+    # instead of collapsing into one blanket "crime" bucket. Parsed
+    # additively alongside CRIME_DETERRENCE (a bill mentioning "theft" still
+    # sets CRIME_DETERRENCE too, so has_crime_norm()'s existing meaning and
+    # every existing caller are untouched) -- purely more data, not a
+    # replacement.
+    VIOLENCE_NORM = "violence_norm"
+    THEFT_NORM = "theft_norm"
+    ARSON_NORM = "arson_norm"
 
 
 # Simple keyword patterns → effect mappings.
@@ -85,7 +94,21 @@ _EFFECT_PATTERNS: list[tuple[re.Pattern, LawEffect]] = [
      LawEffect.TAX),
     (re.compile(r"punish|fine|penalt|jail|imprison|sentence", re.I),
      LawEffect.PUNISHMENT),
+    (re.compile(r"violence|assault|attack|murder|hurt|harm", re.I),
+     LawEffect.VIOLENCE_NORM),
+    (re.compile(r"theft|steal|stealing|robbery|rob|thief", re.I),
+     LawEffect.THEFT_NORM),
+    (re.compile(r"arson|burn|burning|fire-sett|torch", re.I),
+     LawEffect.ARSON_NORM),
 ]
+
+#: Offence kind -> the LawEffect that targets it specifically, for callers
+#: that want to key a norm by which crime it's actually about.
+OFFENCE_EFFECTS: dict[str, LawEffect] = {
+    "violence": LawEffect.VIOLENCE_NORM,
+    "theft": LawEffect.THEFT_NORM,
+    "arson": LawEffect.ARSON_NORM,
+}
 
 
 @dataclass
@@ -253,6 +276,16 @@ class PolicyEngine:
 
     def has_tax(self) -> bool:
         return any(l.has(LawEffect.TAX) for l in self.laws)
+
+    def offence_norm(self, kind: str) -> bool:
+        """Whether the town has published a norm against this *specific*
+        offence (#35) -- distinct from ``has_crime_norm()``'s one blanket
+        bucket. ``kind`` is one of ``OFFENCE_EFFECTS``'s keys
+        ("violence"/"theft"/"arson"); an unknown kind is never targeted."""
+        effect = OFFENCE_EFFECTS.get(kind)
+        if effect is None:
+            return False
+        return any(l.has(effect) for l in self.laws)
 
     def active_effects(self) -> list[str]:
         seen: set[str] = set()

@@ -30,6 +30,7 @@ from .governance import (
     GovernanceForm,
     Legislature,
     Mayor,
+    OFFENCE_EFFECTS,
     PolicyEngine,
     ProposalStatus,
 )
@@ -348,9 +349,7 @@ class Simulation:
                         if self.society.enabled else 0.0),
             here_roles=here_roles,
             nearest_roles=nearest_roles,
-            norms=({"crime": True,
-                    "enforcement": round(self._enforcement_expectation(), 2)}
-                   if self.policy.has_crime_norm() else {}),
+            norms=self._norms_view(),
             laws=self._published_laws(),
             environment=self.environment.snapshot() if self.environment is not None else {},
             role=role_of(agent.profession),
@@ -2525,6 +2524,26 @@ class Simulation:
             if len(out) >= 8:
                 break
         return out
+
+    def _norms_view(self) -> dict:
+        """The published-norms view an agent perceives: the existing blanket
+        "crime" bucket plus, additively, which *specific* offences (#35) the
+        town has actually legislated against. Surfaced whenever either the
+        blanket norm or any per-offence norm exists, so a bill that only
+        names e.g. "stealing" (never triggering the blanket CRIME_DETERRENCE
+        keywords) still shows up. "crime" reflects has_crime_norm() exactly
+        as before (True only when that blanket bucket itself fires), so the
+        heuristic's `norm.get("crime")` compliance check reads identically
+        to pre-#35 behaviour in every case -- this only ever ADDS reachable
+        states (an offences-only law used to yield {} here), never changes
+        an existing one."""
+        blanket = self.policy.has_crime_norm()
+        offences = {k: self.policy.offence_norm(k) for k in OFFENCE_EFFECTS}
+        if not blanket and not any(offences.values()):
+            return {}
+        return {"crime": blanket,
+                "enforcement": round(self._enforcement_expectation(), 2),
+                "offences": offences}
 
     def _enforcement_expectation(self) -> float:
         """How credibly crime is punished, in 0..1 — derived from real world
