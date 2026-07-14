@@ -12,6 +12,7 @@ from .ecology import EcologyConfig
 from .esteem import StatusConfig
 from .grounding import CounterfactualConfig
 from .illness import IllnessConfig
+from .innovation import InnovationConfig
 from .psyche import PsycheConfig
 from .rumour import RumourConfig
 from .society import SocietyConfig
@@ -72,6 +73,7 @@ def make_simulation(
     society: SocietyConfig | None = None,
     illness: IllnessConfig | None = None,
     rumour: RumourConfig | None = None,
+    innovation: InnovationConfig | None = None,
     ecology: "EcologyConfig | None" = None,
     counterfactual: "CounterfactualConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
@@ -196,6 +198,7 @@ def make_simulation(
         society=society or SocietyConfig(),
         illness=illness or IllnessConfig(),
         rumour=rumour or RumourConfig(),
+        innovation=innovation or InnovationConfig(),
         ecology=eco_cfg,
         counterfactual=counterfactual or CounterfactualConfig(),
         environment=env,

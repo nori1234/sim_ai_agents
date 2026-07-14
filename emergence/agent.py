@@ -78,6 +78,11 @@ class Agent:
     # emergence.illness).
     illness: float = 0.0
 
+    # Innovation layer — human capital from learning-by-doing (0..skill_cap),
+    # raised by repeated gather/craft, scaling their yield up. Under
+    # InnovationConfig (see emergence.innovation).
+    skill: float = 0.0
+
     alive: bool = True
     day_of_death: Optional[int] = None
     cause_of_death: Optional[str] = None
@@ -159,6 +164,7 @@ class Agent:
             "weapons": self.weapons,
             "addiction": round(self.addiction, 1),
             "illness": round(self.illness, 1),
+            "skill": round(self.skill, 2),
             "gang": self.gang_id,
             "faith": self.faith,
             "age_days": self.age_days,

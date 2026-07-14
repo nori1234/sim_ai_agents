@@ -83,6 +83,9 @@ class Metrics:
     rumours_spread: int = 0
     rumours_distorted: int = 0
 
+    # Innovation: learning-by-doing and discovered recipes.
+    inventions: int = 0
+
     def record_crime(self, kind: str) -> None:
         self.crimes_total += 1
         self.crimes_by_type[kind] = self.crimes_by_type.get(kind, 0) + 1
@@ -151,4 +154,5 @@ class Metrics:
             "acts_of_worship": self.acts_of_worship,
             "rumours_spread": self.rumours_spread,
             "rumours_distorted": self.rumours_distorted,
+            "inventions": self.inventions,
         }
