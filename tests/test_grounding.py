@@ -1127,6 +1127,105 @@ class TestRewardCeiling(unittest.TestCase):
         self.assertTrue(agent.alive)
 
 
+class TestDepositOracle(unittest.TestCase):
+    """measure_deposit_oracle (S6): the brain team's clean-spec oracle --
+    blind everywhere, except a DEPOSIT decision is dropped (cash held) in
+    the counterfactual world, falling through to blind's own next branch."""
+
+    def _bank_obs(self, money_ctx="rich"):
+        # A minimal observation that drives HeuristicBrain._bank_action into
+        # its deposit branch (bank_here set, no banker ambitions, surplus).
+        from emergence.observation import Observation
+        return Observation(
+            day=1, tick=1, self_view={}, position=(0, 0), nearby_facilities=[],
+            here=None, others=[], open_proposals=[], granary_food=0,
+            recent_events=[],
+            economy={"enabled": True, "bank_here": "b1", "my_deposits":
+                     [{"bank": "b1", "amount": 6}]})
+
+    def _agent(self, money):
+        from emergence.agent import Agent
+        return Agent(id="x", name="X", profession="farmer", persona="guardian",
+                     x=0, y=0, money=money, energy=30.0)  # low energy: no banker setup
+
+    def test_oracle_drops_exactly_the_deposit_decision(self):
+        from emergence.actions import ActionType
+        from emergence.brains.heuristic import HeuristicBrain
+        from emergence.grounding import _deposit_only_oracle_brain_class
+        Oracle = _deposit_only_oracle_brain_class()
+        obs = self._bank_obs()
+        rich = self._agent(money=20)
+        blind_act = HeuristicBrain("guardian")._bank_action(rich, obs)
+        self.assertEqual(blind_act.type, ActionType.DEPOSIT, "premise: blind deposits")
+        self.assertIsNone(
+            Oracle("guardian", skip_deposit=True)._bank_action(rich, obs),
+            "the oracle drops the deposit and falls through")
+        kept = Oracle("guardian", skip_deposit=False)._bank_action(rich, obs)
+        self.assertEqual(kept.type, ActionType.DEPOSIT,
+                         "skip off -> byte-identical to blind")
+
+    def test_oracle_keeps_every_non_deposit_branch(self):
+        from emergence.actions import ActionType
+        from emergence.brains.heuristic import HeuristicBrain
+        from emergence.grounding import _deposit_only_oracle_brain_class
+        Oracle = _deposit_only_oracle_brain_class()
+        obs = self._bank_obs()
+        poor = self._agent(money=2)  # < 4 with a deposit at this bank -> WITHDRAW
+        blind_act = HeuristicBrain("guardian")._bank_action(poor, obs)
+        self.assertEqual(blind_act.type, ActionType.WITHDRAW, "premise: blind withdraws")
+        oracle_act = Oracle("guardian", skip_deposit=True)._bank_action(poor, obs)
+        self.assertEqual(oracle_act.type, ActionType.WITHDRAW,
+                         "withdraw (and every other branch) is untouched")
+        self.assertEqual(oracle_act.params, blind_act.params)
+
+    def test_advantage_control_is_exactly_zero(self):
+        # In the control world skip_deposit is False, so the oracle IS the
+        # blind heuristic -- per-world returns must match exactly, not on
+        # average.
+        from emergence.grounding import measure_deposit_oracle
+        result = measure_deposit_oracle("guardian", seeds=(42, 43, 44),
+                                        days=10, n_agents=4)
+        self.assertEqual(result.advantage_control, 0.0)
+        for w in result.per_world:
+            self.assertEqual(w["blind_control"], w["oracle_control"])
+
+    def test_as_dict_carries_per_world_and_variance(self):
+        from emergence.grounding import measure_deposit_oracle
+        result = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
+                                        n_agents=4)
+        d = result.as_dict()
+        self.assertEqual(d["n_worlds"], 2)
+        self.assertEqual(len(d["per_world"]), 2)
+        for w in d["per_world"]:
+            for key in ("seed", "blind_control", "blind_cf", "oracle_control",
+                        "oracle_cf", "blind_cf_alive", "oracle_cf_alive",
+                        "oracle_cf_day_of_death"):
+                self.assertIn(key, w)
+        self.assertGreaterEqual(d["blind_cf_variance"], 0.0)
+        # Compare unrounded properties (as_dict rounds each independently, so
+        # squaring the rounded std need not equal the rounded variance).
+        self.assertAlmostEqual(result.blind_cf_std ** 2, result.blind_cf_variance,
+                               places=6)
+        self.assertAlmostEqual(
+            d["advantage_counterfactual"],
+            d["oracle_return_counterfactual"] - d["blind_return_counterfactual"],
+            places=4)
+
+    def test_effect_size_is_advantage_over_blind_cf_std(self):
+        from emergence.grounding import measure_deposit_oracle
+        result = measure_deposit_oracle("guardian", seeds=(42, 43, 44),
+                                        days=10, n_agents=4)
+        if result.blind_cf_std:
+            self.assertAlmostEqual(
+                result.effect_size,
+                result.advantage_counterfactual / result.blind_cf_std, places=6)
+
+    def test_only_demurrage_is_supported(self):
+        from emergence.grounding import measure_deposit_oracle
+        with self.assertRaises(ValueError):
+            measure_deposit_oracle("guardian", rule="vanity", seeds=(42,))
+
+
 class TestTeacherAgreement(unittest.TestCase):
     """measure_teacher_agreement: an external, engine-side proxy for how
     BC-anchored a tested policy still is to the blind teacher, independent
