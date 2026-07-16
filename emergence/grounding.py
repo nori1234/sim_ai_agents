@@ -1013,6 +1013,14 @@ def _episode_realized_return(sim, agent) -> float:
     which telescopes over any path to (final - initial), so a single
     before/after read gives the same total as summing every tick's reward
     would (see emergence/brains/_neural_reward.py)."""
+    return _episode_outcome(sim, agent)[0]
+
+
+def _episode_outcome(sim, agent) -> tuple:
+    """(realized_return, alive, day_of_death) for one episode -- the same
+    telescoped survival_reward as :func:`_episode_realized_return`, plus the
+    survival outcome, so a measurement can show WHEN a return was cut short
+    by death rather than folding that into one opaque number."""
     from .brains._neural_reward import survival_reward
     start = sim._observe(agent)
     running = True
@@ -1021,7 +1029,7 @@ def _episode_realized_return(sim, agent) -> float:
         running = sim.step_day()
         if agent.alive:
             last = sim._observe(agent)
-    return survival_reward(start, last)
+    return survival_reward(start, last), agent.alive, agent.day_of_death
 
 
 def measure_reward_ceiling(
@@ -1078,6 +1086,228 @@ def measure_reward_ceiling(
         blind_return_counterfactual=_mean(totals[("blind", True)]),
         grounded_return_control=_mean(totals[("grounded", False)]),
         grounded_return_counterfactual=_mean(totals[("grounded", True)]))
+
+
+# -- Deposit-only oracle (S6): the brain team's clean-spec variant of the ---
+# reward ceiling, to split "task doesn't pay" from "variance kills the
+# gradient" --------------------------------------------------------------
+#
+# measure_reward_ceiling's oracle substitutes REST where the blind heuristic
+# would deposit. That was a deliberate fix for a real confound (the None
+# fall-through starved the agent by day 5 -- see the regression test), but
+# it is NOT a one-action diff: with a persistent cash surplus the REST
+# branch fires every time _bank_action is reached, so the oracle idles where
+# the blind agent goes on to gather/work -- a behavioural-cascade change
+# whose cost has nothing to do with the demurrage regime.
+#
+# The brain team's S6 spec removes that: the oracle is the blind heuristic
+# EXCEPT that, in the counterfactual world only, a DEPOSIT decision is
+# dropped (the cash is simply held) and control falls through to the blind
+# heuristic's own next branch -- no substitute action, nothing else touched.
+# Their argument: if a competing reward channel (lending) is ~zero-mean
+# w.r.t. the regime, it cannot change whether grounding pays IN EXPECTATION,
+# only the variance -- so the SIGN of this oracle's advantage decides where
+# to invest next (task redesign vs. learning-side variance fixes). To let
+# them make that read honestly, the result carries per-world returns,
+# per-world survival (so a death-artifact is visible, not folded into the
+# mean), the blind heuristic's per-world return variance, and the effect
+# size (advantage / blind-cf std) that their advantage-normalisation
+# argument turns on.
+def _deposit_only_oracle_brain_class():
+    """Lazily builds ``_DepositOnlyOracleBrain`` (lazy for the same reason as
+    :func:`_grounded_heuristic_brain_class`).
+
+    The S6 clean-spec oracle: a ``HeuristicBrain`` whose every decision is
+    the blind heuristic's own, except that when ``skip_deposit`` is True a
+    DEPOSIT decision is dropped on the floor (return None) so ``decide()``
+    falls through to the blind heuristic's own next branch. Implemented as a
+    wrapper over ``super()._bank_action`` rather than a copied-and-edited
+    method, so the "identical except the deposit emission" claim is
+    enforced by construction, not by keeping two copies in sync.
+
+    An ORACLE, not a candidate policy: ``skip_deposit`` is set from the
+    ground-truth regime at construction, never read from the observation
+    (``CounterfactualConfig.hide_rate`` hides it deliberately)."""
+    from .brains.heuristic import HeuristicBrain
+    from .actions import ActionType
+
+    class _DepositOnlyOracleBrain(HeuristicBrain):
+        def __init__(self, persona, rng=None, *, skip_deposit: bool):
+            super().__init__(persona, rng)
+            self._skip_deposit = skip_deposit
+
+        def _bank_action(self, agent, obs):
+            act = super()._bank_action(agent, obs)
+            if self._skip_deposit and act is not None \
+                    and act.type is ActionType.DEPOSIT:
+                return None  # hold the cash; fall through to blind's next branch
+            return act
+
+    return _DepositOnlyOracleBrain
+
+
+@dataclass
+class DepositOracleResult:
+    """Per-world realized-return comparison between the blind heuristic and
+    the S6 deposit-only oracle, in the same held-out worlds.
+
+    ``advantage_counterfactual`` is the number the brain team's decision
+    table turns on (<= 0 -> task redesign; > 0 -> learning-side variance
+    fixes). ``advantage_control`` must be exactly 0.0: in the control world
+    the oracle IS the blind heuristic (skip_deposit=False), so any nonzero
+    value is an implementation bug, not a finding. ``per_world`` keeps every
+    individual run -- including whether the measured agent survived and when
+    it died -- so a mean driven by early deaths is visible as such."""
+
+    rule: str
+    seeds: tuple
+    per_world: list  # [{seed, blind_control, blind_cf, oracle_control,
+    #                    oracle_cf, blind_cf_alive, oracle_cf_alive,
+    #                    oracle_cf_day_of_death}]
+
+    @property
+    def n_worlds(self) -> int:
+        return len(self.per_world)
+
+    @staticmethod
+    def _mean(xs):
+        return sum(xs) / len(xs) if xs else 0.0
+
+    @staticmethod
+    def _sample_variance(xs):
+        if len(xs) < 2:
+            return 0.0
+        m = sum(xs) / len(xs)
+        return sum((x - m) ** 2 for x in xs) / (len(xs) - 1)
+
+    @property
+    def blind_return_control(self) -> float:
+        return self._mean([w["blind_control"] for w in self.per_world])
+
+    @property
+    def blind_return_counterfactual(self) -> float:
+        return self._mean([w["blind_cf"] for w in self.per_world])
+
+    @property
+    def oracle_return_control(self) -> float:
+        return self._mean([w["oracle_control"] for w in self.per_world])
+
+    @property
+    def oracle_return_counterfactual(self) -> float:
+        return self._mean([w["oracle_cf"] for w in self.per_world])
+
+    @property
+    def advantage_control(self) -> float:
+        return self.oracle_return_control - self.blind_return_control
+
+    @property
+    def advantage_counterfactual(self) -> float:
+        return self.oracle_return_counterfactual - self.blind_return_counterfactual
+
+    @property
+    def blind_cf_variance(self) -> float:
+        """Sample variance (n-1) of the blind heuristic's realized return
+        across worlds, counterfactual regime -- the denominator of the brain
+        team's does-variance-drown-the-signal question."""
+        return self._sample_variance([w["blind_cf"] for w in self.per_world])
+
+    @property
+    def blind_cf_std(self) -> float:
+        return self.blind_cf_variance ** 0.5
+
+    @property
+    def blind_control_variance(self) -> float:
+        return self._sample_variance([w["blind_control"] for w in self.per_world])
+
+    @property
+    def effect_size(self) -> float:
+        """advantage_counterfactual in units of the blind heuristic's own
+        per-world return spread (cf regime) -- the scale that survives
+        advantage normalisation."""
+        sd = self.blind_cf_std
+        return self.advantage_counterfactual / sd if sd else 0.0
+
+    @property
+    def oracle_cf_deaths(self) -> int:
+        return sum(1 for w in self.per_world if not w["oracle_cf_alive"])
+
+    @property
+    def worlds_oracle_ahead(self) -> int:
+        return sum(1 for w in self.per_world if w["oracle_cf"] > w["blind_cf"])
+
+    def as_dict(self) -> dict:
+        return {
+            "rule": self.rule, "n_worlds": self.n_worlds,
+            "blind_return_control": round(self.blind_return_control, 4),
+            "blind_return_counterfactual": round(self.blind_return_counterfactual, 4),
+            "oracle_return_control": round(self.oracle_return_control, 4),
+            "oracle_return_counterfactual": round(self.oracle_return_counterfactual, 4),
+            "advantage_control": round(self.advantage_control, 4),
+            "advantage_counterfactual": round(self.advantage_counterfactual, 4),
+            "blind_cf_variance": round(self.blind_cf_variance, 4),
+            "blind_cf_std": round(self.blind_cf_std, 4),
+            "blind_control_variance": round(self.blind_control_variance, 4),
+            "effect_size": round(self.effect_size, 4),
+            "oracle_cf_deaths": self.oracle_cf_deaths,
+            "worlds_oracle_ahead": self.worlds_oracle_ahead,
+            "per_world": [
+                {k: (round(v, 4) if isinstance(v, float) else v)
+                 for k, v in w.items()}
+                for w in self.per_world],
+        }
+
+
+def measure_deposit_oracle(
+    persona: str = "guardian",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = tuple(range(42, 62)),
+    days: int = 20,
+    n_agents: int = 6,
+    complexity_level: int = 0,
+) -> DepositOracleResult:
+    """Run the S6 deposit-only oracle (see the section comment above) against
+    the blind heuristic on the same worlds. Cheap and deterministic -- no
+    learning, no torch, seconds not hours. Same sandbox, seeds and episode
+    accounting as :func:`measure_reward_ceiling`, so the two oracles'
+    numbers are directly comparable.
+
+    Currently only ``demurrage`` is supported (the only rule whose correct
+    action the oracle knows)."""
+    if rule != "demurrage":
+        raise ValueError("measure_deposit_oracle currently only supports demurrage")
+
+    DepositOnlyOracleBrain = _deposit_only_oracle_brain_class()
+
+    def _blind_factory(agent, persona, rng):
+        from .brains.heuristic import HeuristicBrain
+        return HeuristicBrain(persona, rng)
+
+    def _oracle_factory(cf_enabled):
+        def factory(agent, persona, rng):
+            return DepositOnlyOracleBrain(persona, rng, skip_deposit=cf_enabled)
+        return factory
+
+    per_world = []
+    for seed in seeds:
+        row = {"seed": seed}
+        for cf_enabled, regime in ((False, "control"), (True, "cf")):
+            for kind, factory in (("blind", _blind_factory),
+                                  ("oracle", _oracle_factory(cf_enabled))):
+                sim = make_grounding_sandbox(
+                    persona, rule=rule, n_savers=n_agents - 1, seed=seed,
+                    days=days, cf_enabled=cf_enabled, brain_factory=factory,
+                    complexity_level=complexity_level)
+                agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
+                ret, alive, died = _episode_outcome(sim, agent)
+                row[f"{kind}_{regime}"] = ret
+                if regime == "cf":
+                    row[f"{kind}_cf_alive"] = alive
+                    if kind == "oracle":
+                        row["oracle_cf_day_of_death"] = died
+        per_world.append(row)
+
+    return DepositOracleResult(rule=rule, seeds=tuple(seeds), per_world=per_world)
 
 
 # -- Teacher agreement: an external, engine-side proxy for how BC-anchored --

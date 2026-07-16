@@ -862,6 +862,32 @@ local mirror:
     majority of its return. The bottleneck a value function would need to
     close is attribution amid a much larger, unrelated co-occurring reward
     channel (peer lending), not reward magnitude.
+  * **S6 — the brain team's clean-spec follow-up (`measure_deposit_oracle`,
+    `scripts/deposit_oracle.py`), to split "task doesn't pay" from "task
+    pays, variance drowns the gradient".** Same oracle intent, one difference
+    from reward-ceiling-1: instead of `REST`-substituting a dropped deposit,
+    it drops the `DEPOSIT` decision and falls through to the blind heuristic's
+    own next branch — no substitute action, nothing else touched. Result:
+    `advantage_cf = -127.3` (effect size **−1.94σ** of the blind's own
+    per-world spread; oracle behind in **0/20** worlds; survivors-only −120,
+    so not death-driven). The **sign matches reward-ceiling-1's −125.4
+    despite a different substitute behaviour** — so the negative is robust to
+    the substitute-action confound. Per the brain team's own decision table
+    this is the **task-redesign** branch, not the learning-side/variance one
+    (a −1.94σ, 0/20-flip effect is not a positive signal buried in noise).
+    **Mechanism, and why it disagrees with their mirror's predicted +0.555:**
+    the reward counts bank deposits as wealth (`_wealth = money + Σdeposits`,
+    `_neural_reward.py`), and work *mints* money (#45) that re-fills the
+    reward-counted deposit balance daily (~5977 coin minted across the 6-agent
+    system in 20 days; the measured saver's reward-wealth grew 50→3162 *with
+    demurrage active*). So −15%/day evaporation is dominated by the
+    re-deposited minted inflow, and **depositing is reward-maximizing even
+    under demurrage** — the task gradient points the wrong way, which no
+    variance reduction fixes. Levers to actually make grounding pay: demurrage
+    that bites harder than the re-deposit inflow, a reward that doesn't credit
+    a shrinking deposit as preserved wealth, or removing work-minted money
+    (#45) from the sandbox's deposit loop. Raw:
+    [`docs/runs/deposit-oracle-1/`](runs/deposit-oracle-1/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
