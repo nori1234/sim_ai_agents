@@ -47,9 +47,15 @@ def main() -> None:
     ap.add_argument("--deposit-weight", type=float, default=1.0,
                      help="S6 calibration dial (lever 2): how much a banked coin "
                           "counts toward reward-wealth. 1.0 = canonical reward "
-                          "(advantage_cf ~ -127); lower it to make depositing an "
-                          "immediate loss and sweep advantage_cf toward slightly "
-                          "positive")
+                          "(advantage_cf ~ -127). NB: this reward-reweight "
+                          "plateaus at ~0- and cannot cross the sign (see "
+                          "docs/runs/deposit-oracle-calib-1/)")
+    ap.add_argument("--sole-banker", action="store_true",
+                     help="S6 task redesign: only the staffed banker accepts "
+                          "deposits, cutting the sandbox's agent-to-agent "
+                          "deposit-chain claim ratchet. Crosses the sign: "
+                          "advantage_cf lands slightly positive (see "
+                          "docs/runs/deposit-oracle-redesign-1/)")
     args = ap.parse_args()
 
     kwargs = {}
@@ -59,12 +65,14 @@ def main() -> None:
     result = measure_deposit_oracle(
         args.persona, rule=args.rule, days=args.days, n_agents=args.agents,
         complexity_level=args.complexity_level,
-        deposit_wealth_weight=args.deposit_weight, **kwargs)
+        deposit_wealth_weight=args.deposit_weight,
+        sole_banker=args.sole_banker, **kwargs)
 
     d = result.as_dict()
     print(json.dumps(d, indent=2))
-    print(f"\n[deposit-oracle] deposit_wealth_weight (S6 calib dial): "
-          f"{d['deposit_wealth_weight']}")
+    print(f"\n[deposit-oracle] deposit_wealth_weight (lever 2): "
+          f"{d['deposit_wealth_weight']}  |  sole_banker (task redesign): "
+          f"{d['sole_banker']}")
     print(f"[deposit-oracle] advantage_cf (oracle - blind, counterfactual): "
           f"{d['advantage_counterfactual']:+.4f} "
           f"(control sanity check: {d['advantage_control']:+.4f}, must be 0)")

@@ -274,6 +274,7 @@ def make_grounding_sandbox(
     complexity_level: int = 0,
     status: bool = False,
     brain_factory=None,
+    sole_banker: bool = False,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -287,6 +288,17 @@ def make_grounding_sandbox(
     reward layer; it is orthogonal to ``complexity_level`` specifically so the
     "is it the world's size or the competing objective" question can be
     answered with a 2x2 (level x status), not conflated into one axis.
+
+    ``sole_banker`` (default False, byte-identical) is the S6 **task
+    redesign**: only the staffed banker (``agents[0]``) accepts deposits.
+    Without it, every sandbox agent stands on the bank tile and so *is* a
+    deposit counterparty — deposits chain agent-to-agent (the banker deposits
+    the pooled coin back into a saver, who re-deposits it, ...), ratcheting
+    ~+420 of reward-counted claims per tick out of one fixed coin pool, which
+    makes depositing dominate any demurrage penalty (S6's −127) regardless of
+    reward re-weighting or minting levers. With the chain cut, the honest
+    economics reappear: depositing earns interest in control, loses to
+    demurrage in the counterfactual, and the deposit decision stays dense.
     """
     from .scenario import make_simulation
     from .simulation import SimulationConfig
@@ -304,6 +316,8 @@ def make_grounding_sandbox(
         brain_factory=brain_factory,
         **extra_kwargs,
     )
+    if sole_banker:
+        sim.sole_deposit_banker = sim.agents[0].id  # agents[0] is the staffed banker
     _prepare_sandbox(sim)
     return sim
 
@@ -1174,6 +1188,8 @@ class DepositOracleResult:
     #                    oracle_cf_day_of_death}]
     deposit_wealth_weight: float = 1.0  # the S6 calibration dial this run used;
     #   1.0 == the canonical reward (the value every earlier S6 result carries).
+    sole_banker: bool = False  # the S6 task redesign this run used; False == the
+    #   original sandbox (agent-to-agent deposit chains allowed).
 
     @property
     def n_worlds(self) -> int:
@@ -1249,6 +1265,7 @@ class DepositOracleResult:
         return {
             "rule": self.rule, "n_worlds": self.n_worlds,
             "deposit_wealth_weight": self.deposit_wealth_weight,
+            "sole_banker": self.sole_banker,
             "blind_return_control": round(self.blind_return_control, 4),
             "blind_return_counterfactual": round(self.blind_return_counterfactual, 4),
             "oracle_return_control": round(self.oracle_return_control, 4),
@@ -1277,6 +1294,7 @@ def measure_deposit_oracle(
     n_agents: int = 6,
     complexity_level: int = 0,
     deposit_wealth_weight: float = 1.0,
+    sole_banker: bool = False,
 ) -> DepositOracleResult:
     """Run the S6 deposit-only oracle (see the section comment above) against
     the blind heuristic on the same worlds. Cheap and deterministic -- no
@@ -1288,12 +1306,19 @@ def measure_deposit_oracle(
     lever 2: down-weight banked coin so demurrage's daily shrink hits the
     reward immediately). It defaults to ``1.0`` -- the canonical reward, so the
     default call reproduces every earlier S6 number byte-for-byte. Lowering it
-    makes depositing an immediate wealth loss, so ``advantage_counterfactual``
-    (blind deposits, oracle holds) rises monotonically from the -127 measured
-    at 1.0 toward positive: sweep it to find the value that lands the advantage
-    *slightly* positive (a task where grounding pays but isn't trivial), then
-    train on that task. It is threaded straight into ``survival_reward`` via
-    ``weights["deposit"]`` and touches nothing else.
+    raises ``advantage_counterfactual`` monotonically from the -127 measured at
+    1.0, **but the reward-reweighting family plateaus at ~0- and cannot cross
+    the sign** (measured: -1.27 at the extreme weight 0.0 -- see
+    ``docs/runs/deposit-oracle-calib-1/``); the kept dial is still useful for
+    shaping, not for sign-crossing.
+
+    ``sole_banker`` is the S6 **task redesign** that does cross the sign (see
+    :func:`make_grounding_sandbox`): it cuts the sandbox's agent-to-agent
+    deposit chains, whose claim-ratchet (~+420/tick from one fixed coin pool)
+    was what made depositing dominate demurrage in the first place. With it,
+    the deposit-only oracle's advantage lands slightly positive -- a task where
+    grounding pays but is not trivial. Default False == the original sandbox,
+    byte-for-byte.
 
     Currently only ``demurrage`` is supported (the only rule whose correct
     action the oracle knows)."""
@@ -1323,7 +1348,7 @@ def measure_deposit_oracle(
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
-                    complexity_level=complexity_level)
+                    complexity_level=complexity_level, sole_banker=sole_banker)
                 agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
                 ret, alive, died = _episode_outcome(sim, agent, reward_weights)
                 row[f"{kind}_{regime}"] = ret
@@ -1334,7 +1359,8 @@ def measure_deposit_oracle(
         per_world.append(row)
 
     return DepositOracleResult(rule=rule, seeds=tuple(seeds), per_world=per_world,
-                               deposit_wealth_weight=deposit_wealth_weight)
+                               deposit_wealth_weight=deposit_wealth_weight,
+                               sole_banker=sole_banker)
 
 
 # -- Teacher agreement: an external, engine-side proxy for how BC-anchored --

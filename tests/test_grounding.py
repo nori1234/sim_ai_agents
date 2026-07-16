@@ -1224,6 +1224,65 @@ class TestDepositOracle(unittest.TestCase):
         self.assertEqual(highs.advantage_control, 0.0)
         self.assertEqual(lows.oracle_cf_deaths, highs.oracle_cf_deaths)
 
+    def test_sole_banker_defaults_off_and_is_byte_identical(self):
+        # The task-redesign switch defaults to False and, off, must reproduce
+        # the original sandbox's numbers exactly.
+        from emergence.grounding import measure_deposit_oracle
+        default = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
+                                         n_agents=4)
+        explicit = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
+                                          n_agents=4, sole_banker=False)
+        self.assertFalse(default.sole_banker)
+        self.assertFalse(default.as_dict()["sole_banker"])
+        self.assertEqual([w for w in default.per_world],
+                         [w for w in explicit.per_world])
+
+    def test_sole_banker_crosses_the_sign(self):
+        # The redesigned task: with agent-to-agent deposit chains cut, the
+        # deposit-only oracle's counterfactual advantage turns positive -- the
+        # property the whole redesign exists to deliver -- while the control
+        # sanity check stays exactly zero. Full battery worlds, because the
+        # sign claim is about the standard 20-world measurement, not a subset.
+        from emergence.grounding import measure_deposit_oracle
+        result = measure_deposit_oracle("guardian", sole_banker=True)
+        self.assertTrue(result.sole_banker)
+        self.assertEqual(result.advantage_control, 0.0)
+        self.assertGreater(result.advantage_counterfactual, 0.0)
+
+    def test_sole_banker_refuses_other_counterparties(self):
+        # A brain that names a non-banker counterparty directly (bypassing
+        # _banker_near) is refused: no coin moves, no claim is created.
+        from emergence.grounding import make_grounding_sandbox
+        from emergence.actions import Action, ActionType
+        sim = make_grounding_sandbox("guardian", n_savers=3, seed=1, days=5,
+                                     sole_banker=True)
+        banker, saver, other, *_ = sim.agents
+        before_money = saver.money
+        sim._do_deposit(saver, Action(ActionType.DEPOSIT,
+                                      {"bank": other.id, "amount": 10}))
+        self.assertEqual(saver.money, before_money)
+        self.assertFalse(any(d.holder == saver.id for d in sim.deposits))
+        # ... while the staffed banker still accepts.
+        sim._do_deposit(saver, Action(ActionType.DEPOSIT,
+                                      {"bank": banker.id, "amount": 10}))
+        self.assertTrue(any(d.holder == saver.id and d.amount == 10
+                            for d in sim.deposits))
+
+    def test_sole_banker_keeps_the_deposit_decision_dense(self):
+        # Cutting the chain must not starve the sandbox of its scored decision:
+        # savers still deposit (control keeps interest income flowing, so the
+        # choice recurs rather than firing once).
+        from emergence.grounding import make_grounding_sandbox
+        for cf in (False, True):
+            sim = make_grounding_sandbox("guardian", n_savers=5, seed=42,
+                                         days=20, cf_enabled=cf,
+                                         sole_banker=True)
+            sim.run()
+            deposits = sum(1 for e in sim.world.events
+                           if e["kind"] == "deposit")
+            self.assertGreater(deposits, 5,
+                               f"deposit decision went sparse (cf={cf})")
+
     def test_as_dict_carries_per_world_and_variance(self):
         from emergence.grounding import measure_deposit_oracle
         result = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,

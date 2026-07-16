@@ -875,19 +875,20 @@ local mirror:
     the substitute-action confound. Per the brain team's own decision table
     this is the **task-redesign** branch, not the learning-side/variance one
     (a −1.94σ, 0/20-flip effect is not a positive signal buried in noise).
-    **Mechanism, and why it disagrees with their mirror's predicted +0.555:**
-    the reward counts bank deposits as wealth (`_wealth = money + Σdeposits`,
-    `_neural_reward.py`), and work *mints* money (#45) that re-fills the
-    reward-counted deposit balance daily (~5977 coin minted across the 6-agent
-    system in 20 days; the measured saver's reward-wealth grew 50→3162 *with
-    demurrage active*). So −15%/day evaporation is dominated by the
-    re-deposited minted inflow, and **depositing is reward-maximizing even
-    under demurrage** — the task gradient points the wrong way, which no
-    variance reduction fixes. Levers to actually make grounding pay: demurrage
-    that bites harder than the re-deposit inflow, a reward that doesn't credit
-    a shrinking deposit as preserved wealth, or removing work-minted money
-    (#45) from the sandbox's deposit loop. Raw:
-    [`docs/runs/deposit-oracle-1/`](runs/deposit-oracle-1/).
+    **Mechanism, and why it disagrees with their mirror's predicted +0.555**
+    *(corrected — the original attribution to work-minted #45 income was
+    falsified by the lever tests below)*: the reward counts bank deposits as
+    wealth (`_wealth = money + Σdeposits`, `_neural_reward.py`), and the
+    sandbox lets deposits **chain agent-to-agent** — `_banker_near` treats any
+    other agent standing on a BANK tile as a deposit counterparty, and every
+    sandbox agent stands on the bank, so the pooled coin ping-pongs
+    banker⇄saver each tick and ratchets ~+420 of reward-counted claims per
+    pass out of one fixed coin pool (the measured saver's reward-wealth grew
+    50→3162 *with demurrage active*; its claims hit 2188 on day 1 from 50
+    starting coin). So −15%/day evaporation is dominated by the claim
+    ratchet, and **depositing is reward-maximizing even under demurrage** —
+    the task gradient points the wrong way, which no variance reduction
+    fixes. Raw: [`docs/runs/deposit-oracle-1/`](runs/deposit-oracle-1/).
   * **S6 lever-2 calibration (`--deposit-weight`, `deposit-oracle-calib-1`):**
     the brain team accepted S6 and proposed using it as a *calibration dial* —
     apply the deposit-down-weight lever, re-measure, and set the parameter
@@ -903,9 +904,24 @@ local mirror:
     is a **behavioural** cost (the oracle holding idle cash, falling through to
     a different next action) that no reward re-weighting can remove. So the
     reward-reweighting family has a structural ceiling at ≈0⁻; crossing the
-    sign needs a **trajectory** lever — lever 3 (remove work-minted #45 from
-    the deposit backfill) or a non-telescoping penalty. Raw:
+    sign needs a **trajectory** change. Raw:
     [`docs/runs/deposit-oracle-calib-1/`](runs/deposit-oracle-calib-1/).
+  * **S6 task redesign (`sole_banker`, `deposit-oracle-redesign-1`) — the
+    sign crossed, calibration target hit.** Lever 3 (scaling work-pay minting
+    #45) and deposit-interest scaling were both tested and are **inert**
+    (−127.304 unchanged even at zero) — the measured saver never works, and
+    interest isn't the inflow either. The real driver is the sandbox's
+    **agent-to-agent deposit chain** (see the corrected mechanism note above).
+    The redesign is one switch: `sole_banker=True` restricts deposits to the
+    staffed banker, cutting the chain. Result: `advantage_cf = +0.2075`
+    (**+0.56σ**, oracle ahead 12/20, control sanity 0.00), inside the brain
+    team's requested "slightly positive, not large" calibration band, with
+    the deposit decision still dense (39 cf / 102 control per episode).
+    Default `False` is byte-identical (every earlier S6 number reproduces).
+    This is the first task on which grounding actually pays — the fair test
+    of "does the brain learn grounding when the task rewards it" that the 13
+    prior training runs never had. Raw:
+    [`docs/runs/deposit-oracle-redesign-1/`](runs/deposit-oracle-redesign-1/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**

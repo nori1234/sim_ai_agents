@@ -139,6 +139,16 @@ class Simulation:
     # Counterfactual-world transfer test (grounding falsification probe); opt-in.
     # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
     counterfactual: CounterfactualConfig = field(default_factory=CounterfactualConfig)
+    # Grounding-sandbox task-redesign switch (S6): when set to an agent id, only
+    # that agent accepts deposits. None (the default) is byte-identical to the
+    # unrestricted behaviour, where ANY agent standing on a BANK tile is a
+    # deposit counterparty. In the sandbox all agents stand on the bank, so the
+    # unrestricted rule lets deposits chain agent-to-agent (banker deposits the
+    # pooled coin back into a saver, the saver re-deposits it, ...), ratcheting
+    # +~420 of claims per tick from one fixed coin pool -- which makes
+    # depositing dominate ANY demurrage penalty and corrupts the S6 measurement.
+    # Only emergence.grounding's sandbox sets this. See docs/GROUNDING.md.
+    sole_deposit_banker: str | None = None
     gangs: list = field(default_factory=list)        # list[Gang]
     religions: list = field(default_factory=list)    # list[Religion]
     # Optional external-world layer (environment.Environment); opt-in.
@@ -1897,8 +1907,13 @@ class Simulation:
     # -- banking: deposit money for safe-keeping, get a claim back -----------
     def _banker_near(self, agent: Agent):
         """An agent (not self) currently stationed at a BANK within reach — i.e.
-        someone you could deposit with. None if no bank is open nearby."""
+        someone you could deposit with. None if no bank is open nearby.
+        ``sole_deposit_banker`` (grounding sandbox only) restricts this to the
+        one staffed banker, cutting agent-to-agent deposit chains."""
         for o in self.agents:
+            if self.sole_deposit_banker is not None \
+                    and o.id != self.sole_deposit_banker:
+                continue
             if o.alive and o is not agent and chebyshev(agent.pos, o.pos) <= 2:
                 f = self.world.facility_at(o.pos)
                 if f is not None and f.ftype is FacilityType.BANK:
@@ -1915,6 +1930,11 @@ class Simulation:
         bank = self._by_id.get(action.params.get("bank"))
         amount = int(action.params.get("amount", 0) or 0)
         if bank is None or bank is agent or not bank.alive or amount <= 0:
+            return
+        # Sandbox sole-banker rule: a brain that names another counterparty
+        # directly (bypassing _banker_near) is refused the same way.
+        if self.sole_deposit_banker is not None \
+                and bank.id != self.sole_deposit_banker:
             return
         # Banking happens *at* a bank: the banker must be standing on one.
         bf = self.world.facility_at(bank.pos)

@@ -83,3 +83,13 @@ changes the **trajectory / end-state**, not the scoring:
 Deposited-coin down-weighting (lever 2) ships as a working, tested,
 inert-by-default instrument regardless — it is the tool that produced this
 finding, and it stacks cleanly with whichever trajectory-lever is chosen next.
+
+## Addendum (correction, same session)
+
+The lever-3 recommendation above was **tested and falsified**: scaling
+work-pay minting (#45) — and deposit interest — leaves `advantage_cf` at
+−127.304 unchanged even at zero, because the measured saver never works and
+neither channel is the deposit inflow. The true mechanism is the sandbox's
+agent-to-agent deposit chain, and the redesign that does cross the sign is
+`sole_banker=True` — see
+[`deposit-oracle-redesign-1`](../deposit-oracle-redesign-1/).

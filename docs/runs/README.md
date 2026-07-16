@@ -57,7 +57,8 @@ from `docs/GROUNDING.md`'s "Current status".
 | `reward-ceiling-1`   | `measure_reward_ceiling` — is the task reward-starved? (S3) |
 | `teacher-agreement-1`| `measure_teacher_agreement` — external BC-anchor cross-check (S2) |
 | `deposit-oracle-1`   | `measure_deposit_oracle` — S6 clean-spec reward ceiling; `advantage_cf = -127.3`, task-redesign branch |
-| `deposit-oracle-calib-1` | S6 lever-2 calibration sweep (`--deposit-weight`); the dial is monotone but asymptotes at ≈0⁻ (−0.27σ) — a reward-reweight can't cross the sign, pointing to a trajectory lever |
+| `deposit-oracle-calib-1` | S6 lever-2 calibration sweep (`--deposit-weight`); the dial is monotone but asymptotes at ≈0⁻ (−0.27σ) — a reward-reweight can't cross the sign |
+| `deposit-oracle-redesign-1` | S6 task redesign (`--sole-banker`): the deposit-chain claim ratchet diagnosed, levers 1–3 falsified, and the sign crossed — `advantage_cf = +0.21` (+0.56σ), the brain team's calibration target |
 
 ## Adding a new run
 
