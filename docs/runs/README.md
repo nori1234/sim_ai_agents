@@ -45,6 +45,19 @@ retention window when this archive was created; #7 onward is complete going
 forward. `docs/GROUNDING.md` still records their qualitative findings even
 without the raw log.
 
+### Local (non-CI) runs
+
+These are deterministic, no-torch measurements run on a workstation — no CI
+job, so no `full_log.txt`; each directory has a `README.md` (reproduce
+command + reading) and an `output.txt` (the exact CLI output). Referenced
+from `docs/GROUNDING.md`'s "Current status".
+
+| dir | what it is |
+|---|---|
+| `reward-ceiling-1`   | `measure_reward_ceiling` — is the task reward-starved? (S3) |
+| `teacher-agreement-1`| `measure_teacher_agreement` — external BC-anchor cross-check (S2) |
+| `deposit-oracle-1`   | `measure_deposit_oracle` — S6 clean-spec reward ceiling; `advantage_cf = -127.3`, task-redesign branch |
+
 ## Adding a new run
 
 After a `neural-train-battery` or `regime-decoding-probe` CI run completes:
