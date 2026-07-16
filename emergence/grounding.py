@@ -1005,22 +1005,30 @@ class RewardCeilingResult:
         }
 
 
-def _episode_realized_return(sim, agent) -> float:
+def _episode_realized_return(sim, agent, reward_weights=None) -> float:
     """The agent's total survival_reward over the whole episode, from the
     observation at construction (before any tick) to the last observation
     it's alive to receive (or the final one, if it survives) -- exact
     because survival_reward is a weighted sum of observation-field deltas,
     which telescopes over any path to (final - initial), so a single
     before/after read gives the same total as summing every tick's reward
-    would (see emergence/brains/_neural_reward.py)."""
-    return _episode_outcome(sim, agent)[0]
+    would (see emergence/brains/_neural_reward.py).
+
+    ``reward_weights`` is passed straight to ``survival_reward``; the default
+    (None) is the canonical reward, byte-identical to before this argument
+    existed. The only caller that passes it is the S6 deposit-oracle
+    calibration dial (``weights["deposit"]``)."""
+    return _episode_outcome(sim, agent, reward_weights)[0]
 
 
-def _episode_outcome(sim, agent) -> tuple:
+def _episode_outcome(sim, agent, reward_weights=None) -> tuple:
     """(realized_return, alive, day_of_death) for one episode -- the same
     telescoped survival_reward as :func:`_episode_realized_return`, plus the
     survival outcome, so a measurement can show WHEN a return was cut short
-    by death rather than folding that into one opaque number."""
+    by death rather than folding that into one opaque number.
+
+    ``reward_weights`` defaults to None (the canonical reward); it exists so a
+    calibration run can re-weight one reward term (see S6 below)."""
     from .brains._neural_reward import survival_reward
     start = sim._observe(agent)
     running = True
@@ -1029,7 +1037,7 @@ def _episode_outcome(sim, agent) -> tuple:
         running = sim.step_day()
         if agent.alive:
             last = sim._observe(agent)
-    return survival_reward(start, last), agent.alive, agent.day_of_death
+    return survival_reward(start, last, reward_weights), agent.alive, agent.day_of_death
 
 
 def measure_reward_ceiling(
@@ -1164,6 +1172,8 @@ class DepositOracleResult:
     per_world: list  # [{seed, blind_control, blind_cf, oracle_control,
     #                    oracle_cf, blind_cf_alive, oracle_cf_alive,
     #                    oracle_cf_day_of_death}]
+    deposit_wealth_weight: float = 1.0  # the S6 calibration dial this run used;
+    #   1.0 == the canonical reward (the value every earlier S6 result carries).
 
     @property
     def n_worlds(self) -> int:
@@ -1238,6 +1248,7 @@ class DepositOracleResult:
     def as_dict(self) -> dict:
         return {
             "rule": self.rule, "n_worlds": self.n_worlds,
+            "deposit_wealth_weight": self.deposit_wealth_weight,
             "blind_return_control": round(self.blind_return_control, 4),
             "blind_return_counterfactual": round(self.blind_return_counterfactual, 4),
             "oracle_return_control": round(self.oracle_return_control, 4),
@@ -1265,6 +1276,7 @@ def measure_deposit_oracle(
     days: int = 20,
     n_agents: int = 6,
     complexity_level: int = 0,
+    deposit_wealth_weight: float = 1.0,
 ) -> DepositOracleResult:
     """Run the S6 deposit-only oracle (see the section comment above) against
     the blind heuristic on the same worlds. Cheap and deterministic -- no
@@ -1272,10 +1284,24 @@ def measure_deposit_oracle(
     accounting as :func:`measure_reward_ceiling`, so the two oracles'
     numbers are directly comparable.
 
+    ``deposit_wealth_weight`` is the brain team's S6 **calibration dial** (their
+    lever 2: down-weight banked coin so demurrage's daily shrink hits the
+    reward immediately). It defaults to ``1.0`` -- the canonical reward, so the
+    default call reproduces every earlier S6 number byte-for-byte. Lowering it
+    makes depositing an immediate wealth loss, so ``advantage_counterfactual``
+    (blind deposits, oracle holds) rises monotonically from the -127 measured
+    at 1.0 toward positive: sweep it to find the value that lands the advantage
+    *slightly* positive (a task where grounding pays but isn't trivial), then
+    train on that task. It is threaded straight into ``survival_reward`` via
+    ``weights["deposit"]`` and touches nothing else.
+
     Currently only ``demurrage`` is supported (the only rule whose correct
     action the oracle knows)."""
     if rule != "demurrage":
         raise ValueError("measure_deposit_oracle currently only supports demurrage")
+
+    reward_weights = ({"deposit": deposit_wealth_weight}
+                      if deposit_wealth_weight != 1.0 else None)
 
     DepositOnlyOracleBrain = _deposit_only_oracle_brain_class()
 
@@ -1299,7 +1325,7 @@ def measure_deposit_oracle(
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
                     complexity_level=complexity_level)
                 agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
-                ret, alive, died = _episode_outcome(sim, agent)
+                ret, alive, died = _episode_outcome(sim, agent, reward_weights)
                 row[f"{kind}_{regime}"] = ret
                 if regime == "cf":
                     row[f"{kind}_cf_alive"] = alive
@@ -1307,7 +1333,8 @@ def measure_deposit_oracle(
                         row["oracle_cf_day_of_death"] = died
         per_world.append(row)
 
-    return DepositOracleResult(rule=rule, seeds=tuple(seeds), per_world=per_world)
+    return DepositOracleResult(rule=rule, seeds=tuple(seeds), per_world=per_world,
+                               deposit_wealth_weight=deposit_wealth_weight)
 
 
 # -- Teacher agreement: an external, engine-side proxy for how BC-anchored --

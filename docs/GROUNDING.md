@@ -888,6 +888,24 @@ local mirror:
     a shrinking deposit as preserved wealth, or removing work-minted money
     (#45) from the sandbox's deposit loop. Raw:
     [`docs/runs/deposit-oracle-1/`](runs/deposit-oracle-1/).
+  * **S6 lever-2 calibration (`--deposit-weight`, `deposit-oracle-calib-1`):**
+    the brain team accepted S6 and proposed using it as a *calibration dial* —
+    apply the deposit-down-weight lever, re-measure, and set the parameter
+    where `advantage_cf` lands **slightly** positive (a task where grounding
+    pays but isn't trivial). Implemented as a continuous weight on the deposit
+    term (λ, default 1.0 = canonical, byte-identical). The dial is monotone and
+    behaves as predicted, **but cannot cross the sign**: at the extreme λ=0
+    (banked coin worthless) `advantage_cf` is still −1.27 over 20 worlds and
+    **−0.27 survivors-only**, with the per-world majority flipped (14/20) but
+    the mean marginally negative. Cause: `survival_reward` telescopes to
+    (final − initial), so re-weighting an end-of-episode deposit balance
+    (already demurrage-shrunk / withdrawn) has bounded leverage; the residual
+    is a **behavioural** cost (the oracle holding idle cash, falling through to
+    a different next action) that no reward re-weighting can remove. So the
+    reward-reweighting family has a structural ceiling at ≈0⁻; crossing the
+    sign needs a **trajectory** lever — lever 3 (remove work-minted #45 from
+    the deposit backfill) or a non-telescoping penalty. Raw:
+    [`docs/runs/deposit-oracle-calib-1/`](runs/deposit-oracle-calib-1/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**

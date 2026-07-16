@@ -44,6 +44,12 @@ def main() -> None:
     ap.add_argument("--days", type=int, default=20)
     ap.add_argument("--agents", type=int, default=6)
     ap.add_argument("--complexity-level", type=int, default=0)
+    ap.add_argument("--deposit-weight", type=float, default=1.0,
+                     help="S6 calibration dial (lever 2): how much a banked coin "
+                          "counts toward reward-wealth. 1.0 = canonical reward "
+                          "(advantage_cf ~ -127); lower it to make depositing an "
+                          "immediate loss and sweep advantage_cf toward slightly "
+                          "positive")
     args = ap.parse_args()
 
     kwargs = {}
@@ -52,11 +58,14 @@ def main() -> None:
 
     result = measure_deposit_oracle(
         args.persona, rule=args.rule, days=args.days, n_agents=args.agents,
-        complexity_level=args.complexity_level, **kwargs)
+        complexity_level=args.complexity_level,
+        deposit_wealth_weight=args.deposit_weight, **kwargs)
 
     d = result.as_dict()
     print(json.dumps(d, indent=2))
-    print(f"\n[deposit-oracle] advantage_cf (oracle - blind, counterfactual): "
+    print(f"\n[deposit-oracle] deposit_wealth_weight (S6 calib dial): "
+          f"{d['deposit_wealth_weight']}")
+    print(f"[deposit-oracle] advantage_cf (oracle - blind, counterfactual): "
           f"{d['advantage_counterfactual']:+.4f} "
           f"(control sanity check: {d['advantage_control']:+.4f}, must be 0)")
     print(f"[deposit-oracle] blind cf per-world std: {d['blind_cf_std']:.4f} "

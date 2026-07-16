@@ -1189,6 +1189,41 @@ class TestDepositOracle(unittest.TestCase):
         for w in result.per_world:
             self.assertEqual(w["blind_control"], w["oracle_control"])
 
+    def test_deposit_weight_defaults_to_one_and_is_byte_identical(self):
+        # The calibration dial defaults to 1.0 and, at 1.0, must reproduce the
+        # canonical S6 numbers exactly -- the knob is inert unless moved.
+        from emergence.grounding import measure_deposit_oracle
+        default = measure_deposit_oracle("guardian", seeds=(42, 43, 44),
+                                         days=10, n_agents=4)
+        explicit = measure_deposit_oracle("guardian", seeds=(42, 43, 44),
+                                          days=10, n_agents=4,
+                                          deposit_wealth_weight=1.0)
+        self.assertEqual(default.deposit_wealth_weight, 1.0)
+        self.assertEqual(default.as_dict()["deposit_wealth_weight"], 1.0)
+        self.assertEqual([w["blind_cf"] for w in default.per_world],
+                         [w["blind_cf"] for w in explicit.per_world])
+        self.assertEqual(default.advantage_counterfactual,
+                         explicit.advantage_counterfactual)
+
+    def test_lower_deposit_weight_raises_the_counterfactual_advantage(self):
+        # Down-weighting banked coin (lever 2) makes depositing pay less, so the
+        # oracle-that-holds gains on the blind-that-deposits: advantage_cf rises
+        # monotonically as the weight drops. Behaviour (hence the control world
+        # and the death count) is untouched -- only the reward accounting moves.
+        from emergence.grounding import measure_deposit_oracle
+        seeds = tuple(range(42, 52))
+        highs = measure_deposit_oracle("guardian", seeds=seeds, days=12,
+                                       n_agents=4, deposit_wealth_weight=1.0)
+        lows = measure_deposit_oracle("guardian", seeds=seeds, days=12,
+                                      n_agents=4, deposit_wealth_weight=0.2)
+        self.assertGreater(lows.advantage_counterfactual,
+                           highs.advantage_counterfactual)
+        # Re-scoring fixed trajectories: the control sanity check stays exactly
+        # zero and the oracle's cf deaths are identical at both weights.
+        self.assertEqual(lows.advantage_control, 0.0)
+        self.assertEqual(highs.advantage_control, 0.0)
+        self.assertEqual(lows.oracle_cf_deaths, highs.oracle_cf_deaths)
+
     def test_as_dict_carries_per_world_and_variance(self):
         from emergence.grounding import measure_deposit_oracle
         result = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
