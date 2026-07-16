@@ -52,17 +52,27 @@ def _economy(obs: Any) -> dict:
     return econ if isinstance(econ, dict) else {}
 
 
-def _wealth(obs: Any) -> float:
+def _wealth(obs: Any, deposit_weight: float = 1.0) -> float:
     """Spendable + banked wealth. Bank deposits are *claims* (in
     ``economy.my_deposits``), not coin in ``self_view.money`` — so a deposit moves
     wealth between the two without changing it, and a rule that shrinks deposits
     (demurrage) shows up as a real wealth loss. Counting deposits here is what
     gives the demurrage counterfactual a reward signal at all; without it the
-    penalty lives only in a memory line and RL has no gradient to learn it."""
+    penalty lives only in a memory line and RL has no gradient to learn it.
+
+    ``deposit_weight`` scales how much a banked coin counts toward wealth
+    relative to a spendable one. It defaults to ``1.0`` — a deposit is
+    wealth-neutral, exactly the original behaviour — and is *only* moved by the
+    grounding-instrument's S6 calibration dial (``weights["deposit"]`` in
+    :func:`survival_reward`). Lowering it makes the act of depositing an
+    immediate wealth loss and demurrage's daily shrink bite proportionally
+    less, which is the mechanism-direct way to tune whether avoiding deposits
+    pays under demurrage; see ``emergence/grounding.py``'s deposit-oracle
+    section. Nothing in the default reward path passes anything but ``1.0``."""
     money = float(_self_view(obs).get("money", 0.0))
     deposits = sum(float(d.get("amount", 0))
                    for d in _economy(obs).get("my_deposits", []) or [])
-    return money + deposits
+    return money + deposit_weight * deposits
 
 
 def _social_signal(obs: Any) -> float:
@@ -83,8 +93,9 @@ def survival_reward(prev: Any, cur: Any, weights: dict | None = None) -> float:
     regarded; negative when it declined. Returns ``0.0`` if either observation
     lacks the fields, so a missing layer never throws."""
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
+    dep_w = float(w.get("deposit", 1.0))           # 1.0 = original; S6 calib dial only
     psv, csv = _self_view(prev), _self_view(cur)
     d_energy = float(csv.get("energy", 0.0)) - float(psv.get("energy", 0.0))
-    d_wealth = _wealth(cur) - _wealth(prev)        # coin + deposits, so demurrage bites
+    d_wealth = _wealth(cur, dep_w) - _wealth(prev, dep_w)  # coin + weighted deposits
     d_social = _social_signal(cur) - _social_signal(prev)
     return w["energy"] * d_energy + w["money"] * d_wealth + w["social"] * d_social

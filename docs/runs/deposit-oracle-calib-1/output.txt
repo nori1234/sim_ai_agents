@@ -1,0 +1,32 @@
+S6 deposit-only oracle -- lever-2 calibration sweep (deposit_wealth_weight)
+persona=guardian, seeds=42..61 (20 worlds), days=20, agents=6
+
+ lambda  adv_cf(all)  eff_size  adv_cf(surv)  ahead(all)  oracle_deaths
+    1.0      -127.30    -1.94s       -110.54        0/20              2
+    0.8      -102.10    -1.93s        -88.49        0/20              2
+    0.6       -76.89    -1.91s        -66.44        0/20              2
+    0.4       -51.68    -1.88s        -44.38        0/20              2
+    0.2       -26.47    -1.76s        -22.33        0/20              2
+    0.1       -13.87    -1.54s        -11.30        0/20              2
+   0.05        -7.57    -1.19s         -5.79        1/20              2
+    0.0        -1.27    -0.29s         -0.27       14/20              2
+
+================================================================
+Anchor 1 -- deposit_wealth_weight=1.0 (canonical reward; reproduces the
+original deposit-oracle-1 result byte-for-byte):
+  $ python3 scripts/deposit_oracle.py --persona guardian --deposit-weight 1.0
+================================================================
+[deposit-oracle] deposit_wealth_weight (S6 calib dial): 1.0
+[deposit-oracle] advantage_cf (oracle - blind, counterfactual): -127.3040 (control sanity check: +0.0000, must be 0)
+[deposit-oracle] blind cf per-world std: 65.7258 (variance 4319.8756) -> effect size -1.9369
+[deposit-oracle] oracle ahead in 0/20 worlds; oracle deaths in cf: 2/20
+
+================================================================
+Anchor 2 -- deposit_wealth_weight=0.0 (banked coin worthless; the extreme
+end of lever 2 -- the closest this dial gets to a positive sign):
+  $ python3 scripts/deposit_oracle.py --persona guardian --deposit-weight 0.0
+================================================================
+[deposit-oracle] deposit_wealth_weight (S6 calib dial): 0.0
+[deposit-oracle] advantage_cf (oracle - blind, counterfactual): -1.2665 (control sanity check: +0.0000, must be 0)
+[deposit-oracle] blind cf per-world std: 4.4114 (variance 19.4600) -> effect size -0.2871
+[deposit-oracle] oracle ahead in 14/20 worlds; oracle deaths in cf: 2/20
