@@ -84,8 +84,10 @@ python3 -m unittest discover -s tests                       # テスト
 - **1つのLLMを「個」に分化**：各住人は固有の人格（プロンプト）＋固有の記憶を持つ1体のエージェント
   → 10人いれば10の個人
 - **再現性**：engine は seed で決定論的。LLM実行は **記録／再生** でビット一致（`temperature=0` に頼らない）
-- **opt-in レイヤー**：欲求（マズロー＋老化・寿命）・裏社会（＋汚職）・環境（天候前線・農の循環・雨宿り）・
-  経済の物理（銀行・所有権・相続・ケア深化）・生態系（家畜）・歴史的発展・公共事業・長期記憶・統治制度
+- **opt-in レイヤー**：欲求（マズロー＋老化・寿命）・裏社会（＋汚職）・怪我（`--health`）・病気/伝染（`--illness`）・
+  情報/噂（`--rumour`）・技術革新（`--innovation`）・個体化（`--individuals`）・
+  環境（天候前線・農の循環＝種籾/凶作/地力・雨宿り）・経済の物理（銀行・所有権・相続・地代/売買・ケア深化）・
+  生態系（家畜＋飼料/捕食/市場取引）・歴史的発展・公共事業・長期記憶・統治制度
   → 一覧と実例は [`docs/LAYERS.md`](docs/LAYERS.md)。**全レイヤーは既定OFFで、OFFなら
   ベースラインはバイト不変**（契約テストで固定）
 - **歴史が積み上がる**：人は年を取って死に、財産・土地が子へ相続される。銀行は預金に利息を付け、
@@ -143,7 +145,7 @@ torch のみ。脳本体は上記の git から別途入れます）。世界⇄
 | 文書 | 内容 |
 |---|---|
 | [`docs/GROUNDING.md`](docs/GROUNDING.md) | **接地の検証**：反事実世界の転移テストの設計と道具一式（probe / sweep / battery / monitor / sandbox）、結果の読み方（存在証明 vs 再現性）、現状 |
-| [`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md) | **発達脳の統合契約 v1.0**：`llm_model_agi`（HierMamba脳）との境界。行動語彙44・param規約・観測スキーマ・target解決・報酬・teacher呼び出し |
+| [`docs/NEURAL_CONTRACT.md`](docs/NEURAL_CONTRACT.md) | **発達脳の統合契約 v1.2**：`llm_model_agi`（HierMamba脳）との境界。行動語彙44・param規約・観測スキーマ・target解決・報酬・teacher呼び出し（v1.1で `illness`/`skill`/`rumour`、v1.2で `injury` を加算追加。既定OFFで0） |
 
 **エンジン（世界の正典）**
 
