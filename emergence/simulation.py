@@ -15,7 +15,11 @@ from .economy import Ledger, LedgerEntry, apply_transfer, is_fraudulent_solicita
 from .esteem import StatusConfig, esteem_urge
 from .ecology import EcologyConfig
 from .grounding import CounterfactualConfig
+from .health import HealthConfig, capability_factor
+from .illness import IllnessConfig, capability_factor as illness_capability_factor
+from .innovation import DISCOVERY_POOL, InnovationConfig, skill_yield_mult
 from .psyche import PsycheConfig, actualization_pull, fear_level
+from .rumour import RumourConfig
 from .society import Gang, Religion, SocietyConfig, discontent
 from .society import GANG_NAMES, FAITH_NAMES
 from . import publicworks as PW
@@ -26,6 +30,7 @@ from .governance import (
     GovernanceForm,
     Legislature,
     Mayor,
+    OFFENCE_EFFECTS,
     PolicyEngine,
     ProposalStatus,
 )
@@ -61,6 +66,10 @@ HOSPITAL_HEAL_BONUS = 1.5  # care is more effective at a hospital (vs out in the
 # the baseline is untouched. The hospital bonus applies to all of it.
 HEAL_FEAR_RELIEF = 20.0       # treating the wounded mind (psyche layer)
 HEAL_ADDICTION_RELIEF = 16.0  # detox / easing withdrawal (society drugs layer)
+HEAL_ILLNESS_RELIEF = 18.0    # a doctor's care speeds recovery from illness (#86)
+HEAL_INJURY_RELIEF = 25.0     # mending the wounded body (health layer) -- the
+                               # fast path back, vs. slow unattended healing
+RENT_ENERGY = 18.0            # paid use of a property (#102) -- like rest, but bought
 SERVICE_RANGE = 2          # a service is local: provider and taker must be near
 ACTION_ENERGY_COST = {
     ActionType.GATHER: 3.0,
@@ -86,6 +95,8 @@ ARREST_WINDOW_DAYS = 2     # how recently a crime must have happened to be arres
 LIE_EXPOSURE_REP_LOSS = 3.0
 ARREST_ENERGY_PENALTY = 6.0  # the scuffle/detainment costs the offender energy
 ATTACK_DAMAGE = 15.0  # energy a victim loses when attacked
+BURGLARY_LOOT_MONEY = 10   # a home holds more than a purse (#113) -- worth the risk
+BURGLARY_ENERGY_COST = 8.0  # forcing a door costs more than snatching a purse
 
 
 @dataclass
@@ -116,6 +127,14 @@ class Simulation:
     status: StatusConfig = field(default_factory=StatusConfig)
     psyche: PsycheConfig = field(default_factory=PsycheConfig)
     society: SocietyConfig = field(default_factory=SocietyConfig)
+    illness: IllnessConfig = field(default_factory=IllnessConfig)
+    rumour: RumourConfig = field(default_factory=RumourConfig)
+    innovation: InnovationConfig = field(default_factory=InnovationConfig)
+    health: HealthConfig = field(default_factory=HealthConfig)
+    # The simulation's own working copy of MK.RECIPES -- a discovery (#97)
+    # overwrites an entry here, never the shared module dict, so one town's
+    # invention never leaks into another's (or a test's) recipe book.
+    recipes: dict = field(default_factory=lambda: dict(MK.RECIPES))
     ecology: EcologyConfig = field(default_factory=EcologyConfig)
     # Counterfactual-world transfer test (grounding falsification probe); opt-in.
     # Off + hide_rate=False leaves the baseline byte-identical. See emergence.grounding.
@@ -230,11 +249,17 @@ class Simulation:
     # Observation
     # ==================================================================
     def _observe(self, agent: Agent) -> Observation:
+        # Hot path (#40): agent.pos is a property that allocates a fresh tuple
+        # on every access; this function calls it once per facility/other, so
+        # reading it once up front measurably cuts per-tick cost on larger
+        # towns with no change in output (the value is invariant for the
+        # whole call -- observation never mutates the observing agent).
+        apos = agent.pos
         nearby = sorted(
-            (_facility_view(f, chebyshev(agent.pos, f.pos)) for f in self.world.facilities),
+            (_facility_view(f, chebyshev(apos, f.pos)) for f in self.world.facilities),
             key=lambda d: d["distance"],
         )[:12]
-        here_f = self.world.facility_at(agent.pos)
+        here_f = self.world.facility_at(apos)
         here = {"name": here_f.name, "type": here_f.ftype.value} if here_f else None
         # Agriculture: surface each farm's crop state (empty/growing/ripe) so a
         # farmer knows whether to sow, wait, or harvest. Inert unless agriculture.
@@ -251,12 +276,11 @@ class Simulation:
         if self.society.enabled:
             for f in self.world.facilities:
                 for role in f.roles:
-                    d = chebyshev(agent.pos, f.pos)
+                    d = chebyshev(apos, f.pos)
                     if role not in nearest_roles or d < nearest_roles[role][1]:
                         nearest_roles[role] = (f.pos, d)
             nearest_roles = {r: pos for r, (pos, _d) in nearest_roles.items()}
         others = []
-        apos = agent.pos
         for o in self.agents:
             if o.id == agent.id or not o.alive:
                 continue
@@ -277,6 +301,11 @@ class Simulation:
                 # enforcement / protecting your own (#38). Absent off the layer.
                 **({"gang": o.gang_id} if (self.society.enabled
                                            and self.society.gangs) else {}),
+                # Home safety (#113): being indoors, especially at home, is
+                # safer from street crime. Only surfaced under the psyche
+                # layer (the home of "safety" concepts) -- absent, the
+                # heuristic's targeting reads exactly as before.
+                **({"sheltered": self._is_sheltered(o)} if self.psyche.enabled else {}),
             })
         eligible = self._eligible_voters()
         proposals = [_proposal_view(p, agent.id) for p in self.legislature.open_proposals()
@@ -303,7 +332,7 @@ class Simulation:
             day=self.world.day,
             tick=self.world.tick,
             self_view=agent.snapshot(),
-            position=agent.pos,
+            position=apos,
             nearby_facilities=nearby,
             here=here,
             others=others,
@@ -328,9 +357,7 @@ class Simulation:
                         if self.society.enabled else 0.0),
             here_roles=here_roles,
             nearest_roles=nearest_roles,
-            norms=({"crime": True,
-                    "enforcement": round(self._enforcement_expectation(), 2)}
-                   if self.policy.has_crime_norm() else {}),
+            norms=self._norms_view(),
             laws=self._published_laws(),
             environment=self.environment.snapshot() if self.environment is not None else {},
             role=role_of(agent.profession),
@@ -343,8 +370,10 @@ class Simulation:
                           if self.public_works else {}),
             open_offers=([o.as_dict() for o in self.offers[:8]]
                          if self.economy else []),
-            economy=({"enabled": True, "tradable": list(MK.TRADABLE),
-                      "recipes": {k: v[0] for k, v in MK.RECIPES.items()},
+            economy=({"enabled": True,
+                      "tradable": (list(MK.TRADABLE) if self.ecology.enabled
+                                   else [t for t in MK.TRADABLE if t != "livestock"]),
+                      "recipes": {k: v[0] for k, v in self.recipes.items()},
                       "price_food_in_money": self.emergent_price("food", "money"),
                       # A capability hint (what you produce well), not a valuation
                       # — the agent judges worth itself, weighing it against price.
@@ -374,6 +403,9 @@ class Simulation:
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
                    if self.economy else []),
+            rumour=({"enabled": True, "hearing_radius": self.rumour.hearing_radius,
+                     "gossip_chance": self.rumour.gossip_chance}
+                    if self.rumour.enabled else {}),
         )
 
     # ==================================================================
@@ -454,6 +486,11 @@ class Simulation:
             if entry not in held:
                 agent.remember(entry)
                 break
+        # A librarian tending the shelf recopies its most-neglected book,
+        # resetting its decay clock -- diligent towns sustain a canon;
+        # neglected shelves rot regardless of who merely visits (#22).
+        if agent.profession == "librarian":
+            self.library.recopy(self.world.day)
 
     def _spend(self, agent: Agent, action_type: ActionType) -> None:
         agent.energy -= ACTION_ENERGY_COST.get(action_type, 0.0)
@@ -514,6 +551,15 @@ class Simulation:
         elif ev.kind == "strike" and ev.other is not None:
             # Force against a person is the crime of violence.
             self._register_crime(ev.actor, "violence", ev.other)
+        elif (ev.kind == "strike" and ev.other is None and self.society.enabled
+              and ev.site is not None and ev.site.ftype is FacilityType.HOUSE
+              and ev.site.owner is not None and ev.site.owner != ev.actor.id):
+            # Breaking into an OWNED home is burglary (#113), not arson --
+            # reusing strike(building), keyed off the owner (#93/#102). Gated
+            # on --society (the underworld layer) so plain --economy towns
+            # (owner set, society off) still read every house-strike as arson,
+            # exactly as before.
+            self._burgle(ev.actor, ev.site)
         elif ev.kind == "strike" and ev.other is None:
             # Force against a structure is arson (no victim, so the crime is
             # accounted inline and dread radiates from the site).
@@ -542,6 +588,11 @@ class Simulation:
         elif ev.kind == "say" and ev.intent == "sermon":
             # A sermon founds or spreads a faith.
             self._preach_faith(ev.actor)
+        elif ev.kind == "say" and ev.intent == "rumour" and ev.payload:
+            # Hearsay: a claim about a third party spreads to nearby listeners
+            # (#96).
+            self._spread_rumour(ev.actor, ev.payload.get("about"),
+                                ev.payload.get("sentiment", 0.0))
         elif ev.kind == "say" and ev.intent == "proposal":
             # A proposal put to the town: the legislature takes it up.
             self._make_proposal(ev.actor, ev.payload or {})
@@ -629,6 +680,10 @@ class Simulation:
                 damage += self.society.weapon_attack_bonus  # armed: far deadlier
             victim.energy -= damage
             agent.money += victim.take("money", 3)  # violence robs coin too
+            if self.health.enabled:
+                # A lingering wound, distinct from the momentary energy loss —
+                # a meal or a nap doesn't erase it, only time or a doctor does.
+                victim.injury = min(100.0, victim.injury + self.health.injury_per_strike)
         ev = Event(kind="strike", actor=agent, other=victim, site=facility)
         self._interpret(ev)
         # Burning a granary spills the commons (structural after-effect).
@@ -715,9 +770,31 @@ class Simulation:
         f = self.world.facility_at(agent.pos)
         if f is None or f.ftype is not FacilityType.FARM:
             return
+        # Seed & storage (#105): sowing can cost seed grain -- keeping seed-corn
+        # vs eating it becomes a real choice. seed_cost=0 (default) is free, as
+        # before this was split out of #95.
+        cost = self.environment.config.seed_cost
+        if cost and agent.food() < cost:
+            return  # not enough seed-corn on hand to plant
         if self.environment.sow(f):
+            if cost:
+                agent.take("food", cost)
             self._spend(agent, ActionType.SOW)
             self.world.log("sow", by=agent.id, farm=f.name)
+
+    def _illness_scaled_yield(self, agent: Agent, amount: int) -> int:
+        """A badly ill gatherer works slower — a fraction of yield lost past
+        the severe threshold, never dropping to zero (#86)."""
+        if not self.illness.enabled or amount <= 0:
+            return amount
+        return max(1, round(amount * illness_capability_factor(agent, self.illness)))
+
+    def _injury_scaled_yield(self, agent: Agent, amount: int) -> int:
+        """A badly hurt gatherer works at reduced capability — never zeroed
+        out by injury alone, just diminished (#85). Inert off the health layer."""
+        if not self.health.enabled or amount <= 0:
+            return amount
+        return max(1, round(amount * capability_factor(agent, self.health)))
 
     def _harvest(self, agent: Agent, f) -> Event:
         """Take from a world resource node: the node *produces* a yield (shaped
@@ -728,6 +805,8 @@ class Simulation:
         if (self.environment is not None and self.environment.config.agriculture
                 and f.ftype is FacilityType.FARM):
             amount = self.environment.harvest_crop(f)
+            amount = self._illness_scaled_yield(agent, amount)
+            amount = self._injury_scaled_yield(agent, amount)
             if amount:
                 agent.add("food", amount)
             ev = Event(kind="take", actor=agent, other=None, site=f,
@@ -743,6 +822,13 @@ class Simulation:
             amount = max(1, round(amount * gather_multiplier(agent.profession, resource)))
         if self.environment is not None:
             amount = self.environment.gather(f, resource, amount)
+        amount = self._illness_scaled_yield(agent, amount)
+        amount = self._injury_scaled_yield(agent, amount)
+        # Innovation: learning-by-doing raises skill with every gather, which in
+        # turn scales the yield up (#97). Gated on the layer, so it's a no-op off.
+        if self.innovation.enabled and amount:
+            amount = max(amount, round(amount * skill_yield_mult(agent.skill, self.innovation)))
+            self._gain_skill(agent)
         agent.add(resource, amount)
         ev = Event(kind="take", actor=agent, other=None, site=f,
                    items={resource: amount} if amount else {})
@@ -813,10 +899,11 @@ class Simulation:
     # deposit/loan, an inn's lodging) register an entry + a handler the same way.
     def _serve_healing(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Care mends more than exhaustion. It restores energy (more at a
-        hospital) and, where those layers are live, also calms trauma (fear) and
-        eases the sickness of withdrawal (addiction) — a doctor treats the wounded
-        body, mind, and the addicted alike. Each relief is gated on its layer, so
-        without them this is exactly the old energy-only care (baseline intact)."""
+        hospital) and, where those layers are live, also calms trauma (fear),
+        eases the sickness of withdrawal (addiction), and mends a lingering
+        wound (injury) — a doctor treats the wounded body, mind, and the
+        addicted alike. Each relief is gated on its layer, so without them
+        this is exactly the old energy-only care (baseline intact)."""
         f = self.world.facility_at(taker.pos)
         boost = HOSPITAL_HEAL_BONUS if f and f.ftype is FacilityType.HOSPITAL else 1.0
         taker.energy = min(MAX_ENERGY, taker.energy + HEAL_ENERGY * boost)
@@ -824,6 +911,10 @@ class Simulation:
             taker.fear = max(0.0, taker.fear - HEAL_FEAR_RELIEF * boost)
         if self.society.enabled and self.society.drugs and taker.addiction > 0:
             taker.addiction = max(0.0, taker.addiction - HEAL_ADDICTION_RELIEF * boost)
+        if self.illness.enabled and taker.illness > 0:
+            taker.illness = max(0.0, taker.illness - HEAL_ILLNESS_RELIEF * boost)
+        if self.health.enabled and taker.injury > 0:
+            taker.injury = max(0.0, taker.injury - HEAL_INJURY_RELIEF * boost)
 
     def _serve_feast(self, provider: Agent, taker: Agent, fee: int) -> None:
         """Conspicuous consumption: the taker hosts a feast (the provider caters,
@@ -848,14 +939,32 @@ class Simulation:
         self._recognise(taker, rep, self.status.achievement_relief, "feast")
         self.world.log("feast", host=taker.id, spent=fee)
 
+    def _serve_rent(self, provider: Agent, taker: Agent, fee: int) -> None:
+        """Paid use of a property (#102): the taker gets a rest-shaped energy
+        benefit for occupying an owner's building for a fee, instead of it
+        being free like ordinary REST. The going rate is emergent (the
+        accepted fee), same as healing/feast; ownership itself is validated
+        at offer time (_do_offer), not here."""
+        taker.energy = min(MAX_ENERGY, taker.energy + RENT_ENERGY)
+
     @property
     def _service_effects(self):
-        return {"healing": self._serve_healing, "feast": self._serve_feast}
+        return {"healing": self._serve_healing, "feast": self._serve_feast,
+                "rent": self._serve_rent}
 
     def _do_work(self, agent: Agent, action: Action) -> None:
         f = self.world.facility_at(agent.pos)
         if f is None or not f.is_workplace():
             return
+        # Exclusion (#102): working an owned facility without the owner's
+        # consent reads as trespass -- the existing crime primitives, so
+        # enforcement is the owner's/a guard's choice, not a hard block. The
+        # act still succeeds; only unowned commons (and the offline baseline,
+        # where owner is always None) are exempt.
+        if f.owner is not None and f.owner != agent.id:
+            owner = self._by_id.get(f.owner)
+            if owner is not None and owner.alive:
+                self._register_crime(agent, "trespass", owner)
         used = agent.take("materials", 1)
         pay = 3 + 2 * used  # bare work pays a little; with materials, more
         if self.environment is not None and f.ftype == FacilityType.MARKET:
@@ -1117,18 +1226,19 @@ class Simulation:
                        text=str(action.params.get("text", "shared project")))
 
     def _say(self, agent: Agent, *, content: str = "",
-             to: Optional[Agent] = None, kind: str = "speech") -> Event:
+             to: Optional[Agent] = None, kind: str = "speech",
+             payload: Optional[dict] = None) -> Event:
         """Broadcast a signal. A plain statement is logged as speech; a signal
         aimed at an offender is an accusation. Meaning beyond the log (a
-        proposal, a sermon) is left to richer interpretation later."""
+        proposal, a sermon, a rumour) is left to richer interpretation later."""
         if kind == "accusation":
             if to is not None:
                 self.world.log("crime_report", reporter=agent.id, accused=to.id)
-        elif kind in ("praise", "sermon"):
+        elif kind in ("praise", "sermon", "rumour"):
             pass  # the effects + log are handled in _interpret
         else:
             self.world.log("speech", agent=agent.id, text=content)
-        ev = Event(kind="say", actor=agent, other=to, intent=kind)
+        ev = Event(kind="say", actor=agent, other=to, intent=kind, payload=payload)
         self._interpret(ev)
         return ev
 
@@ -1137,9 +1247,18 @@ class Simulation:
         self._say(agent, content=str(action.params.get("text", "")))
 
     def _do_say(self, agent: Agent, action: Action) -> None:
-        """Raw primitive (LLM): broadcast a statement, optionally at a target."""
+        """Raw primitive (LLM): broadcast a statement, optionally at a target.
+        A say naming an ``about`` third party carries a claim (a sentiment
+        toward them) that nearby listeners may adopt as hearsay (#96);
+        inert unless the rumour layer is live."""
         to = self._by_id.get(action.params.get("to") or action.params.get("target"))
         self._spend(agent, ActionType.SAY)
+        about = self._by_id.get(action.params.get("about")) if self.rumour.enabled else None
+        if about is not None and about is not agent:
+            sentiment = max(-1.0, min(1.0, float(action.params.get("sentiment", -1.0))))
+            self._say(agent, content=str(action.params.get("text", "")), to=to,
+                      kind="rumour", payload={"about": about.id, "sentiment": sentiment})
+            return
         self._say(agent, content=str(action.params.get("text", "")), to=to)
 
     def _do_praise(self, agent: Agent, action: Action) -> None:
@@ -1346,6 +1465,8 @@ class Simulation:
             target = self._by_id[deposed]
             if target.alive:
                 target.energy -= ATTACK_DAMAGE
+                if self.health.enabled:
+                    target.injury = min(100.0, target.injury + self.health.injury_per_strike)
                 self._strike_fear(target, epicentre=target.pos, offender_id=agent.id)
         for r in rebels:
             r.last_rebelled_day = self.world.day
@@ -1398,6 +1519,42 @@ class Simulation:
                 o.adjust_trust(agent.id, 0.15)
                 self.world.log("conversion", faith=religion.name, convert=o.id)
                 break
+
+    def _spread_rumour(self, speaker: Agent, about_id: Optional[str],
+                       sentiment: float) -> None:
+        """Hearsay: a claim about a third party (not present) spreads to
+        listeners nearby the speaker, nudging their trust of that party --
+        and, where honour matters, the party's public reputation -- weighted
+        by how much the listener trusts the speaker. An untrusted source
+        persuades no one. A claim may mutate in transit: misinformation
+        emerges from the channel rather than being scripted (#96)."""
+        if not self.rumour.enabled or not about_id or about_id == speaker.id:
+            return
+        about = self._by_id.get(about_id)
+        if about is None or not about.alive:
+            return
+        c = self.rumour
+        for listener in self.agents:
+            if listener.id in (speaker.id, about_id) or not listener.alive:
+                continue
+            if chebyshev(listener.pos, speaker.pos) > c.hearing_radius:
+                continue
+            credence = listener.trust_of(speaker.id)
+            if credence < c.min_speaker_trust:
+                continue  # a claim from someone this untrusted moves no one
+            heard = sentiment
+            distorted = self.rng.random() < c.distortion_chance
+            if distorted:
+                heard = max(-1.0, min(1.0,
+                    heard + self.rng.uniform(-1.0, 1.0) * c.distortion_strength))
+                self.metrics.rumours_distorted += 1
+            weight = c.trust_weight * max(0.0, credence)
+            listener.adjust_trust(about_id, heard * weight)
+            if self.status.enabled:
+                about.reputation += heard * weight * c.rep_weight
+            self.metrics.rumours_spread += 1
+            self.world.log("rumour", speaker=speaker.id, about=about_id,
+                           to=listener.id, sentiment=round(heard, 2))
 
     def _do_worship(self, agent: Agent, action: Action) -> None:
         # A macro: worship is a bond of allegiance to one's faith at a temple;
@@ -1469,6 +1626,12 @@ class Simulation:
             # economy-only baseline free of feast offers entirely).
             if service == "feast" and not self.status.enabled:
                 return
+            if service == "rent":
+                # Can only rent out a property you actually own (#102) -- unlike
+                # healing/feast, "anyone capable" isn't enough here.
+                here = self.world.facility_at(agent.pos)
+                if here is None or here.owner != agent.id:
+                    return
             offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
                              give_qty=0, want_item=wi, want_qty=wq,
                              day=self.world.day, service=service)
@@ -1476,6 +1639,22 @@ class Simulation:
             self.offers.append(offer)
             self.world.log("offer", id=offer.id, by=agent.id,
                            service=service, want=f"{wq} {wi}")
+            return
+        gf = p.get("give_facility")
+        if gf:
+            # A property-sale offer (#102): sell a facility you own for money
+            # (or any tradable) on the same OFFER/ACCEPT book as a goods swap.
+            gf = str(gf)
+            f = next((x for x in self.world.facilities if x.name == gf), None)
+            if f is None or f.owner != agent.id or wi not in MK.TRADABLE or wq <= 0:
+                return
+            offer = MK.Offer(id=self._next_offer_id, maker=agent.id, give_item="",
+                             give_qty=0, want_item=wi, want_qty=wq,
+                             day=self.world.day, give_facility=gf)
+            self._next_offer_id += 1
+            self.offers.append(offer)
+            self.world.log("offer", id=offer.id, by=agent.id,
+                           sell=gf, want=f"{wq} {wi}")
             return
         gi = str(p.get("give_item", ""))
         gq = int(p.get("give_qty", 0) or 0)
@@ -1546,6 +1725,24 @@ class Simulation:
                            taker=agent.id, service=offer.service,
                            fee=f"{offer.want_qty} {offer.want_item}")
             return
+        if offer.give_facility is not None:
+            # A property sale (#102): transfer the transferable ownership
+            # claim (the same one inheritance already moves at death, #92)
+            # instead of a fungible good.
+            f = next((x for x in self.world.facilities if x.name == offer.give_facility), None)
+            if f is None or f.owner != maker.id:
+                self.offers.remove(offer)
+                return
+            apply_transfer(agent, maker, offer.want_item, offer.want_qty)
+            f.owner = agent.id
+            self.offers.remove(offer)
+            self.metrics.trades += 1
+            maker.adjust_trust(agent.id, 0.05)
+            agent.adjust_trust(maker.id, 0.05)
+            self.world.log("property_sale", offer=offer.id, seller=maker.id,
+                           buyer=agent.id, facility=f.name,
+                           price=f"{offer.want_qty} {offer.want_item}")
+            return
         # Both sides must still hold the goods — conservation, no credit here.
         if MK.holdings(maker, offer.give_item) < offer.give_qty:
             self.offers.remove(offer)
@@ -1569,7 +1766,10 @@ class Simulation:
         if not self.economy:
             return
         item = str(action.params.get("item", ""))
-        recipe = MK.RECIPES.get(item)
+        # This town's own working recipe book (see Simulation.recipes) -- a
+        # discovery (#97) can have replaced the entry here without touching the
+        # shared MK.RECIPES default, so keys stay identical either way.
+        recipe = self.recipes.get(item)
         if recipe is None:
             return
         inputs, need_facility = recipe
@@ -1581,9 +1781,49 @@ class Simulation:
             return
         for k, q in inputs.items():
             agent.take(k, q)
-        agent.add(item, 1)
+        amount = 1
+        if self.innovation.enabled:
+            amount = max(1, round(1 * skill_yield_mult(agent.skill, self.innovation)))
+        agent.add(item, amount)
         self.metrics.crafted += 1
-        self.world.log("craft", by=agent.id, item=item)
+        self.world.log("craft", by=agent.id, item=item, amount=amount)
+        if self.innovation.enabled:
+            self._gain_skill(agent)
+            self._maybe_invent(agent, item)
+
+    def _gain_skill(self, agent: Agent) -> None:
+        """Learning-by-doing: skill rises a little with each gather/craft,
+        saturating at skill_cap (#97)."""
+        cfg = self.innovation
+        agent.skill = min(cfg.skill_cap, agent.skill + cfg.skill_gain_per_use)
+
+    def _maybe_invent(self, agent: Agent, item: str) -> None:
+        """Invention as discovery (#97): an experienced crafter occasionally
+        finds a better recipe, drawn from a small predefined pool (never
+        generated) -- it replaces this town's own recipe going forward and, if
+        a library exists, is written down so it persists (and can be lost the
+        way any book can, #22's rot)."""
+        cfg = self.innovation
+        if agent.skill < cfg.discovery_skill_min:
+            return
+        pool = DISCOVERY_POOL.get(item)
+        if not pool or self.rng.random() >= cfg.discovery_chance:
+            return
+        current = self.recipes.get(item)
+        for candidate in pool:
+            if candidate == current:
+                continue
+            self.recipes[item] = candidate
+            self.metrics.inventions += 1
+            inputs, need_facility = candidate
+            self.world.log("invention", item=item, by=agent.id, inputs=dict(inputs))
+            if self.library is not None:
+                inputs_str = ", ".join(f"{q} {k}" for k, q in inputs.items())
+                self.library.write(
+                    self.world.day, agent.id, agent.name,
+                    f"{agent.name} discovered a better way to make {item}: "
+                    f"{inputs_str} now suffices.")
+            break
 
     def emergent_price(self, give_item: str, want_item: str):
         """The average recent settled ratio (price of give_item in want_item)."""
@@ -1902,6 +2142,42 @@ class Simulation:
                 return None
         return target
 
+    def _burgle(self, offender: Agent, house) -> None:
+        """Breaking into an owned home (#113): a costlier, rarer counter to
+        the safety a house affords (#73). Unlike _register_crime, the
+        epicentre is the house's location, not wherever the (possibly
+        absent) owner currently stands -- a burglary happens at the house."""
+        offender.energy -= BURGLARY_ENERGY_COST
+        owner = self._by_id.get(house.owner)
+        loot = min(BURGLARY_LOOT_MONEY, owner.money) if owner is not None else 0
+        if owner is not None and loot:
+            offender.money += owner.take("money", loot)
+        offender.crimes_committed += 1
+        offender.last_crime_day = self.world.day
+        self.metrics.record_crime("burglary")
+        self.world.log("burglary", offender=offender.id, facility=house.name,
+                       owner=house.owner, loot=loot, pos=house.pos)
+        if owner is not None:
+            owner.times_victimized += 1
+            owner.adjust_trust(offender.id, -0.6)
+            owner.remember(f"Day {self.world.day}: my home was broken into.")
+        self._strike_fear(owner, epicentre=house.pos, offender_id=offender.id)
+        if self.policy.has_punishment_law() and owner is not None:
+            nearest_police = self.world.nearest(house.pos, FacilityType.POLICE_STATION)
+            if nearest_police and chebyshev(house.pos, nearest_police.pos) <= self.policy.config.police_range:
+                fine = min(offender.money, self.policy.config.fine_amount)
+                if self.economy:
+                    paid = offender.take("money", fine)
+                    half = paid // 2
+                    owner.add("money", half)
+                    self.treasury += paid - half
+                else:
+                    offender.money -= fine
+                    owner.money += fine // 2
+                    self.world.granary_food += 1
+                self.world.log("fine", offender=offender.id, amount=fine)
+                self.metrics.fines_collected += 1
+
     def _register_crime(self, offender: Agent, kind: str, victim: Agent) -> None:
         offender.crimes_committed += 1
         offender.last_crime_day = self.world.day   # now "wanted" for a short while
@@ -1981,6 +2257,40 @@ class Simulation:
             # Withdrawal: the craving sickness drains the body.
             if agent.addiction > self.society.withdrawal_threshold:
                 agent.energy -= self.society.withdrawal_energy_penalty
+        if self.illness.enabled:
+            if agent.illness > 0:
+                # The body fights it off, quietly -- faster resting under a
+                # roof meant for it (#86).
+                decay = self.illness.illness_decay_per_tick
+                f = self.world.facility_at(agent.pos)
+                if f is not None and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}:
+                    decay += self.illness.illness_decay_shelter_bonus
+                agent.illness = max(0.0, agent.illness - decay)
+                if agent.illness > self.illness.severe_threshold:
+                    agent.energy -= self.illness.energy_penalty
+            else:
+                # Contagion: proximity to an ill agent may spread it, per
+                # tick -- denser clusters / longer exposure -> faster spread,
+                # an emergent epidemic rather than a scripted one.
+                for other in self.agents:
+                    if other.id == agent.id or not other.alive or other.illness <= 0:
+                        continue
+                    if chebyshev(agent.pos, other.pos) <= self.illness.contagion_radius \
+                            and self.rng.random() < self.illness.contagion_chance:
+                        agent.illness = self.illness.onset_severity
+                        self.world.log("illness_caught", agent=agent.id, source=other.id)
+                        break
+        if self.health.enabled and agent.injury > 0:
+            # The body heals on its own, quietly — faster resting under a roof
+            # meant for it.
+            decay = self.health.injury_decay_per_tick
+            f = self.world.facility_at(agent.pos)
+            if f is not None and f.ftype in {FacilityType.HOUSE, FacilityType.HOSPITAL}:
+                decay += self.health.injury_decay_shelter_bonus
+            agent.injury = max(0.0, agent.injury - decay)
+            # A bad wound is a steady drain, same shape as chronic fear/withdrawal.
+            if agent.injury > self.health.injury_severe_threshold:
+                agent.energy -= self.health.injury_energy_penalty
         if self.drives.enabled and agent.age_days > self.drives.senescence_age_days:
             # Senescence: the old body tires faster (a gentle, rising drain). Pure
             # decline — natural death itself is the daily hazard in _end_of_day.
@@ -2145,6 +2455,45 @@ class Simulation:
                 if born:
                     a.add("livestock", min(born, eco.herd_cap - herd))
 
+    def _feed_livestock(self) -> None:
+        """Daily: a herd needs feed (#111) -- with feed_cost_per_head configured,
+        it's drawn from the owner's own food stock; short on feed and the herd
+        goes hungry, losing head to starvation. 0 cost (default) is a no-op, so
+        livestock stays free growth as it was before this was split off."""
+        eco = self.ecology
+        if not eco.feed_cost_per_head:
+            return
+        for a in self.agents:
+            if not a.alive:
+                continue
+            herd = a.inventory.get("livestock", 0)
+            need = int(round(herd * eco.feed_cost_per_head))
+            if need <= 0:
+                continue
+            fed = a.take("food", need)
+            if fed < need:
+                lost = min(herd, max(1, int(round(herd * eco.starve_loss_rate))))
+                a.take("livestock", lost)
+                self.world.log("livestock_starved", owner=a.id, lost=lost)
+
+    def _raid_livestock(self) -> None:
+        """Daily: a predator may cull a herd and frighten its owner (#111) --
+        keeping a herd gets a downside. 0 chance (default) is a no-op."""
+        eco = self.ecology
+        if not eco.predator_daily_chance:
+            return
+        for a in self.agents:
+            if not a.alive:
+                continue
+            herd = a.inventory.get("livestock", 0)
+            if herd <= 0 or self.rng.random() >= eco.predator_daily_chance:
+                continue
+            lost = min(herd, max(1, int(round(herd * eco.predator_loss_rate))))
+            a.take("livestock", lost)
+            if self.psyche.enabled:
+                a.fear = min(100.0, a.fear + eco.predator_fear)
+            self.world.log("predator_raid", owner=a.id, lost=lost)
+
     def _make_newborn_brain(self, child: Agent, persona_key: str) -> AgentBrain:
         if self.newborn_brain_factory is not None:
             return self.newborn_brain_factory(child, persona_key, self.rng)
@@ -2202,6 +2551,21 @@ class Simulation:
                     self.treasury += a.take("money", PW.CIVIC_LEVY_PER_AGENT)
         self._apply_daily_policy()
         self._maybe_elect_mayor()
+        if self.illness.enabled:
+            # Spontaneous onset, once per day (#86); contagion + decay/
+            # recovery run per tick, in _tick_upkeep, so denser/longer
+            # exposure matters the way the issue asks for.
+            for a in self.agents:
+                if a.alive and a.illness <= 0 \
+                        and self.rng.random() < self.illness.daily_strike_chance:
+                    a.illness = self.illness.onset_severity
+                    self.world.log("illness_onset", agent=a.id)
+        if self.library is not None:
+            # Slow rot: unmaintained books fade (#22) -- burning is not the
+            # only way a shelf empties; neglect does it too, just slowly.
+            lost = self.library.decay(self.world.day)
+            if lost:
+                self.world.log("library_rot", books_lost=lost)
         if self.environment is not None:
             # New weather/season, regen resources, reprice, maybe a disaster.
             self.environment.advance_day(self)
@@ -2219,7 +2583,9 @@ class Simulation:
                 if a.alive:
                     a.reputation = max(0.0, a.reputation - self.status.rep_decay_per_day)
         if self.ecology.enabled:
+            self._feed_livestock()
             self._breed_livestock()
+            self._raid_livestock()
         total, passed, rejected = self.legislature.counts()
         summary = {
             "day": self.world.day,
@@ -2269,6 +2635,26 @@ class Simulation:
             if len(out) >= 8:
                 break
         return out
+
+    def _norms_view(self) -> dict:
+        """The published-norms view an agent perceives: the existing blanket
+        "crime" bucket plus, additively, which *specific* offences (#35) the
+        town has actually legislated against. Surfaced whenever either the
+        blanket norm or any per-offence norm exists, so a bill that only
+        names e.g. "stealing" (never triggering the blanket CRIME_DETERRENCE
+        keywords) still shows up. "crime" reflects has_crime_norm() exactly
+        as before (True only when that blanket bucket itself fires), so the
+        heuristic's `norm.get("crime")` compliance check reads identically
+        to pre-#35 behaviour in every case -- this only ever ADDS reachable
+        states (an offences-only law used to yield {} here), never changes
+        an existing one."""
+        blanket = self.policy.has_crime_norm()
+        offences = {k: self.policy.offence_norm(k) for k in OFFENCE_EFFECTS}
+        if not blanket and not any(offences.values()):
+            return {}
+        return {"crime": blanket,
+                "enforcement": round(self._enforcement_expectation(), 2),
+                "offences": offences}
 
     def _enforcement_expectation(self) -> float:
         """How credibly crime is punished, in 0..1 — derived from real world
@@ -2416,6 +2802,14 @@ class Simulation:
             if f and chebyshev(agent.pos, f.pos) <= self.psyche.safe_radius:
                 return True
         return False
+
+    def _is_sheltered(self, agent: Agent) -> bool:
+        """Indoors, specifically at home (#113) -- a narrower, harder bar than
+        _near_safety's "within comforting reach": you must actually be
+        standing in a house, not merely nearby, to be a poor street-crime
+        target."""
+        f = self.world.facility_at(agent.pos)
+        return f is not None and f.ftype is FacilityType.HOUSE
 
     # ==================================================================
     @staticmethod

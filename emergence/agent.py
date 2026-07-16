@@ -26,6 +26,15 @@ class Agent:
     x: int
     y: int
 
+    # Physical individuation (#76) -- inert, heritable identity data the
+    # engine's simulation logic never branches on; populated only under
+    # individuals=True (see personality.PhysicalTraitPool) and read only by
+    # the API/observer for rendering distinct silhouettes. "" / 0.5 (neutral)
+    # when the layer is off.
+    sex: str = ""
+    build: float = 0.5
+    gait: float = 0.5
+
     energy: float = MAX_ENERGY
     inventory: dict[str, int] = field(default_factory=lambda: {"food": 3, "materials": 0})
     # Money is NOT a privileged field — it is an ordinary inventory item,
@@ -65,6 +74,10 @@ class Agent:
     fulfillment: float = 0.0
     works_created: int = 0
 
+    # Health layer — a lingering wound, distinct from momentary energy loss.
+    # Under HealthConfig (see emergence.health).
+    injury: float = 0.0
+
     # Society layer — weapons, addiction, gang and faith affiliation.
     weapons: int = 0
     addiction: float = 0.0
@@ -72,6 +85,16 @@ class Agent:
     faith: Optional[str] = None
     rebellions_joined: int = 0
     last_rebelled_day: Optional[int] = None
+
+    # Illness/contagion layer — a transmissible disease, distinct from
+    # addiction's withdrawal sickness. Under IllnessConfig (see
+    # emergence.illness).
+    illness: float = 0.0
+
+    # Innovation layer — human capital from learning-by-doing (0..skill_cap),
+    # raised by repeated gather/craft, scaling their yield up. Under
+    # InnovationConfig (see emergence.innovation).
+    skill: float = 0.0
 
     alive: bool = True
     day_of_death: Optional[int] = None
@@ -151,8 +174,11 @@ class Agent:
             "libido": round(self.libido, 1),
             "reputation": round(self.reputation, 1),
             "fear": round(self.fear, 1),
+            "injury": round(self.injury, 1),
             "weapons": self.weapons,
             "addiction": round(self.addiction, 1),
+            "illness": round(self.illness, 1),
+            "skill": round(self.skill, 2),
             "gang": self.gang_id,
             "faith": self.faith,
             "age_days": self.age_days,

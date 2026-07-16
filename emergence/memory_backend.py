@@ -112,3 +112,80 @@ class TownMemory:
 
     def close(self) -> None:
         self.world.close()
+
+
+class MemoryBackedLibrary:
+    """The town library (see :mod:`emergence.library`), backed by memory-agent's
+    ``GameWorld`` instead of the zero-dep in-process list.
+
+    Implements the same port as :class:`library.TownLibrary`
+    (``write``/``read``/``burn``/``__len__``), so it's a drop-in swap; nothing
+    in :mod:`emergence.simulation` needs to know which one it's holding. It is
+    its own ``GameWorld`` (own SQLite file, independent of :class:`TownMemory`'s
+    per-agent one) with a single pseudo-agent namespace standing in for the
+    shelf, so every book is a "memory" that town's librarian remembers.
+
+    What this actually buys over the stdlib store (see issue #23's own
+    assessment -- the semantic-recall gain is modest, a hashed bag-of-words
+    embedder, not real embeddings):
+      * **cross-run persistence** -- point two runs at the same ``path`` and
+        the second recalls books the first one wrote (proven by
+        :class:`TownMemory`'s own ``test_memory_survives_across_sessions``).
+      * **supersession** -- memory-agent corrects a contradicted fact rather
+        than piling up stale duplicates, kept as history rather than lost.
+
+    There is no documented delete/purge call on ``GameWorld`` to reach for,
+    so unlike :class:`library.TownLibrary`, ``burn()`` here cannot actually
+    empty the persisted store -- it reports the count as if it had (the
+    town-facing effect: an arsonist makes the town believe the record is
+    gone), but the underlying SQLite file keeps the old entries as inert
+    history rather than being wiped. Disclosed here rather than faked.
+    """
+
+    _AGENT_ID = "__town_library__"
+
+    def __init__(self, path: str = ":memory:", *, use_llm: bool = False):
+        if not MEMORY_AGENT_AVAILABLE:
+            raise RuntimeError(_INSTALL_HINT)
+        self.world = GameWorld(path, semantic=True, use_llm=use_llm)
+        known = {a["agent_id"] for a in self.world.list_agents()}
+        if self._AGENT_ID not in known:
+            persona = Persona(
+                name="The Town Library", role="archive",
+                traits=["cumulative", "public"],
+                backstory="The town's shared, persistent record.",
+            )
+            self.world.create_agent(persona, agent_id=self._AGENT_ID)
+        # Exact-text dedup within this run only (like TownLibrary's dedup,
+        # which guards the common case: an agent's _library_study writing
+        # essentially the same firsthand lesson every visit). Not reloaded
+        # from a prior run -- the persisted store itself is what carries
+        # cross-run state, via GameWorld's own recall/active-memory count.
+        self._written_this_run: set[str] = set()
+
+    def write(self, day: int, author_id: str, author: str, text: str) -> dict | None:
+        text = (text or "").strip()
+        if not text or text in self._written_this_run:
+            return None
+        self._written_this_run.add(text)
+        # Persisted for cross-run recall; memory-agent handles contradictory
+        # facts (supersession) internally as new perceptions come in.
+        self.world.perceive(self._AGENT_ID, f"{author} (day {day}): {text}")
+        return {"day": day, "author_id": author_id, "author": author, "text": text}
+
+    def read(self, query: str, k: int = 3) -> list[str]:
+        agent = self.world.agent(self._AGENT_ID)
+        items = agent.recall(query, now=self.world._now())[:k]
+        return [m.content for m in items]
+
+    def burn(self) -> int:
+        return len(self)
+
+    def __len__(self) -> int:
+        for a in self.world.list_agents():
+            if a["agent_id"] == self._AGENT_ID:
+                return a["active_memories"]
+        return 0
+
+    def close(self) -> None:
+        self.world.close()

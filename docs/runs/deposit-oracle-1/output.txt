@@ -1,0 +1,222 @@
+{
+  "rule": "demurrage",
+  "n_worlds": 20,
+  "blind_return_control": 711.2345,
+  "blind_return_counterfactual": 125.303,
+  "oracle_return_control": 711.2345,
+  "oracle_return_counterfactual": -2.001,
+  "advantage_control": 0.0,
+  "advantage_counterfactual": -127.304,
+  "blind_cf_variance": 4319.8756,
+  "blind_cf_std": 65.7258,
+  "blind_control_variance": 41266.85,
+  "effect_size": -1.9369,
+  "oracle_cf_deaths": 2,
+  "worlds_oracle_ahead": 0,
+  "per_world": [
+    {
+      "seed": 42,
+      "blind_control": 279.73,
+      "oracle_control": 279.73,
+      "blind_cf": 154.96,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.07,
+      "oracle_cf_alive": false,
+      "oracle_cf_day_of_death": 5
+    },
+    {
+      "seed": 43,
+      "blind_control": 512.8,
+      "oracle_control": 512.8,
+      "blind_cf": 231.22,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.98,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 44,
+      "blind_control": 770.67,
+      "oracle_control": 770.67,
+      "blind_cf": 147.23,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.23,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 45,
+      "blind_control": 663.29,
+      "oracle_control": 663.29,
+      "blind_cf": 36.16,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.74,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 46,
+      "blind_control": 1052.67,
+      "oracle_control": 1052.67,
+      "blind_cf": 89.13,
+      "blind_cf_alive": true,
+      "oracle_cf": 1.25,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 47,
+      "blind_control": 763.92,
+      "oracle_control": 763.92,
+      "blind_cf": 85.85,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.99,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 48,
+      "blind_control": 597.99,
+      "oracle_control": 597.99,
+      "blind_cf": 245.63,
+      "blind_cf_alive": false,
+      "oracle_cf": -1.85,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 49,
+      "blind_control": 689.21,
+      "oracle_control": 689.21,
+      "blind_cf": 139.04,
+      "blind_cf_alive": true,
+      "oracle_cf": -0.06,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 50,
+      "blind_control": 884.61,
+      "oracle_control": 884.61,
+      "blind_cf": 19.48,
+      "blind_cf_alive": true,
+      "oracle_cf": -0.75,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 51,
+      "blind_control": 909.89,
+      "oracle_control": 909.89,
+      "blind_cf": 70.1,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.86,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 52,
+      "blind_control": 888.71,
+      "oracle_control": 888.71,
+      "blind_cf": 62.84,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.74,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 53,
+      "blind_control": 253.74,
+      "oracle_control": 253.74,
+      "blind_cf": 183.08,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.49,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 54,
+      "blind_control": 685.27,
+      "oracle_control": 685.27,
+      "blind_cf": 146.7,
+      "blind_cf_alive": false,
+      "oracle_cf": -0.46,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 55,
+      "blind_control": 635.83,
+      "oracle_control": 635.83,
+      "blind_cf": 123.54,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.74,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 56,
+      "blind_control": 931.63,
+      "oracle_control": 931.63,
+      "blind_cf": 122.86,
+      "blind_cf_alive": true,
+      "oracle_cf": -0.55,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 57,
+      "blind_control": 861.3,
+      "oracle_control": 861.3,
+      "blind_cf": 106.88,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.09,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 58,
+      "blind_control": 858.87,
+      "oracle_control": 858.87,
+      "blind_cf": 223.71,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.99,
+      "oracle_cf_alive": false,
+      "oracle_cf_day_of_death": 6
+    },
+    {
+      "seed": 59,
+      "blind_control": 641.81,
+      "oracle_control": 641.81,
+      "blind_cf": 111.36,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.63,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 60,
+      "blind_control": 706.26,
+      "oracle_control": 706.26,
+      "blind_cf": 29.43,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.59,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 61,
+      "blind_control": 636.49,
+      "oracle_control": 636.49,
+      "blind_cf": 176.86,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.46,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    }
+  ]
+}
+
+[deposit-oracle] advantage_cf (oracle - blind, counterfactual): -127.3040 (control sanity check: +0.0000, must be 0)
+[deposit-oracle] blind cf per-world std: 65.7258 (variance 4319.8756) -> effect size -1.9369
+[deposit-oracle] oracle ahead in 0/20 worlds; oracle deaths in cf: 2/20

@@ -1,4 +1,4 @@
-# Neural brain integration contract — v1.0
+# Neural brain integration contract — v1.2
 
 The versioned interface between the Emergence World engine (`sim_ai_agents`) and
 an external developmental brain (`llm_model_agi`). This is the **single source of
@@ -120,12 +120,25 @@ enum, so it cannot drift). Categories:
 * `observation.self_view` (= `Agent.snapshot()`) keys are frozen in
   `SELF_VIEW_KEYS`. The reward uses **`energy`** (0..100 float, survival),
   **`money`** (int, material) and **`reputation`** (social standing).
+  `illness` (0..100 float, added in v1.1) is a contagious-disease severity
+  signal — 0 healthy, stays 0 unless `IllnessConfig.enabled`.
+  `skill` (0..1 float, added in v1.1) is learning-by-doing human capital that
+  scales gather/craft yield up — see `InnovationConfig`; stays 0 unless enabled.
+* **v1.2 (additive):** `SELF_VIEW_KEYS` gained `injury` (0..100 float, the
+  health layer's lingering-wound state, #85 — opt-in, 0 unless enabled). The
+  reward function does not read it; it is available for a brain's own state
+  representation, not required.
 * **There is no "trust toward me" scalar.** `observation.others[i]["trust"]` is
   *this* agent's trust *of* neighbour `i`. The reward's social term therefore uses
   `reputation`, falling back to the mean of `others[*].trust` only when the status
   layer leaves reputation inert.
 * Top-level fields are frozen in `OBSERVATION_FIELDS`. Layer dicts (`society`,
-  `economy`, `environment`, …) are present but may be empty when the layer is off.
+  `economy`, `environment`, `rumour`, …) are present but may be empty when the
+  layer is off.
+* **Rumour (v1.1).** A `say` naming an `about` agent_id carries a claim (a
+  `sentiment` -1..1 toward that absent third party) that nearby listeners may
+  adopt as hearsay, weighted by their trust in the speaker — see
+  `RumourConfig`. `observation.rumour` is `{}` unless the layer is enabled.
 
 ## 4. Reward (engine side, no torch)
 

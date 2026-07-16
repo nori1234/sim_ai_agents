@@ -9,7 +9,7 @@ knowledge view), so the offline baseline is untouched.
 import unittest
 
 from emergence.drives import DRIVES_ON
-from emergence.library import TownLibrary
+from emergence.library import ROT_AGE_DAYS, TownLibrary
 from emergence.scenario import make_simulation
 from emergence.simulation import SimulationConfig
 from emergence.world import FacilityType
@@ -48,6 +48,43 @@ class TestTownLibrary(unittest.TestCase):
         lib.write(2, "a2", "Bao", "the market rewards patience")
         self.assertEqual(lib.burn(), 2)
         self.assertEqual(len(lib), 0)
+
+    def test_decay_removes_a_book_nobody_recopied(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "build a granary before the frost")
+        lost = lib.decay(1 + ROT_AGE_DAYS + 1)
+        self.assertEqual(lost, 1)
+        self.assertEqual(len(lib), 0)
+
+    def test_decay_keeps_a_book_within_its_half_life(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "build a granary before the frost")
+        lost = lib.decay(1 + ROT_AGE_DAYS)  # exactly at the boundary: still fine
+        self.assertEqual(lost, 0)
+        self.assertEqual(len(lib), 1)
+
+    def test_recopy_resets_the_decay_clock(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "build a granary before the frost")
+        lib.recopy(50)
+        # Long after the original write, but well within the half-life since
+        # the recopy -- the book should survive because it was tended.
+        lost = lib.decay(50 + ROT_AGE_DAYS)
+        self.assertEqual(lost, 0)
+        self.assertEqual(len(lib), 1)
+
+    def test_recopy_targets_the_most_neglected_book(self):
+        lib = TownLibrary()
+        lib.write(1, "a1", "Aria", "the oldest, most neglected lesson")
+        lib.write(40, "a2", "Bao", "a fresher lesson")
+        refreshed = lib.recopy(90)
+        self.assertEqual(refreshed["text"], "the oldest, most neglected lesson")
+        self.assertEqual(refreshed["refreshed_day"], 90)
+        fresher = next(b for b in lib.books if b["author"] == "Bao")
+        self.assertEqual(fresher["refreshed_day"], 40, "recopy should not touch the other book")
+
+    def test_recopy_on_an_empty_shelf_is_a_no_op(self):
+        self.assertIsNone(TownLibrary().recopy(1))
 
 
 class TestLibraryWiring(unittest.TestCase):
@@ -100,6 +137,44 @@ class TestKnowledgeFlows(unittest.TestCase):
         self.assertTrue(any(e["kind"] == "library_burned" for e in sim.world.events))
         self.assertEqual(len(reader.memory), before,
                          "what a person already learned is not lost to the fire")
+
+    def test_a_librarian_recopies_the_shelfs_most_neglected_book(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1),
+                              library=True)
+        sim.library.write(1, "x", "Old Mira", "build a granary before the frost")
+        lib_f = next(f for f in sim.world.facilities
+                     if f.ftype is FacilityType.LIBRARY)
+        librarian = sim.agents[0]
+        librarian.profession = "librarian"
+        librarian.x, librarian.y = lib_f.x, lib_f.y
+        sim.world.day = 50
+        sim._library_study(librarian)
+        book = next(b for b in sim.library.books if b["author"] == "Old Mira")
+        self.assertEqual(book["refreshed_day"], 50,
+                         "a librarian standing in the library should recopy the neglected book")
+
+    def test_a_non_librarian_studying_does_not_recopy(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1),
+                              library=True)
+        sim.library.write(1, "x", "Old Mira", "build a granary before the frost")
+        lib_f = next(f for f in sim.world.facilities
+                     if f.ftype is FacilityType.LIBRARY)
+        visitor = sim.agents[0]
+        visitor.profession = "farmer"
+        visitor.x, visitor.y = lib_f.x, lib_f.y
+        sim.world.day = 50
+        sim._library_study(visitor)
+        book = next(b for b in sim.library.books if b["author"] == "Old Mira")
+        self.assertEqual(book["refreshed_day"], 1, "only a librarian recopies")
+
+    def test_end_of_day_lets_a_neglected_shelf_rot(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1),
+                              library=True)
+        sim.library.write(1, "x", "Old Mira", "a lesson nobody ever recopies")
+        sim.world.day = 1 + ROT_AGE_DAYS + 1
+        sim._end_of_day(verbose=False)
+        self.assertEqual(len(sim.library), 0, "an unmaintained book should have rotted away")
+        self.assertTrue(any(e["kind"] == "library_rot" for e in sim.world.events))
 
     def test_parent_passes_a_lesson_to_child_without_nesting(self):
         sim = make_simulation("guardian", config=SimulationConfig(seed=1),

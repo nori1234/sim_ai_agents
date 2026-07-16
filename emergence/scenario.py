@@ -11,7 +11,11 @@ from .drives import DrivesConfig
 from .ecology import EcologyConfig
 from .esteem import StatusConfig
 from .grounding import CounterfactualConfig
+from .health import HealthConfig
+from .illness import IllnessConfig
+from .innovation import InnovationConfig
 from .psyche import PsycheConfig
+from .rumour import RumourConfig
 from .society import SocietyConfig
 from .governance import GOVERNANCE_PRESETS, GovernanceConfig, Legislature, PolicyEngine
 from .personas import get_persona
@@ -68,6 +72,10 @@ def make_simulation(
     status: StatusConfig | None = None,
     psyche: PsycheConfig | None = None,
     society: SocietyConfig | None = None,
+    illness: IllnessConfig | None = None,
+    rumour: RumourConfig | None = None,
+    innovation: InnovationConfig | None = None,
+    health: "HealthConfig | None" = None,
     ecology: "EcologyConfig | None" = None,
     counterfactual: "CounterfactualConfig | None" = None,
     environment: "EnvironmentConfig | bool | None" = None,
@@ -77,6 +85,7 @@ def make_simulation(
     memory: bool = False,
     memory_path: str = ":memory:",
     library: bool = False,
+    library_path: str = ":memory:",
     individuals: bool = False,
     world: "World | None" = None,
     brain_factory=None,
@@ -97,6 +106,15 @@ def make_simulation(
     genetic inheritance — see :mod:`emergence.personality` and issue #24). It
     only applies to the default heuristic path (no ``brain_factory``); off, every
     agent is the exact preset Persona and the baseline contract is unchanged.
+    Also assigns heritable *physical* traits (sex, body build, gait — #76),
+    inert engine-side, surfaced on ``Agent`` (``.sex``/``.build``/``.gait``)
+    for the observatory to render distinct silhouettes and walking tempo.
+
+    ``library`` turns on the town's shared knowledge store. With ``memory``
+    also on, the shelf is backed by memory-agent's ``GameWorld`` instead of
+    the zero-dep default (:class:`memory_backend.MemoryBackedLibrary`,
+    issue #23) — cross-run persistence and supersession at ``library_path``,
+    same optional dependency as ``memory``/``memory_path`` already need.
     """
     config = config or SimulationConfig()
     if isinstance(governance, str):
@@ -125,17 +143,25 @@ def make_simulation(
     # culture, with newborns blending both parents. Lives outside the engine; we
     # hand the engine only a newborn-brain factory that closes over the pool.
     pool = None
+    physical_pool = None
     newborn_factory = None
     if individuals and brain_factory is None:
-        from .personality import TraitPool, DevelopingBrain, DEFAULT_WINDOW_DAYS
-        # A dedicated, seed-derived RNG so trait draws are reproducible and don't
-        # disturb the brain-RNG stream used by the default path.
+        from .personality import (TraitPool, PhysicalTraitPool, DevelopingBrain,
+                                  DEFAULT_WINDOW_DAYS)
+        # Dedicated, seed-derived RNGs so trait draws are reproducible and don't
+        # disturb the brain-RNG stream used by the default path. Physical traits
+        # get their own stream (distinct salt) so they vary independently of
+        # the behavioural ones, not in lockstep.
         trait_rng = random.Random((config.seed or 0) ^ 0x70017)
+        physical_rng = random.Random((config.seed or 0) ^ 0x7A1CE)
         pool = TraitPool(trait_rng)
+        physical_pool = PhysicalTraitPool(physical_rng)
         window = DEFAULT_WINDOW_DAYS
 
         def newborn_factory(child, persona_key, sim_rng):
             vec = pool.inherit(child.id, child.parent_ids, get_persona(persona_key))
+            phys = physical_pool.inherit(child.id, child.parent_ids)
+            child.sex, child.build, child.gait = phys.sex, phys.build, phys.gait
             return DevelopingBrain(
                 vec, random.Random(sim_rng.randint(0, 2**31)), window)
 
@@ -150,6 +176,8 @@ def make_simulation(
             # developmental window (founders start mature, so this is a no-op
             # for them).
             vec = pool.found(agent.id, persona)
+            phys = physical_pool.found(agent.id)
+            agent.sex, agent.build, agent.gait = phys.sex, phys.build, phys.gait
             brains[agent.id] = DevelopingBrain(
                 vec, random.Random(rng.randint(0, 2**31)), DEFAULT_WINDOW_DAYS)
         else:
@@ -178,8 +206,15 @@ def make_simulation(
 
     town_library = None
     if library:
-        from .library import TownLibrary
-        town_library = TownLibrary()
+        if memory:
+            # A memory-agent-backed shelf: cross-run persistence + contradictory-
+            # fact supersession (#23), swapped in for the zero-dep default only
+            # when --memory is also on (same optional dependency either way).
+            from .memory_backend import MemoryBackedLibrary
+            town_library = MemoryBackedLibrary(path=library_path)
+        else:
+            from .library import TownLibrary
+            town_library = TownLibrary()
 
     legislature = Legislature(gov_cfg)
     policy = PolicyEngine(gov_cfg)
@@ -190,6 +225,10 @@ def make_simulation(
         status=status or StatusConfig(),
         psyche=psyche or PsycheConfig(),
         society=society or SocietyConfig(),
+        illness=illness or IllnessConfig(),
+        rumour=rumour or RumourConfig(),
+        innovation=innovation or InnovationConfig(),
+        health=health or HealthConfig(),
         ecology=eco_cfg,
         counterfactual=counterfactual or CounterfactualConfig(),
         environment=env,

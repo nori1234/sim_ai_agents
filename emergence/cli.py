@@ -33,8 +33,12 @@ from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .governance import GOVERNANCE_PRESETS
 from .ecology import EcologyConfig
+from .illness import IllnessConfig
+from .innovation import InnovationConfig
 from .psyche import PsycheConfig
+from .rumour import RumourConfig
 from .society import SocietyConfig
+from .health import HealthConfig
 from .personas import ALIASES, PERSONAS
 from .report import format_report, one_line_verdict
 from .scenario import make_simulation
@@ -59,6 +63,22 @@ def _psyche_from_args(args) -> PsycheConfig:
 
 def _society_from_args(args) -> SocietyConfig:
     return SocietyConfig(enabled=bool(getattr(args, "society", False)))
+
+
+def _illness_from_args(args) -> IllnessConfig:
+    return IllnessConfig(enabled=bool(getattr(args, "illness", False)))
+
+
+def _rumour_from_args(args) -> RumourConfig:
+    return RumourConfig(enabled=bool(getattr(args, "rumour", False)))
+
+
+def _innovation_from_args(args) -> InnovationConfig:
+    return InnovationConfig(enabled=bool(getattr(args, "innovation", False)))
+
+
+def _health_from_args(args) -> HealthConfig:
+    return HealthConfig(enabled=bool(getattr(args, "health", False)))
 
 
 def _llm_factory(args):
@@ -105,6 +125,10 @@ def _run_one(persona_mix, args, governance: str = "direct"):
                           status=_status_from_args(args),
                           psyche=_psyche_from_args(args),
                           society=_society_from_args(args),
+                          illness=_illness_from_args(args),
+                          rumour=_rumour_from_args(args),
+                          innovation=_innovation_from_args(args),
+                          health=_health_from_args(args),
                           ecology=EcologyConfig(enabled=True) if getattr(args, "ecology", False) else None,
                           environment=bool(getattr(args, "environment", False)),
                           public_works=bool(getattr(args, "public_works", False)),
@@ -205,6 +229,19 @@ def main(argv: list[str] | None = None) -> int:
                         help="enable fear/safety and self-actualization (恐怖・自己実現)")
     parser.add_argument("--society", action="store_true",
                         help="enable weapons, drugs, gangs, religion (裏社会・文化)")
+    parser.add_argument("--illness", action="store_true",
+                        help="enable a contagious illness that spreads by proximity "
+                             "and is eased by a doctor's care (病気・伝染)")
+    parser.add_argument("--rumour", action="store_true",
+                        help="enable hearsay: a claim about a third party spreads "
+                             "to nearby listeners, weighted by trust in the "
+                             "speaker (情報・噂)")
+    parser.add_argument("--innovation", action="store_true",
+                        help="enable learning-by-doing skill and recipe "
+                             "discovery/diffusion (needs --economy) (技術革新)")
+    parser.add_argument("--health", action="store_true",
+                        help="enable lingering injury from violence: a wound that "
+                             "persists, saps capability, and needs tending (怪我)")
     parser.add_argument("--ecology", action="store_true",
                         help="enable livestock that breeds and is slaughtered for food (家畜・生態系)")
     parser.add_argument("--environment", action="store_true",

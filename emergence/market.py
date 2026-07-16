@@ -24,7 +24,10 @@ from dataclasses import dataclass
 
 # Goods the primitives operate over. "money" is just one tradable quantity here,
 # deliberately not privileged — agents decide whether to treat it as currency.
-TRADABLE = ("food", "materials", "tools", "money")
+# "livestock" (#111) only ever has a non-zero balance under --ecology; the
+# engine surfaces it as tradable to a brain's observation only then (see
+# Simulation._observe), so an economy-only run's tradable list is unchanged.
+TRADABLE = ("food", "materials", "tools", "money", "livestock")
 
 # Production physics: output -> (inputs, facility-type value required or None).
 # A value chain the economy can build on (raw materials -> tools).
@@ -55,6 +58,11 @@ class Offer:
     # give_item now, against a promise to be repaid want_qty later (want_qty >
     # give_qty = interest). Accepting opens a Loan; the borrower pays nothing now.
     loan: bool = False
+    # When set, this is a PROPERTY-SALE offer (#102): the maker sells the named
+    # facility (which it must own) for want_qty of want_item, instead of handing
+    # over give_item/give_qty. Accepting transfers Facility.owner, the same
+    # transferable claim inheritance (#92) already moves at death.
+    give_facility: str | None = None
 
     def as_dict(self) -> dict:
         if self.loan:
@@ -63,6 +71,10 @@ class Offer:
         if self.service is not None:
             return {"id": self.id, "maker": self.maker,
                     "service": self.service,
+                    "want": f"{self.want_qty} {self.want_item}"}
+        if self.give_facility is not None:
+            return {"id": self.id, "maker": self.maker,
+                    "sell": self.give_facility,
                     "want": f"{self.want_qty} {self.want_item}"}
         return {"id": self.id, "maker": self.maker,
                 "give": f"{self.give_qty} {self.give_item}",
@@ -85,6 +97,11 @@ SERVICES: dict[str, dict] = {
               "desc": "host a feast / commission a work — the host pays a caterer "
                       "and the lavish outlay buys honour (the more it costs, the "
                       "more reputation); only meaningful under --status"},
+    "rent": {"provider": None,
+             "desc": "an owner charges for paid use of a property it owns "
+                     "(#102) — restores energy, like rest/shelter, but paid "
+                     "for rather than free; the going rate emerges from "
+                     "accepted fees, like healing/feast"},
 }
 
 

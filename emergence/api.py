@@ -24,6 +24,7 @@ import uuid
 from .affordances import role_of
 from .chronicle import (chronicle, chronicle_text, life_story, life_story_text,
                         narrate)
+from . import development
 from .drives import DrivesConfig
 from .esteem import StatusConfig
 from .personas import ALIASES, PERSONAS
@@ -80,6 +81,19 @@ class EmergenceAPI:
             )
         return key
 
+    def _valid_persona_mix(self, persona) -> str | list[str]:
+        """A single persona, or a comma-separated mix -- a world seeded with
+        several of the four cultures round-robin across agents, instead of one
+        for everyone (#109). Still a fixed set either way: still no free text
+        reaching a prompt (see the module docstring's safety note)."""
+        text = str(persona or "")
+        if "," not in text:
+            return self._valid_persona(text)
+        keys = [self._valid_persona(p.strip()) for p in text.split(",") if p.strip()]
+        if not keys:
+            raise APIError(f"unknown persona {persona!r}")
+        return keys
+
     def _get(self, world_id: str):
         sim = self._worlds.get(world_id)
         if sim is None:
@@ -89,11 +103,24 @@ class EmergenceAPI:
     # -- world lifecycle ------------------------------------------------
     def create_world(self, *, persona="guardian", seed=42, days=30, ticks=8,
                      agents=10, rich=False, economy=False, environment=False,
-                     library=False,
+                     library=False, individuals=False,
                      public_works=False, brain="heuristic", provider="openai",
                      model="llama3.1", base_url=None, api_key=None,
                      temperature=0.8, llm_client=None, replay=None) -> dict:
         """Create a world.
+
+        ``persona`` is a single key/alias applied to every agent, or a
+        comma-separated mix (e.g. ``"claude,grok"``) assigned round-robin
+        across them — a town seeded with several cultures instead of one for
+        everyone (#109). Still a fixed set of four either way; free-text
+        custom personalities are a separate, larger step (gated on the
+        security hardening in #41).
+
+        ``individuals`` gives each citizen its own point in the trait space
+        (vertical/genetic inheritance, #24) plus a heritable physical vector
+        — sex, body build, gait (#76) — surfaced per-agent for the observatory
+        to render distinct silhouettes. Only applies with the default
+        heuristic brain.
 
         ``rich`` turns on the human-feel layers (drives, esteem, psyche,
         society) so possessed citizens have inner lives.
@@ -107,7 +134,7 @@ class EmergenceAPI:
         LLM brains fall back to the heuristic per-agent if the model is
         unreachable, so a world always runs.
         """
-        persona = self._valid_persona(persona)
+        persona = self._valid_persona_mix(persona)
         seed = _clamp(seed, 0, 2**31 - 1, 42)
         days = _clamp(days, 1, MAX_DAYS, 30)
         ticks = _clamp(ticks, 1, MAX_TICKS, 8)
@@ -132,6 +159,7 @@ class EmergenceAPI:
             economy=bool(economy),
             environment=bool(environment),
             library=bool(library),
+            individuals=bool(individuals),
             public_works=bool(public_works),
             brain_factory=brain_factory,
         )
@@ -318,6 +346,12 @@ class EmergenceAPI:
                 for f in sim.world.facilities
             ],
             "granary_food": sim.world.granary_food,
+            # A 0-100 development index (food security, order, wealth, knowledge,
+            # infrastructure breadth) -- read live every call, not just at the
+            # final report, so the observatory can grow building height as the
+            # town develops (#71). A pure function of already-present sim state;
+            # works for any world, not only --founding ones.
+            "prosperity": development.prosperity(sim),
             "environment": (sim.environment.snapshot()
                             if getattr(sim, "environment", None) is not None else None),
             # Town-panel data: what the town has legislated, its economy, its library.
@@ -343,8 +377,16 @@ class EmergenceAPI:
 
     @staticmethod
     def _agent_summary(a) -> dict:
-        return {
+        v = {
             "id": a.id, "name": a.name, "profession": a.profession,
             "persona": a.persona, "x": a.x, "y": a.y, "alive": a.alive,
             "energy": round(a.energy, 1), "money": a.money,
         }
+        # Physical individuation (#76): only populated under individuals=True,
+        # so a plain world's response is unchanged (no "" sex / neutral 0.5
+        # noise) unless the caller actually turned the layer on.
+        if a.sex:
+            v["sex"] = a.sex
+            v["build"] = round(a.build, 2)
+            v["gait"] = round(a.gait, 2)
+        return v

@@ -31,9 +31,9 @@ jobs:
         with:
           enablement: true
       - name: Upload the web previews
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: emergence/web
       - name: Deploy
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

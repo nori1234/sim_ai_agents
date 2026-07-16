@@ -25,6 +25,8 @@ WORKPLACES = {"workshop", "market"}
 LOW_ENERGY = 45.0
 CRITICAL_ENERGY = 22.0
 SICK_ADDICTION = 45.0   # withdrawal sets in around here — worth seeing a doctor
+SICK_ILLNESS = 45.0     # a contagious illness this bad is worth seeing a doctor
+SICK_INJURY = 45.0      # a wound this deep is worth a doctor, and worth avoiding a fight
 BANKER_CAPITAL = 16.0   # capital enough to set up as a banker and lend reserves
 BRIBE_PRICE = 6         # what a wanted offender slips a guard to be let off
 HARSH_WEATHER = {"storm", "heatwave", "cold snap"}  # conditions worth sheltering from
@@ -93,16 +95,19 @@ class HeuristicBrain(AgentBrain):
             return soc
 
         # 2. Retaliation against whoever wronged us (vengeful personas) — unless
-        #    a published, enforced crime norm stays the agent's hand. The only
-        #    thing between temptation and the act is now the agent's own choice
-        #    to comply, not an aura cast by a building.
+        #    a published, enforced crime norm stays the agent's hand, or the
+        #    agent is already badly hurt and knows better than to pick a fight.
+        #    The only thing between temptation and the act is now the agent's
+        #    own choice to comply, not an aura cast by a building.
         foe = self._nearby_foe(obs)
         if foe is not None and self.rng.random() < p.vengefulness \
-                and not self._norm_restrains(p, obs):
+                and not self._norm_restrains(p, obs) and agent.injury < SICK_INJURY:
             return self._aggress(agent, foe, p, reason="retaliation")
 
-        # 3. Unprovoked aggression (predators, chaotic philosophers).
-        if self.rng.random() < p.aggression * 0.6 and not self._norm_restrains(p, obs):
+        # 3. Unprovoked aggression (predators, chaotic philosophers) — likewise
+        #    stayed by a wound bad enough to make a fight a bad idea.
+        if self.rng.random() < p.aggression * 0.6 and not self._norm_restrains(p, obs) \
+                and agent.injury < SICK_INJURY:
             victim = self._nearby_target(obs)
             if victim is not None:
                 return self._aggress(agent, victim, p, reason="aggression")
@@ -156,6 +161,13 @@ class HeuristicBrain(AgentBrain):
         econ = self._economy_action(agent, obs, p)
         if econ is not None:
             return econ
+
+        # 6.5 Rumour: minimal, spontaneous gossip about a nearby third party
+        #     the agent has a strong opinion of. Inert off the rumour layer;
+        #     the rich, strategic use (lies, propaganda) is the LLM's.
+        gossip = self._gossip_action(agent, obs)
+        if gossip is not None:
+            return gossip
 
         # 7. Talk a lot? Make a speech.
         if self.rng.random() < p.talkativeness * 0.5:
@@ -371,7 +383,9 @@ class HeuristicBrain(AgentBrain):
         the psyche / society layers are live."""
         if not obs.economy.get("enabled"):
             return None
-        afflicted = obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION
+        afflicted = (obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION
+                     or agent.illness >= SICK_ILLNESS
+                     or agent.injury >= SICK_INJURY)
         # A free meal fixes hunger-energy, but not a wounded mind or withdrawal —
         # so only let food crowd out care when the sole reason is being run down.
         if not afflicted and agent.food() > 0:
@@ -393,6 +407,28 @@ class HeuristicBrain(AgentBrain):
             return None
         return Action(ActionType.ACCEPT, {"offer_id": best[1]},
                       rationale="pay a doctor for care rather than trek for food")
+
+    def _gossip_action(self, agent: Agent, obs: Observation) -> Action | None:
+        """Rumour (#96): minimal, spontaneous gossip — pass an opinion of a
+        nearby third party on to another bystander, word of mouth. Only fires
+        when the rumour layer is live (no `rumour` key otherwise)."""
+        if not obs.rumour.get("enabled"):
+            return None
+        if self.rng.random() >= obs.rumour.get("gossip_chance", 0.02):
+            return None
+        subject = next((o for o in obs.others if abs(o["trust"]) >= 0.5), None)
+        if subject is None:
+            return None
+        listener = next((o for o in obs.others if o["id"] != subject["id"]), None)
+        if listener is None:
+            return None
+        sentiment = 1.0 if subject["trust"] > 0 else -1.0
+        return Action(
+            ActionType.SAY,
+            {"to": listener["id"], "about": subject["id"], "sentiment": sentiment,
+             "text": f"word about {subject['name']}"},
+            rationale="pass along word of mouth",
+        )
 
     def _buy_feast_action(self, agent: Agent, obs: Observation) -> Action | None:
         """Conspicuous consumption: an esteem-hungry, cash-rich agent buys honour
@@ -443,7 +479,8 @@ class HeuristicBrain(AgentBrain):
         # Affliction (trauma / withdrawal) warrants a doctor even when fed and
         # rested — a meal mends neither. Inert unless the psyche / society layers
         # are live (the reasons stay 0) and a healing offer is in reach.
-        if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION:
+        if obs.fear_level > 0 or agent.addiction >= SICK_ADDICTION \
+                or agent.illness >= SICK_ILLNESS or agent.injury >= SICK_INJURY:
             care = self._buy_care_action(agent, obs)
             if care is not None:
                 return care
@@ -521,14 +558,20 @@ class HeuristicBrain(AgentBrain):
         return self.rng.random() < p.conformity * enforcement
 
     def _nearby_foe(self, obs: Observation) -> dict | None:
-        """The closest agent we distrust the most (someone who wronged us)."""
-        foes = [o for o in obs.others if o.get("trust", 0.0) <= -0.3 and o["distance"] <= 6]
+        """The closest agent we distrust the most (someone who wronged us) --
+        skipping anyone sheltered at home (#113; the key is absent unless the
+        psyche layer is live, in which case .get() is always False)."""
+        foes = [o for o in obs.others if o.get("trust", 0.0) <= -0.3 and o["distance"] <= 6
+               and not o.get("sheltered", False)]
         if not foes:
             return None
         return min(foes, key=lambda o: (o["distance"], o.get("trust", 0.0)))
 
     def _nearby_target(self, obs: Observation) -> dict | None:
-        reachable = [o for o in obs.others if o["distance"] <= 6]
+        # Home safety (#113): a target sheltered at home is a poor mark for
+        # opportunistic crime -- skipped, same inert-when-off shape as above.
+        reachable = [o for o in obs.others if o["distance"] <= 6
+                    and not o.get("sheltered", False)]
         if not reachable:
             return None
         # Prefer the richest nearby mark.

@@ -49,6 +49,11 @@ _EFFECT = {
     "food_redistribution": ("food for the needy", "困窮者への食料分配"),
     "tax": ("a wealth tax", "富裕税"),
     "punishment": ("fines for offenders", "違反者への罰金"),
+    # Per-offence norms (#35): named specifically, instead of collapsing
+    # into the same "tougher policing" every crime law reads as today.
+    "violence_norm": ("a law against violence", "暴力を禁じる法"),
+    "theft_norm": ("a law against theft", "窃盗を禁じる法"),
+    "arson_norm": ("a law against arson", "放火を禁じる法"),
 }
 
 

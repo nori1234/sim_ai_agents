@@ -19,7 +19,14 @@ from ..actions import ActionType
 
 #: Semantic version of this contract. The adapter should record the version it
 #: was built against; a major mismatch means the mapping must be revisited.
-CONTRACT_VERSION = "1.0"
+#: 1.1: additive — SELF_VIEW_KEYS gained "illness" (#86) and "skill" (#97);
+#: OBSERVATION_FIELDS gained "rumour" and `say` gained optional about/sentiment
+#: params (#96).
+#: 1.2: additive — SELF_VIEW_KEYS gained "injury" (health layer, #85). A brain
+#: built against an older minor still works: self_view just carries extra keys
+#: it never reads, and each field is 0 unless its (opt-in, off by default)
+#: layer is enabled, so nothing already deployed changes behaviour.
+CONTRACT_VERSION = "1.2"
 
 #: The engine's canonical no-op, for the out-of-vocab / unresolvable-target clamp.
 #: ``_do_idle`` is literally ``pass`` (no effect, only the per-tick upkeep runs).
@@ -73,13 +80,16 @@ PARAM_SPEC: dict[str, dict] = {
     "rebel": {},
     "preach": {},
     "worship": {},
-    # offer has three alternative param-sets (| marks each boundary):
+    # offer has four alternative param-sets (| marks each boundary):
     #   swap    : give_item, give_qty, want_item, want_qty
-    #   service : service, want_item, want_qty (the fee; 0 = charity)
+    #   service : service, want_item, want_qty (the fee; 0 = charity; includes
+    #             "rent" -- paid use of a property you own, #102)
     #   loan    : item, principal, repay
+    #   sale    : give_facility, want_item, want_qty (sell a property you own, #102)
     "offer": {"give_item": "str", "give_qty": "int", "want_item": "str", "want_qty": "int",
-              "|service": "str (a service you perform, e.g. healing/feast)",
-              "|item": "str (loan: the lent item)", "|principal": "int", "|repay": "int"},
+              "|service": "str (a service you perform, e.g. healing/feast/rent)",
+              "|item": "str (loan: the lent item)", "|principal": "int", "|repay": "int",
+              "|give_facility": "str (sale: the name of a facility you own)"},
     "accept": {"offer_id": "int"},
     "craft": {"item": "str (a recipe output)"},
     "lend": {"to": "agent_id", "item": "money", "qty": "int", "repay": "int", "due_in_days": "int"},
@@ -92,7 +102,9 @@ PARAM_SPEC: dict[str, dict] = {
     "use": {"item": "str", "qty": "int", "on": "agent_id (optional; default self)"},
     "strike": {"target": "agent_id", "|facility_name": "str"},
     "make": {"output": "'work' | a recipe item", "title": "str (for a work)"},
-    "say": {"text": "str", "to": "agent_id (optional)"},
+    "say": {"text": "str", "to": "agent_id (optional)",
+            "about": "agent_id (optional; a claim's subject, rumour layer)",
+            "sentiment": "float -1..1 (optional; how the claim casts `about`)"},
     "bond": {"proposal_id": "int", "support": "bool", "|with": "agent_id"},
 }
 
@@ -104,8 +116,9 @@ PARAM_SPEC: dict[str, dict] = {
 #: OF them).
 SELF_VIEW_KEYS: frozenset[str] = frozenset({
     "id", "name", "profession", "alive", "energy", "money", "food", "materials",
-    "hunger", "fatigue", "libido", "reputation", "fear", "weapons", "addiction",
-    "gang", "faith", "age_days", "crimes", "last_crime_day", "frauds",
+    "hunger", "fatigue", "libido", "reputation", "fear", "injury", "weapons",
+    "addiction", "illness", "skill", "gang", "faith", "age_days", "crimes",
+    "last_crime_day", "frauds",
 })
 
 #: Top-level ``Observation`` fields the adapter/tokenizer may consume. (The engine
@@ -116,6 +129,7 @@ OBSERVATION_FIELDS: frozenset[str] = frozenset({
     "can_reproduce", "mating_urge", "esteem_urge", "fear_level", "actualization_pull",
     "society", "discontent", "here_roles", "nearest_roles", "environment", "role",
     "affordances", "norms", "laws", "public_works", "open_offers", "economy", "debts",
+    "rumour",
 })
 
 

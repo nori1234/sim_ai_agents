@@ -7,6 +7,7 @@ from emergence.governance import (
     Law,
     LawEffect,
     Legislature,
+    OFFENCE_EFFECTS,
     PolicyEngine,
     ProposalStatus,
 )
@@ -38,6 +39,32 @@ class TestLawEffects(unittest.TestCase):
     def test_deduplication(self):
         law = Law.from_proposal_text(6, "Ban theft and prohibit violence", 1)
         self.assertEqual(law.effects.count(LawEffect.CRIME_DETERRENCE), 1)
+
+    def test_offence_specific_parsing_is_additive(self):
+        # A bill naming "theft" still sets the existing blanket
+        # CRIME_DETERRENCE (baseline compat) AND the new specific THEFT_NORM.
+        law = Law.from_proposal_text(7, "Punish theft severely", 1)
+        self.assertIn(LawEffect.CRIME_DETERRENCE, law.effects)
+        self.assertIn(LawEffect.THEFT_NORM, law.effects)
+        self.assertNotIn(LawEffect.VIOLENCE_NORM, law.effects)
+        self.assertNotIn(LawEffect.ARSON_NORM, law.effects)
+
+    def test_violence_and_arson_parsed_distinctly(self):
+        violence = Law.from_proposal_text(8, "Assault will not be tolerated", 1)
+        arson = Law.from_proposal_text(9, "Anyone caught burning a building is banished", 1)
+        self.assertIn(LawEffect.VIOLENCE_NORM, violence.effects)
+        self.assertNotIn(LawEffect.THEFT_NORM, violence.effects)
+        self.assertIn(LawEffect.ARSON_NORM, arson.effects)
+        self.assertNotIn(LawEffect.VIOLENCE_NORM, arson.effects)
+
+    def test_a_generic_crime_law_names_no_specific_offence(self):
+        # "ban ... crime" alone (no theft/violence/arson keyword) sets only
+        # the blanket bucket -- there's nothing specific to be additive about.
+        law = Law.from_proposal_text(10, "Crime will not be tolerated in this town", 1)
+        self.assertIn(LawEffect.CRIME_DETERRENCE, law.effects)
+        self.assertNotIn(LawEffect.VIOLENCE_NORM, law.effects)
+        self.assertNotIn(LawEffect.THEFT_NORM, law.effects)
+        self.assertNotIn(LawEffect.ARSON_NORM, law.effects)
 
 
 class TestGovernanceForms(unittest.TestCase):
@@ -139,6 +166,79 @@ class TestPolicyEngine(unittest.TestCase):
         s = engine.summary()
         self.assertEqual(s["laws_enacted"], 1)
         self.assertIn("tax", s["active_effects"])
+
+    def test_offence_norm_is_specific(self):
+        engine = PolicyEngine()
+        self.assertFalse(engine.offence_norm("theft"))
+        engine.enact(1, "Anyone caught stealing will be punished", 1)
+        self.assertTrue(engine.offence_norm("theft"))
+        self.assertFalse(engine.offence_norm("violence"))
+        self.assertFalse(engine.offence_norm("arson"))
+
+    def test_offence_norm_unknown_kind_is_false(self):
+        engine = PolicyEngine()
+        engine.enact(1, "Ban theft, violence and arson entirely", 1)
+        self.assertFalse(engine.offence_norm("jaywalking"))
+
+    def test_all_offence_kinds_covered(self):
+        self.assertEqual(set(OFFENCE_EFFECTS), {"violence", "theft", "arson"})
+
+
+class TestObservationSurfacesOffenceNorms(unittest.TestCase):
+    def test_offences_present_alongside_the_blanket_crime_norm(self):
+        # "theft" triggers both the existing blanket pattern and the new
+        # specific one, so both show up together.
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1))
+        sim.policy.enact(1, "Ban theft in this town", sim.world.day)
+        obs = sim._observe(sim.agents[0])
+        self.assertTrue(obs.norms["crime"])
+        self.assertEqual(obs.norms["offences"],
+                         {"violence": False, "theft": True, "arson": False})
+
+    def test_an_offence_only_law_surfaces_without_the_blanket_norm(self):
+        # "stealing" (not "theft") never triggers the blanket CRIME_DETERRENCE
+        # keywords -- before #35 this meant no norm at all was surfaced. Now
+        # the offence-specific one still shows up, with "crime" correctly
+        # False (not the blanket bucket -- nothing lies about which fired).
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1))
+        sim.policy.enact(1, "Anyone caught stealing will be punished", sim.world.day)
+        obs = sim._observe(sim.agents[0])
+        self.assertFalse(obs.norms["crime"])
+        self.assertEqual(obs.norms["offences"],
+                         {"violence": False, "theft": True, "arson": False})
+
+    def test_no_law_means_no_norms_at_all(self):
+        sim = make_simulation("guardian", config=SimulationConfig(seed=1))
+        obs = sim._observe(sim.agents[0])
+        self.assertEqual(obs.norms, {})
+
+    def test_offence_only_norms_restrain_exactly_like_no_norms_at_all(self):
+        # The key invariant that keeps this baseline-safe: _norm_restrains
+        # only ever reads norm.get("crime")/.get("enforcement"). {} and
+        # {"crime": False, ...} both make norm.get("crime") falsy, so an
+        # offence-only law (which used to yield {}) must restrain nothing,
+        # exactly as {} always has.
+        from emergence.brains.heuristic import HeuristicBrain
+        from emergence.personas import get_persona
+        brain = HeuristicBrain(get_persona("predator"))
+        obs_offence_only = type("O", (), {
+            "norms": {"crime": False, "enforcement": 0.9, "offences": {"theft": True}}
+        })()
+        obs_empty = type("O", (), {"norms": {}})()
+        self.assertEqual(
+            brain._norm_restrains(get_persona("predator"), obs_offence_only),
+            brain._norm_restrains(get_persona("predator"), obs_empty),
+        )
+        self.assertFalse(brain._norm_restrains(get_persona("predator"), obs_offence_only))
+
+    def test_heuristic_ignores_the_new_key_baseline_unaffected(self):
+        # The blanket-only compliance check (_norm_restrains) reads "crime"/
+        # "enforcement" and nothing else, so adding "offences" must not
+        # change outcomes versus a plain run.
+        cfg = SimulationConfig(seed=42)
+        a = make_simulation("predator", config=cfg); a.run()
+        b = make_simulation("predator", config=cfg); b.run()
+        self.assertEqual(a.metrics.as_dict(), b.metrics.as_dict())
 
 
 if __name__ == "__main__":

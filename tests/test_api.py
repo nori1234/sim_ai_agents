@@ -43,10 +43,35 @@ class TestWorldLifecycle(unittest.TestCase):
             self.api.create_world(persona="nope")
         self.assertEqual(cm.exception.status, 400)
 
+    def test_prosperity_is_a_live_bounded_index(self):
+        # Live every call (not just the final report, #71) so the observatory
+        # can grow building height as the town develops -- works for any
+        # world, not only --founding ones.
+        st = self.api.create_world(persona="guardian", seed=1, days=10)
+        self.assertIn("prosperity", st)
+        self.assertGreaterEqual(st["prosperity"], 0.0)
+        self.assertLessEqual(st["prosperity"], 100.0)
+        wid = st["world_id"]
+        after = self.api.step(wid, days=9)
+        self.assertGreaterEqual(after["prosperity"], 0.0)
+        self.assertLessEqual(after["prosperity"], 100.0)
+
     def test_inputs_are_clamped(self):
         st = self.api.create_world(persona="guardian", days=9999, ticks=0)
         self.assertLessEqual(st["config"]["days"], 60)
         self.assertGreaterEqual(st["config"]["ticks"], 1)
+
+    def test_individuals_off_by_default_no_physical_fields(self):
+        st = self.api.create_world(persona="guardian", seed=1, days=2)
+        self.assertNotIn("sex", st["agents"][0])
+
+    def test_individuals_true_surfaces_physical_traits(self):
+        st = self.api.create_world(persona="guardian", seed=1, days=2,
+                                   individuals=True)
+        for a in st["agents"]:
+            self.assertIn(a["sex"], ("f", "m"))
+            self.assertGreaterEqual(a["build"], 0.0); self.assertLessEqual(a["build"], 1.0)
+            self.assertGreaterEqual(a["gait"], 0.0); self.assertLessEqual(a["gait"], 1.0)
 
     def test_step_advances_and_reports_new_events(self):
         st = self.api.create_world(persona="philosopher", seed=42, days=15)
@@ -68,6 +93,45 @@ class TestWorldLifecycle(unittest.TestCase):
         self.api.delete_world(wid)
         with self.assertRaises(APIError):
             self.api.world_state(wid)
+
+
+class TestPersonaMix(unittest.TestCase):
+    """A world can be seeded with a mix of personas, round-robin across
+    agents, instead of one for everyone -- exposing scenario.make_simulation's
+    existing persona_mix support through the API (#109)."""
+
+    def setUp(self):
+        self.api = EmergenceAPI()
+
+    def test_a_single_persona_is_unaffected(self):
+        st = self.api.create_world(persona="claude", seed=1, days=3)
+        self.assertTrue(all(a["persona"] == "guardian" for a in st["agents"]))
+
+    def test_a_comma_separated_mix_alternates_across_agents(self):
+        st = self.api.create_world(persona="claude,grok", seed=1, days=3, agents=6)
+        keys = {a["persona"] for a in st["agents"]}
+        self.assertEqual(keys, {"guardian", "predator"})
+        # Round-robin: alternating, not all-of-one-then-all-of-the-other.
+        self.assertEqual([a["persona"] for a in st["agents"]],
+                         ["guardian", "predator"] * 3)
+
+    def test_whitespace_around_commas_is_tolerated(self):
+        st = self.api.create_world(persona=" claude , grok ", seed=1, days=3, agents=4)
+        self.assertEqual({a["persona"] for a in st["agents"]}, {"guardian", "predator"})
+
+    def test_one_bad_key_in_a_mix_rejects_the_whole_request(self):
+        with self.assertRaises(APIError):
+            self.api.create_world(persona="claude,nope")
+
+    def test_mixed_and_single_persona_worlds_at_the_same_seed_agree_on_the_shared_culture(self):
+        # Determinism check: the mix path must not perturb anything upstream
+        # of persona assignment (world layout, agent starting positions/names).
+        single = self.api.create_world(persona="claude", seed=7, days=2)
+        mixed = self.api.create_world(persona="claude,grok", seed=7, days=2)
+        self.assertEqual([a["name"] for a in single["agents"]],
+                         [a["name"] for a in mixed["agents"]])
+        self.assertEqual([(a["x"], a["y"]) for a in single["agents"]],
+                         [(a["x"], a["y"]) for a in mixed["agents"]])
 
 
 class TestBrainSelector(unittest.TestCase):

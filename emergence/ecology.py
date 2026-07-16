@@ -26,3 +26,16 @@ class EcologyConfig:
     breed_rate: float = 0.34     # fraction a herd of >=2 grows by per day
     herd_cap: int = 12           # a single owner's herd won't grow past this
     slaughter_food: int = 4      # food yielded per animal slaughtered (USE)
+
+    # Grazing / feeding cost (#111): a herd needs feed, so livestock isn't free
+    # growth forever -- a carrying-capacity pressure against the owner's own
+    # food stock. 0 (default) = no feed cost, exactly today's behaviour.
+    feed_cost_per_head: float = 0.0   # food consumed per animal, per day
+    starve_loss_rate: float = 0.25    # fraction of the herd lost when feed falls short
+
+    # Predators & danger (#111): a raid can cull a herd (and frighten the
+    # owner, under the psyche layer) -- keeping a herd gets a downside. 0
+    # chance (default) = no raids, exactly today's behaviour.
+    predator_daily_chance: float = 0.0
+    predator_loss_rate: float = 0.2   # fraction of the herd a raid takes
+    predator_fear: float = 15.0       # fear inflicted on the owner (psyche layer)
