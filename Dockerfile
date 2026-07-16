@@ -1,7 +1,7 @@
 # The engine, offline heuristic, and observatory server are pure stdlib, so the
 # image is just Python + the source. A real-LLM brain is opt-in and also
 # dependency-free (it speaks HTTP via urllib).
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Don't buffer stdout/stderr, so container logs appear immediately.
 ENV PYTHONUNBUFFERED=1 \
