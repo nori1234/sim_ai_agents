@@ -70,6 +70,17 @@ on:
           docs/GROUNDING.md).
         required: false
         default: "0"
+      sole_banker:
+        description: >-
+          S6 task redesign (only applies with sandbox=true): restrict deposits
+          to the staffed banker, cutting the agent-to-agent deposit-chain claim
+          ratchet that made depositing dominate demurrage (advantage_cf -127).
+          On the redesigned task the deposit-only oracle's advantage is
+          slightly positive (+0.21, +0.56 sigma) — the first task where
+          grounding pays (docs/runs/deposit-oracle-redesign-1). Train/eval-
+          MATCHED, like complexity_level. "true" or "false".
+        required: false
+        default: "false"
       status_layer:
         description: >-
           Enable the status/esteem layer during TRAINING episodes (a
@@ -212,6 +223,7 @@ jobs:
             --probe-every "$PROBE_EVERY" \
             --window "$WINDOW" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
+            ${{ inputs.sole_banker == 'true' && '--sole-banker' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
