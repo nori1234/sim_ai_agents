@@ -1,0 +1,1057 @@
+Current runner version: '2.335.1'
+##[group]Runner Image Provisioner
+Hosted Compute Agent
+Version: 20260707.563
+Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+Build Date: 2026-07-07T19:33:50Z
+Worker ID: {6e7bd836-748f-4906-b8b4-ee59020d5daf}
+Azure Region: centralus
+##[endgroup]
+##[group]Operating System
+Ubuntu
+24.04.4
+LTS
+##[endgroup]
+##[group]Runner Image
+Image: ubuntu-24.04
+Version: 20260714.240.1
+Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260714.240/images/ubuntu/Ubuntu2404-Readme.md
+Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260714.240
+##[endgroup]
+##[group]GITHUB_TOKEN Permissions
+Contents: read
+Metadata: read
+##[endgroup]
+Secret source: Actions
+Prepare workflow directory
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Complete job name: train-and-battery
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/checkout@v4
+with:
+  repository: nori1234/sim_ai_agents
+  token: ***
+  ssh-strict: true
+  ssh-user: git
+  persist-credentials: true
+  clean: true
+  sparse-checkout-cone-mode: true
+  fetch-depth: 1
+  fetch-tags: false
+  show-progress: true
+  lfs: false
+  submodules: false
+  set-safe-directory: true
+##[endgroup]
+Syncing repository: nori1234/sim_ai_agents
+##[group]Getting Git version info
+Working directory is '/home/runner/work/sim_ai_agents/sim_ai_agents'
+[command]/usr/bin/git version
+git version 2.54.0
+##[endgroup]
+Temporarily overriding HOME='/home/runner/work/_temp/dd0ff89f-c946-48f2-bd8b-2883b958f0ba' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+Deleting the contents of '/home/runner/work/sim_ai_agents/sim_ai_agents'
+##[group]Initializing the repository
+[command]/usr/bin/git init /home/runner/work/sim_ai_agents/sim_ai_agents
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /home/runner/work/sim_ai_agents/sim_ai_agents/.git/
+[command]/usr/bin/git remote add origin https://github.com/nori1234/sim_ai_agents
+##[endgroup]
+##[group]Disabling automatic garbage collection
+[command]/usr/bin/git config --local gc.auto 0
+##[endgroup]
+##[group]Setting up auth
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+[command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+##[endgroup]
+##[group]Fetching the repository
+[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f1917f3c3e8a06b86e728119cba4800fd8c9e48e:refs/remotes/origin/main
+From https://github.com/nori1234/sim_ai_agents
+ * [new ref]         f1917f3c3e8a06b86e728119cba4800fd8c9e48e -> origin/main
+##[endgroup]
+##[group]Determining the checkout info
+##[endgroup]
+[command]/usr/bin/git sparse-checkout disable
+[command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+##[group]Checking out the ref
+[command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Switched to a new branch 'main'
+branch 'main' set up to track 'origin/main'.
+##[endgroup]
+[command]/usr/bin/git log -1 --format=%H
+f1917f3c3e8a06b86e728119cba4800fd8c9e48e
+##[group]Run actions/setup-python@v6
+with:
+  python-version: 3.11
+  check-latest: false
+  token: ***
+  update-environment: true
+  allow-prereleases: false
+  freethreaded: false
+##[endgroup]
+##[group]Installed versions
+Successfully set up CPython (3.11.15)
+##[endgroup]
+##[group]Run pip install -e .
+[36;1mpip install -e .[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+Obtaining file:///home/runner/work/sim_ai_agents/sim_ai_agents
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: emergence-world
+  Building editable for emergence-world (pyproject.toml): started
+  Building editable for emergence-world (pyproject.toml): finished with status 'done'
+  Created wheel for emergence-world: filename=emergence_world-0.1.0-0.editable-py3-none-any.whl size=13185 sha256=7b3c6839a5c3f090019b5cf5e040c8821d47915fc5d9f9b215ec70ffa5e8ac73
+  Stored in directory: /tmp/pip-ephem-wheel-cache-ah9jl2fr/wheels/52/8d/d8/bfe3e6ecdd7e97f01df2b7362d9aba166e0556e354d0854f92
+Successfully built emergence-world
+Installing collected packages: emergence-world
+Successfully installed emergence-world-0.1.0
+##[group]Run if [ -z "$LLM_TOKEN" ]; then
+[36;1mif [ -z "$LLM_TOKEN" ]; then[0m
+[36;1m  echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."[0m
+[36;1m  exit 1[0m
+[36;1mfi[0m
+[36;1mgit config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  LLM_TOKEN: ***
+##[endgroup]
+##[group]Run pip install "$TORCH_SPEC"
+[36;1mpip install "$TORCH_SPEC"[0m
+[36;1mpip install "$LLM_MODEL_AGI_REF"[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  TORCH_SPEC: torch
+  LLM_MODEL_AGI_REF: git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd
+##[endgroup]
+Collecting torch
+  Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (38 kB)
+Collecting filelock (from torch)
+  Downloading filelock-3.30.2-py3-none-any.whl.metadata (2.0 kB)
+Collecting typing-extensions>=4.10.0 (from torch)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch) (79.0.1)
+Collecting sympy>=1.13.3 (from torch)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx>=2.5.1 (from torch)
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting jinja2 (from torch)
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting fsspec>=0.8.5 (from torch)
+  Downloading fsspec-2026.6.0-py3-none-any.whl.metadata (10 kB)
+Collecting cuda-toolkit==13.0.3 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl.metadata (17 kB)
+Collecting cuda-bindings<14,>=13.0.3 (from torch)
+  Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.5 kB)
+Collecting nvidia-cudnn-cu13==9.20.0.48 (from torch)
+  Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)
+Collecting nvidia-cusparselt-cu13==0.8.1 (from torch)
+  Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)
+Collecting nvidia-nccl-cu13==2.29.7 (from torch)
+  Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl.metadata (2.1 kB)
+Collecting nvidia-nvshmem-cu13==3.4.5 (from torch)
+  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)
+Collecting triton==3.7.1 (from torch)
+  Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cublas==13.1.1.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvjitlink<14,>=13.0.88 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)
+Collecting cuda-pathfinder>=1.4.2 (from cuda-bindings<14,>=13.0.3->torch)
+  Downloading cuda_pathfinder-1.5.6-py3-none-any.whl.metadata (1.9 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Collecting MarkupSafe>=2.0 (from jinja2->torch)
+  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl (526.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 526.6/526.6 MB 60.0 MB/s  0:00:05
+Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl (2.5 kB)
+Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl (366.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.2/366.2 MB 79.1 MB/s  0:00:03
+Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl (170.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 170.1/170.1 MB 115.2 MB/s  0:00:01
+Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl (206.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 206.0/206.0 MB 89.3 MB/s  0:00:02
+Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 123.9 MB/s  0:00:00
+Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (197.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 197.7/197.7 MB 63.7 MB/s  0:00:03
+Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.7/6.7 MB 117.7 MB/s  0:00:00
+Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 41.3 MB/s  0:00:06
+Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 58.9 MB/s  0:00:00
+Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 105.5 MB/s  0:00:00
+Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 11.0 MB/s  0:00:00
+Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 62.1 MB/s  0:00:03
+Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 13.2 MB/s  0:00:00
+Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 112.8 MB/s  0:00:00
+Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 110.4 MB/s  0:00:01
+Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 126.7 MB/s  0:00:01
+Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 99.9 MB/s  0:00:00
+Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)
+Downloading cuda_pathfinder-1.5.6-py3-none-any.whl (52 kB)
+Downloading fsspec-2026.6.0-py3-none-any.whl (203 kB)
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 58.7 MB/s  0:00:00
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 121.0 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 2.5 MB/s  0:00:00
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading filelock-3.30.2-py3-none-any.whl (94 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, typing-extensions, triton, sympy, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, networkx, MarkupSafe, fsspec, filelock, cuda-pathfinder, nvidia-cusparse, nvidia-cufft, nvidia-cublas, jinja2, cuda-bindings, nvidia-cusolver, nvidia-cudnn-cu13, torch
+
+Successfully installed MarkupSafe-3.0.3 cuda-bindings-13.3.1 cuda-pathfinder-1.5.6 cuda-toolkit-13.0.3.0 filelock-3.30.2 fsspec-2026.6.0 jinja2-3.1.6 mpmath-1.3.0 networkx-3.6.1 nvidia-cublas-13.1.1.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.20.0.48 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.1 nvidia-nccl-cu13-2.29.7 nvidia-nvjitlink-13.3.33 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 sympy-1.14.0 torch-2.13.0 triton-3.7.1 typing-extensions-4.16.0
+Collecting git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd
+  Cloning https://github.com/nori1234/llm_model_agi (to revision claude/custom-llm-model-qhtfxd) to /tmp/pip-req-build-vqezdxqf
+  Running command git clone --filter=blob:none --quiet https://github.com/nori1234/llm_model_agi /tmp/pip-req-build-vqezdxqf
+  Running command git checkout -b claude/custom-llm-model-qhtfxd --track origin/claude/custom-llm-model-qhtfxd
+  Switched to a new branch 'claude/custom-llm-model-qhtfxd'
+  branch 'claude/custom-llm-model-qhtfxd' set up to track 'origin/claude/custom-llm-model-qhtfxd'.
+  Resolved https://github.com/nori1234/llm_model_agi to commit 1a8df6cc5bb562e30ffe4c3bfd1136697bf8ff3f
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: torch>=2.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from llm_model_agi==0.1.0) (2.13.0)
+Collecting numpy>=1.24 (from llm_model_agi==0.1.0)
+  Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Requirement already satisfied: filelock in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.30.2)
+Requirement already satisfied: typing-extensions>=4.10.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (4.16.0)
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (79.0.1)
+Requirement already satisfied: sympy>=1.13.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.6.1)
+Requirement already satisfied: jinja2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2026.6.0)
+Requirement already satisfied: cuda-toolkit==13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.3.0)
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (13.3.1)
+Requirement already satisfied: nvidia-cudnn-cu13==9.20.0.48 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (9.20.0.48)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (0.8.1)
+Requirement already satisfied: nvidia-nccl-cu13==2.29.7 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2.29.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.4.5)
+Requirement already satisfied: triton==3.7.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.7.1)
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.1.1.3)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.88)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.96)
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.0.61)
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.3.33)
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (1.15.1.6)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.4.66)
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.6.3.3)
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+Requirement already satisfied: cuda-pathfinder>=1.4.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-bindings<14,>=13.0.3->torch>=2.2->llm_model_agi==0.1.0) (1.5.6)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from sympy>=1.13.3->torch>=2.2->llm_model_agi==0.1.0) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from jinja2->torch>=2.2->llm_model_agi==0.1.0) (3.0.3)
+Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 54.6 MB/s  0:00:00
+Building wheels for collected packages: llm_model_agi
+  Building wheel for llm_model_agi (pyproject.toml): started
+  Building wheel for llm_model_agi (pyproject.toml): finished with status 'done'
+  Created wheel for llm_model_agi: filename=llm_model_agi-0.1.0-py3-none-any.whl size=70369 sha256=1985babbd3cb348f9272348f6010d70268a9de20ac51e0d1da22d07c37c50a26
+  Stored in directory: /tmp/pip-ephem-wheel-cache-bdxofpge/wheels/86/f3/37/aeb67515d8f9247af544d510620572ae9dbde15327b4c4e5f8
+Successfully built llm_model_agi
+Installing collected packages: numpy, llm_model_agi
+
+Successfully installed llm_model_agi-0.1.0 numpy-2.4.6
+##[group]Run python - <<'PY'
+[36;1mpython - <<'PY'[0m
+[36;1mimport importlib.util, sys[0m
+[36;1mif importlib.util.find_spec("agent.adapters.emergence") is None:[0m
+[36;1m    sys.exit("agent.adapters.emergence did not install — training would "[0m
+[36;1m             "silently fall back to the heuristic. Check llm_model_agi_ref.")[0m
+[36;1mprint("adapter importable — training for real.")[0m
+[36;1mPY[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+adapter importable — training for real.
+##[group]Run python - <<'PY'
+[36;1mpython - <<'PY'[0m
+[36;1mimport sys[0m
+[36;1mfrom agent.adapters.emergence import build_brain[0m
+[36;1mbrain = build_brain("guardian", None, None)[0m
+[36;1mversion = getattr(getattr(brain, "tokenize", None), "version",[0m
+[36;1m                  "PRE-v2 CODE (= v1!)")[0m
+[36;1mprint(f"[guard] obs tokenizer version: {version}")[0m
+[36;1mif version != "v2":[0m
+[36;1m    sys.exit(f"[fatal] expected obs tokenizer v2, got {version!r} — "[0m
+[36;1m             "llm_model_agi_ref is pinned before the v2 fix (commit "[0m
+[36;1m             "9bc016c). v1 collapses observation structure into opaque "[0m
+[36;1m             "hashes (see docs/GROUNDING.md) — measuring with it silently "[0m
+[36;1m             "invalidates any grounding result. Update llm_model_agi_ref "[0m
+[36;1m             "to a ref that includes the fix and re-dispatch.")[0m
+[36;1mPY[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+[guard] obs tokenizer version: v2
+##[group]Run python scripts/train_neural_grounding.py \
+[36;1mpython scripts/train_neural_grounding.py \[0m
+[36;1m  --episodes "$EPISODES" \[0m
+[36;1m  --days "$DAYS" \[0m
+[36;1m  --agents "$AGENTS" \[0m
+[36;1m  --seed "$SEED" \[0m
+[36;1m  --pool-size "$POOL_SIZE" \[0m
+[36;1m  --probe-every "$PROBE_EVERY" \[0m
+[36;1m  --window "$WINDOW" \[0m
+[36;1m  --sandbox \[0m
+[36;1m  --sole-banker \[0m
+[36;1m  --complexity-level "$COMPLEXITY_LEVEL" \[0m
+[36;1m   \[0m
+[36;1m   \[0m
+[36;1m  --regime-block-size "$REGIME_BLOCK_SIZE" \[0m
+[36;1m  --floor-rollouts "$FLOOR_ROLLOUTS" \[0m
+[36;1m   \[0m
+[36;1m  --hparams "$HPARAMS" \[0m
+[36;1m  --out grounding_out[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  EPISODES: 60
+  DAYS: 20
+  AGENTS: 6
+  SEED: 1000
+  POOL_SIZE: 16
+  PROBE_EVERY: 5
+  WINDOW: 3
+  COMPLEXITY_LEVEL: 0
+  REGIME_BLOCK_SIZE: 1
+  FLOOR_ROLLOUTS: 1
+  HPARAMS: {"bc_weight": 0.3, "self_attempt_base": 0.3, "batch_every": 64}
+##[endgroup]
+[preflight] estimated conclusive yield vs 20 held-out worlds (heuristic proxy, need >= 6 per rule for floor_regression to be powered):
+   demurrage: 20/20 conclusive  [ok]
+[train] up to 60 episodes x 20 days, 6 agents, persona=guardian, sandbox, complexity_level=0, regime_block_size=1, sole_banker=True, status=False, rules=demurrage, hparams={'bc_weight': 0.3, 'self_attempt_base': 0.3, 'batch_every': 64}, train_pool=[1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015] (battery held-out: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61])
+[train] episode 1/60 done | {'stage': 'REACTIVE', 'reward': -0.52, 'curiosity': 0.0, 'competence': 0.0451, 'loss': 0.0}
+[train] episode 2/60 done | {'stage': 'REACTIVE', 'reward': -0.05, 'curiosity': 0.0, 'competence': 0.2022, 'loss': 0.0}
+[train] episode 3/60 done | {'stage': 'INSTRUCTED', 'reward': -0.30000000000000004, 'return': 10.800809860229492, 'curiosity': 0.12256654351949692, 'competence': 0.4322, 'loss': 162.38470458984375, 'grad_steps': 1, 'lr': 0.0003, 'episodes_seen': 3, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.703125}
+[train] episode 4/60 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'return': 10.800809860229492, 'curiosity': 0.12256654351949692, 'competence': 0.4043, 'loss': 162.38470458984375, 'grad_steps': 1, 'lr': 0.0003, 'episodes_seen': 3, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.703125}
+[train] episode 5/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 15.192517280578613, 'curiosity': 0.1735546588897705, 'competence': 0.1329, 'loss': 241.04261779785156, 'grad_steps': 2, 'lr': 0.0003, 'episodes_seen': 5, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.53125}
+[probe] ep 5: excess demurrage=-0.4000(streak 0)
+[train] episode 6/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 21.29479217529297, 'curiosity': 0.17515745759010315, 'competence': 0.1153, 'loss': 491.1927490234375, 'grad_steps': 3, 'lr': 0.0003, 'episodes_seen': 6, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.578125}
+[train] episode 7/60 done | {'stage': 'INSTRUCTED', 'reward': 0.08000000000000002, 'return': 27.985502243041992, 'curiosity': 0.2917376458644867, 'competence': 0.3867, 'loss': 806.9717407226562, 'grad_steps': 4, 'lr': 0.0003, 'episodes_seen': 7, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375}
+[train] episode 8/60 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'return': 27.985502243041992, 'curiosity': 0.2917376458644867, 'competence': 0.4843, 'loss': 806.9717407226562, 'grad_steps': 4, 'lr': 0.0003, 'episodes_seen': 7, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375}
+[train] episode 9/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 27.985502243041992, 'curiosity': 0.2917376458644867, 'competence': 0.4201, 'loss': 806.9717407226562, 'grad_steps': 4, 'lr': 0.0003, 'episodes_seen': 7, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375}
+[train] episode 10/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 30.715213775634766, 'curiosity': 0.46526968479156494, 'competence': 0.3713, 'loss': 920.0804443359375, 'grad_steps': 5, 'lr': 0.0003, 'episodes_seen': 10, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.328125}
+[probe] ep 10: excess demurrage=-0.3167(streak 0)
+[train] episode 11/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 30.715213775634766, 'curiosity': 0.46526968479156494, 'competence': 0.4154, 'loss': 920.0804443359375, 'grad_steps': 5, 'lr': 0.0003, 'episodes_seen': 10, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.328125}
+[train] episode 12/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 61.66838455200195, 'curiosity': 0.4597380459308624, 'competence': 0.0662, 'loss': 3763.179931640625, 'grad_steps': 8, 'lr': 0.0003, 'episodes_seen': 12, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375}
+[train] episode 13/60 done | {'stage': 'REACTIVE', 'reward': 0.0, 'return': 61.66838455200195, 'curiosity': 0.4597380459308624, 'competence': 0.2111, 'loss': 3763.179931640625, 'grad_steps': 8, 'lr': 0.0003, 'episodes_seen': 12, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375}
+[train] episode 14/60 done | {'stage': 'INSTRUCTED', 'reward': 0.15, 'return': 34.26211929321289, 'curiosity': 0.4688330292701721, 'competence': 0.3167, 'loss': 1020.4219360351562, 'grad_steps': 9, 'lr': 0.0003, 'episodes_seen': 14, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.6875}
+[train] episode 15/60 done | {'stage': 'CURIOUS', 'reward': -0.1, 'return': 34.26211929321289, 'curiosity': 0.4688330292701721, 'competence': 0.5029, 'loss': 1020.4219360351562, 'grad_steps': 9, 'lr': 0.0003, 'episodes_seen': 14, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.6875}
+[probe] ep 15: excess demurrage=-0.4000(streak 0)
+[train] episode 16/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 45.85457992553711, 'curiosity': 0.5045531392097473, 'competence': 0.3785, 'loss': 2116.509033203125, 'grad_steps': 10, 'lr': 0.0003, 'episodes_seen': 16, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.390625}
+[train] episode 17/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 45.85457992553711, 'curiosity': 0.5045531392097473, 'competence': 0.447, 'loss': 2116.509033203125, 'grad_steps': 10, 'lr': 0.0003, 'episodes_seen': 16, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.390625}
+[train] episode 18/60 done | {'stage': 'INSTRUCTED', 'reward': -0.47, 'return': 45.85457992553711, 'curiosity': 0.5045531392097473, 'competence': 0.4139, 'loss': 2116.509033203125, 'grad_steps': 10, 'lr': 0.0003, 'episodes_seen': 16, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.390625}
+[train] episode 19/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 42.55592727661133, 'curiosity': 0.4451568126678467, 'competence': 0.3868, 'loss': 1812.7003173828125, 'grad_steps': 11, 'lr': 0.0003, 'episodes_seen': 19, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.375}
+[train] episode 20/60 done | {'stage': 'INSTRUCTED', 'reward': 0.07, 'return': 42.55592727661133, 'curiosity': 0.4451568126678467, 'competence': 0.3481, 'loss': 1812.7003173828125, 'grad_steps': 11, 'lr': 0.0003, 'episodes_seen': 19, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.375}
+[probe] ep 20: excess demurrage=-0.3583(streak 0)
+[train] episode 21/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 28.658287048339844, 'curiosity': 0.3594944477081299, 'competence': 0.3592, 'loss': 594.0606079101562, 'grad_steps': 12, 'lr': 0.0003, 'episodes_seen': 21, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.484375}
+[train] episode 22/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 28.658287048339844, 'curiosity': 0.3594944477081299, 'competence': 0.4112, 'loss': 594.0606079101562, 'grad_steps': 12, 'lr': 0.0003, 'episodes_seen': 21, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.484375}
+[train] episode 23/60 done | {'stage': 'INSTRUCTED', 'reward': -0.35, 'return': 28.62738037109375, 'curiosity': 0.3054056763648987, 'competence': 0.3076, 'loss': 639.2799682617188, 'grad_steps': 13, 'lr': 0.0003, 'episodes_seen': 23, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.46875}
+[train] episode 24/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 33.21531295776367, 'curiosity': 0.21769337356090546, 'competence': 0.1142, 'loss': 728.1959228515625, 'grad_steps': 15, 'lr': 0.0003, 'episodes_seen': 24, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875}
+[train] episode 25/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 33.21531295776367, 'curiosity': 0.21769337356090546, 'competence': 0.3475, 'loss': 728.1959228515625, 'grad_steps': 15, 'lr': 0.0003, 'episodes_seen': 24, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875}
+[probe] ep 25: excess demurrage=-0.3583(streak 0)
+[train] episode 26/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 32.48127746582031, 'curiosity': 0.16263748705387115, 'competence': 0.2459, 'loss': 663.9439697265625, 'grad_steps': 17, 'lr': 0.0003, 'episodes_seen': 26, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875}
+[train] episode 27/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.892759323120117, 'curiosity': 0.12795521318912506, 'competence': 0.143, 'loss': 58.390869140625, 'grad_steps': 18, 'lr': 0.0003, 'episodes_seen': 27, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125}
+[train] episode 28/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 19.522802352905273, 'curiosity': 0.10808190703392029, 'competence': 0.3883, 'loss': 176.81582641601562, 'grad_steps': 19, 'lr': 0.0003, 'episodes_seen': 28, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125}
+[train] episode 29/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 19.522802352905273, 'curiosity': 0.10808190703392029, 'competence': 0.367, 'loss': 176.81582641601562, 'grad_steps': 19, 'lr': 0.0003, 'episodes_seen': 28, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125}
+[train] episode 30/60 done | {'stage': 'INSTRUCTED', 'reward': -0.5, 'return': 8.595354080200195, 'curiosity': 0.08206242322921753, 'competence': 0.3896, 'loss': 28.14439582824707, 'grad_steps': 20, 'lr': 0.0003, 'episodes_seen': 30, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.484375}
+[probe] ep 30: excess demurrage=-0.3583(streak 0)
+[train] episode 31/60 done | {'stage': 'INSTRUCTED', 'reward': -0.06999999999999999, 'return': 8.595354080200195, 'curiosity': 0.08206242322921753, 'competence': 0.33, 'loss': 28.14439582824707, 'grad_steps': 20, 'lr': 0.0003, 'episodes_seen': 30, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.484375}
+[train] episode 32/60 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'return': 7.377732276916504, 'curiosity': 0.06142573058605194, 'competence': 0.3205, 'loss': 34.095951080322266, 'grad_steps': 21, 'lr': 0.0003, 'episodes_seen': 32, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.546875}
+[train] episode 33/60 done | {'stage': 'INSTRUCTED', 'reward': 0.20000000000000004, 'return': 7.377732276916504, 'curiosity': 0.06142573058605194, 'competence': 0.2934, 'loss': 34.095951080322266, 'grad_steps': 21, 'lr': 0.0003, 'episodes_seen': 32, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.546875}
+[train] episode 34/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.142451286315918, 'curiosity': 0.04458778724074364, 'competence': 0.1427, 'loss': 18.017505645751953, 'grad_steps': 23, 'lr': 0.0003, 'episodes_seen': 34, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625}
+[train] episode 35/60 done | {'stage': 'INSTRUCTED', 'reward': -0.05, 'return': 6.036227226257324, 'curiosity': 0.03429817780852318, 'competence': 0.2672, 'loss': 36.54410171508789, 'grad_steps': 24, 'lr': 0.0003, 'episodes_seen': 35, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5625}
+[probe] ep 35: excess demurrage=-0.4000(streak 0)
+[train] episode 36/60 done | {'stage': 'REACTIVE', 'reward': 0.1, 'return': 6.677680969238281, 'curiosity': 0.033902157098054886, 'competence': 0.2383, 'loss': 19.34760093688965, 'grad_steps': 25, 'lr': 0.0003, 'episodes_seen': 36, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.578125}
+[train] episode 37/60 done | {'stage': 'REACTIVE', 'reward': -0.30000000000000004, 'return': 11.132363319396973, 'curiosity': 0.03575807809829712, 'competence': 0.1304, 'loss': 5.195608139038086, 'grad_steps': 27, 'lr': 0.0003, 'episodes_seen': 37, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5}
+[train] episode 38/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 5.0458574295043945, 'curiosity': 0.03241502493619919, 'competence': 0.3088, 'loss': 41.18955993652344, 'grad_steps': 28, 'lr': 0.0003, 'episodes_seen': 38, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.546875}
+[train] episode 39/60 done | {'stage': 'INSTRUCTED', 'reward': -0.62, 'return': 5.0458574295043945, 'curiosity': 0.03241502493619919, 'competence': 0.3633, 'loss': 41.18955993652344, 'grad_steps': 28, 'lr': 0.0003, 'episodes_seen': 38, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.546875}
+[train] episode 40/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 5.0458574295043945, 'curiosity': 0.03241502493619919, 'competence': 0.4012, 'loss': 41.18955993652344, 'grad_steps': 28, 'lr': 0.0003, 'episodes_seen': 38, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.546875}
+[probe] ep 40: excess demurrage=-0.3583(streak 0)
+[train] episode 41/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 4.893490314483643, 'curiosity': 0.030433369800448418, 'competence': 0.478, 'loss': 39.28441619873047, 'grad_steps': 29, 'lr': 0.0003, 'episodes_seen': 41, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.453125}
+[train] episode 42/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 4.893490314483643, 'curiosity': 0.030433369800448418, 'competence': 0.4989, 'loss': 39.28441619873047, 'grad_steps': 29, 'lr': 0.0003, 'episodes_seen': 41, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.453125}
+[train] episode 43/60 done | {'stage': 'INSTRUCTED', 'reward': -0.55, 'return': 4.893490314483643, 'curiosity': 0.030433369800448418, 'competence': 0.4799, 'loss': 39.28441619873047, 'grad_steps': 29, 'lr': 0.0003, 'episodes_seen': 41, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.453125}
+[train] episode 44/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.8450891971588135, 'curiosity': 0.033555690199136734, 'competence': 0.2396, 'loss': 41.152584075927734, 'grad_steps': 30, 'lr': 0.0003, 'episodes_seen': 44, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.1875}
+[train] episode 45/60 done | {'stage': 'INSTRUCTED', 'reward': 0.05000000000000002, 'return': 3.8450891971588135, 'curiosity': 0.033555690199136734, 'competence': 0.3612, 'loss': 41.152584075927734, 'grad_steps': 30, 'lr': 0.0003, 'episodes_seen': 44, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.1875}
+[probe] ep 45: excess demurrage=-0.3250(streak 0)
+[train] episode 46/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 4.737404823303223, 'curiosity': 0.037529587745666504, 'competence': 0.4573, 'loss': 29.039636611938477, 'grad_steps': 31, 'lr': 0.0003, 'episodes_seen': 46, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.359375}
+[train] episode 47/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 7.8398613929748535, 'curiosity': 0.04014956206083298, 'competence': 0.2777, 'loss': 19.978357315063477, 'grad_steps': 32, 'lr': 0.0003, 'episodes_seen': 47, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.515625}
+[train] episode 48/60 done | {'stage': 'INSTRUCTED', 'reward': 0.20000000000000004, 'return': 7.019372940063477, 'curiosity': 0.040297508239746094, 'competence': 0.3731, 'loss': 10.088716506958008, 'grad_steps': 33, 'lr': 0.0003, 'episodes_seen': 48, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5625}
+[train] episode 49/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.019372940063477, 'curiosity': 0.040297508239746094, 'competence': 0.2437, 'loss': 10.088716506958008, 'grad_steps': 33, 'lr': 0.0003, 'episodes_seen': 48, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5625}
+[train] episode 50/60 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 9.85517406463623, 'curiosity': 0.039809174835681915, 'competence': 0.1454, 'loss': 14.542455673217773, 'grad_steps': 36, 'lr': 0.0003, 'episodes_seen': 50, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625}
+[probe] ep 50: excess demurrage=-0.3039(streak 0)
+[train] episode 51/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 9.85517406463623, 'curiosity': 0.039809174835681915, 'competence': 0.2994, 'loss': 14.542455673217773, 'grad_steps': 36, 'lr': 0.0003, 'episodes_seen': 50, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625}
+[train] episode 52/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 9.85517406463623, 'curiosity': 0.039809174835681915, 'competence': 0.4144, 'loss': 14.542455673217773, 'grad_steps': 36, 'lr': 0.0003, 'episodes_seen': 50, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625}
+[train] episode 53/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 2.6418583393096924, 'curiosity': 0.027043811976909637, 'competence': 0.3501, 'loss': 18.04862403869629, 'grad_steps': 37, 'lr': 0.0003, 'episodes_seen': 53, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.546875}
+[train] episode 54/60 done | {'stage': 'INSTRUCTED', 'reward': -0.37, 'return': 2.6418583393096924, 'curiosity': 0.027043811976909637, 'competence': 0.3426, 'loss': 18.04862403869629, 'grad_steps': 37, 'lr': 0.0003, 'episodes_seen': 53, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.546875}
+[train] episode 55/60 done | {'stage': 'INSTRUCTED', 'reward': 0.20000000000000004, 'return': 3.6385178565979004, 'curiosity': 0.024479148909449577, 'competence': 0.4724, 'loss': 13.4552640914917, 'grad_steps': 38, 'lr': 0.0003, 'episodes_seen': 55, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.3125}
+[probe] ep 55: excess demurrage=-0.3417(streak 0)
+[train] episode 56/60 done | {'stage': 'INSTRUCTED', 'reward': 0.0, 'return': 3.6385178565979004, 'curiosity': 0.024479148909449577, 'competence': 0.4995, 'loss': 13.4552640914917, 'grad_steps': 38, 'lr': 0.0003, 'episodes_seen': 55, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.3125}
+[train] episode 57/60 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 4.220846652984619, 'curiosity': 0.022422973066568375, 'competence': 0.4879, 'loss': 14.044652938842773, 'grad_steps': 39, 'lr': 0.0003, 'episodes_seen': 57, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.171875}
+[train] episode 58/60 done | {'stage': 'CURIOUS', 'reward': 0.25, 'return': 4.220846652984619, 'curiosity': 0.022422973066568375, 'competence': 0.5559, 'loss': 14.044652938842773, 'grad_steps': 39, 'lr': 0.0003, 'episodes_seen': 57, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.171875}
+[train] episode 59/60 done | {'stage': 'INSTRUCTED', 'reward': 0.1, 'return': 4.220846652984619, 'curiosity': 0.022422973066568375, 'competence': 0.4725, 'loss': 14.044652938842773, 'grad_steps': 39, 'lr': 0.0003, 'episodes_seen': 57, 'episode_starts_in_batch': 2, 'teacher_frac_in_batch': 0.171875}
+[train] episode 60/60 done | {'stage': 'CURIOUS', 'reward': -0.1, 'return': 2.8324766159057617, 'curiosity': 0.019780248403549194, 'competence': 0.5052, 'loss': 9.571739196777344, 'grad_steps': 40, 'lr': 0.0003, 'episodes_seen': 60, 'episode_starts_in_batch': 3, 'teacher_frac_in_batch': 0.1875}
+[probe] ep 60: excess demurrage=-0.3861(streak 0)
+[battery] running the acceptance battery (demurrage x held-out worlds [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61], sandbox, complexity_level=0, regime_block_size=1, sole_banker=True, floor_rollouts=1)...
+{
+  "trained_stable": false,
+  "sandbox": true,
+  "complexity_level": 0,
+  "status": false,
+  "regime_block_size": 1,
+  "sole_banker": true,
+  "rules": [
+    "demurrage"
+  ],
+  "replay_inexplicable": false,
+  "replay_inexplicable_paired": false,
+  "replay_inexplicable_floor_regression": null,
+  "replay_inexplicable_confirmed": null,
+  "conclusive": false,
+  "inconclusive_rules": [
+    "demurrage"
+  ],
+  "weakest_rule": "demurrage",
+  "weakest_excess": -0.675,
+  "per_rule": {
+    "demurrage": {
+      "rule": "demurrage",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61
+      ],
+      "mean_excess": -0.5536,
+      "min_excess": -0.675,
+      "n_grounded": 0,
+      "n_conclusive": 14,
+      "n_worlds": 20,
+      "fraction_grounded": 0.0,
+      "conclusive": false,
+      "sign_test_p": 1.0,
+      "wilcoxon_p": 0.9996,
+      "grounded_paired": false,
+      "bootstrap_ci_mean_excess": [
+        -0.593,
+        -0.5061
+      ],
+      "floor_regression": {
+        "n": 14,
+        "slope": -0.1208,
+        "intercept": 0.0613,
+        "slope_ci": [
+          -0.3936,
+          0.1195
+        ],
+        "slope_ci_width": 0.5131,
+        "floor_spread_std": 0.0641,
+        "powered": true,
+        "residuals": [
+          0.0855,
+          -0.0096,
+          0.0478,
+          -0.0004,
+          -0.0504,
+          -0.0395,
+          -0.0211,
+          -0.0227,
+          -0.0504,
+          0.0391,
+          -0.0342,
+          0.0116,
+          0.0237,
+          0.0209
+        ],
+        "residual_sign_p": 0.788,
+        "residual_wilcoxon_p": 0.6232
+      },
+      "floor_regression_grounded": false,
+      "grounded_confirmed": false,
+      "per_world": [
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0833,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0833,
+          "floor_divergence": 0.525,
+          "excess": -0.4417,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.5667,
+          "excess": -0.5667,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.4333,
+          "excess": -0.4333,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0238,
+          "divergence": -0.0238,
+          "floor_divergence": 0.625,
+          "excess": -0.6488,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0417,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0417,
+          "floor_divergence": 0.5583,
+          "excess": -0.5167,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.675,
+          "excess": -0.675,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0667,
+          "counterfactual_rate": 0.0833,
+          "divergence": -0.0167,
+          "floor_divergence": 0.6417,
+          "excess": -0.6583,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 4
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0278,
+          "counterfactual_rate": 0.0833,
+          "divergence": -0.0556,
+          "floor_divergence": 0.55,
+          "excess": -0.6056,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 2
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0417,
+          "divergence": -0.0417,
+          "floor_divergence": 0.525,
+          "excess": -0.5667,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.5833,
+          "excess": -0.5833,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0333,
+          "divergence": -0.0333,
+          "floor_divergence": 0.6083,
+          "excess": -0.6417,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0208,
+          "counterfactual_rate": 0.0417,
+          "divergence": -0.0208,
+          "floor_divergence": 0.4917,
+          "excess": -0.5125,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.5917,
+          "excess": -0.5917,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0556,
+          "divergence": -0.0556,
+          "floor_divergence": 0.55,
+          "excess": -0.6056,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 2
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0208,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0208,
+          "floor_divergence": 0.6583,
+          "excess": -0.6375,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0667,
+          "counterfactual_rate": 0.1,
+          "divergence": -0.0333,
+          "floor_divergence": 0.5,
+          "excess": -0.5333,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 3
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0185,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0185,
+          "floor_divergence": 0.45,
+          "excess": -0.4315,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.1,
+          "counterfactual_rate": 0.0714,
+          "divergence": 0.0286,
+          "floor_divergence": 0.4667,
+          "excess": -0.4381,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 3,
+          "counterfactual_count": 3
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0,
+          "floor_divergence": 0.525,
+          "excess": -0.525,
+          "conclusive": false,
+          "verdict": "inconclusive (behaviour never occurred)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0238,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0238,
+          "floor_divergence": 0.4833,
+          "excess": -0.4595,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 0
+        }
+      ]
+    }
+  }
+}
+
+[done] replay_inexplicable=False  replay_inexplicable_paired=False  replay_inexplicable_floor_regression=None  replay_inexplicable_CONFIRMED=None  weakest=demurrage (-0.6750)  [INCONCLUSIVE: demurrage — the behaviour never occurred, so excess there is floor noise, not a verdict]  → paste grounding_out/battery.json to issue #130
+
+[paired stats + floor-regression diagnostic per rule] (one-sided H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED heuristic floor -- floor_rollouts only adds a side-by-side ensemble read, never moves these. The PRE-REGISTERED verdict is grounded_confirmed -- a strict AND of grounded_paired and floor_regression_grounded, per docs/GROUNDING.md; the two below it are context, not alternate passes.)
+   demurrage: fraction_grounded=0.00  sign_p=1.0000  wilcoxon_p=0.9996  grounded_paired=False  bootstrap_ci=[-0.5930, -0.5061]
+             floor_regression: slope=-0.121 (CI [-0.394, +0.119], width=0.513) n=14 floor_spread_std=0.0641 powered=True residual_sign_p=0.7880 residual_wilcoxon_p=0.6232 grounded=False
+             grounded_CONFIRMED (pre-registered verdict): False  [POWERED-NO (a real negative result -- next: representation learnability, not more metric tuning)]
+             raw attempt counts (summed over 20 held-out worlds): control=15  counterfactual=18
+##[group]Run if [ -f grounding_out/battery.json ]; then
+[36;1mif [ -f grounding_out/battery.json ]; then[0m
+[36;1m  echo '## #130 acceptance battery' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  echo '```json' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  cat grounding_out/battery.json >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  echo '```' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1melse[0m
+[36;1m  echo 'battery.json was not produced (training aborted?)' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1mfi[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/upload-artifact@v4
+with:
+  name: grounding-battery-14
+  path: grounding_out/
+  if-no-files-found: warn
+  compression-level: 6
+  overwrite: false
+  include-hidden-files: false
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+(node:2587) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+With the provided path, there will be 3 files uploaded
+Artifact name is valid!
+Root directory input is valid!
+Beginning upload of artifact content to blob storage
+(node:2587) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Uploaded bytes 8388608
+Uploaded bytes 16777216
+Uploaded bytes 25165824
+Uploaded bytes 33554432
+Uploaded bytes 41943040
+Uploaded bytes 50331648
+Uploaded bytes 58720256
+Uploaded bytes 67108864
+Uploaded bytes 73399719
+Finished uploading artifact content to blob storage!
+SHA256 digest of uploaded artifact zip is 017e70c320869000428df5309c00c131c2c3f2df8da5401ec91774830cf020c4
+Finalizing artifact upload
+Artifact grounding-battery-14.zip successfully finalized. Artifact ID 8396415648
+Artifact grounding-battery-14 has been successfully uploaded! Final size is 73399719 bytes. Artifact ID is 8396415648
+Artifact download URL: https://github.com/nori1234/sim_ai_agents/actions/runs/29552064785/artifacts/8396415648
+Post job cleanup.
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Post job cleanup.
+[command]/usr/bin/git version
+git version 2.54.0
+Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/7adfd1f9-e378-4305-acf1-c71921971519/.gitconfig'
+Temporarily overriding HOME='/home/runner/work/_temp/7adfd1f9-e378-4305-acf1-c71921971519' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Cleaning up orphan processes
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
