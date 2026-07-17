@@ -332,6 +332,7 @@ def run_grounding_probe(
     threshold: float = 0.0,
     sandbox: bool = False,
     complexity_level: int = 0,
+    sole_banker: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -401,7 +402,7 @@ def run_grounding_probe(
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
-                    complexity_level=complexity_level)
+                    complexity_level=complexity_level, sole_banker=sole_banker)
             else:
                 sim = make_simulation(
                     persona,
@@ -478,6 +479,7 @@ def estimate_conclusive_yield(
     n_agents: int = 6,
     sandbox: bool = False,
     complexity_level: int = 0,
+    sole_banker: bool = False,
 ) -> dict:
     """Cheap preflight: how many of ``seeds`` would be conclusive per rule,
     estimated from the non-learning heuristic's own occurrence rate — no
@@ -507,6 +509,7 @@ def estimate_conclusive_yield(
             if run_grounding_probe(persona, rule=rule, days=days, n_agents=n_agents,
                                    seed=seed, sandbox=sandbox,
                                    complexity_level=complexity_level,
+                                   sole_banker=sole_banker,
                                    brain_factory=None).conclusive)
         out[rule] = {"n_conclusive": n_conclusive, "n_seeds": len(seeds)}
     return out
@@ -707,6 +710,7 @@ def run_grounding_sweep(
     threshold: float = 0.0,
     sandbox: bool = False,
     complexity_level: int = 0,
+    sole_banker: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -735,6 +739,7 @@ def run_grounding_sweep(
     results = [probe(persona, rule=rule, days=days, n_agents=n_agents,
                      seed=s, threshold=threshold, sandbox=sandbox,
                      complexity_level=complexity_level,
+                     sole_banker=sole_banker,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -826,6 +831,7 @@ def run_grounding_battery(
     threshold: float = 0.0,
     sandbox: bool = False,
     complexity_level: int = 0,
+    sole_banker: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -852,6 +858,7 @@ def run_grounding_battery(
     sweeps = {r: sweep(persona, rule=r, seeds=seeds, days=days,
                        n_agents=n_agents, threshold=threshold, sandbox=sandbox,
                        complexity_level=complexity_level,
+                       sole_banker=sole_banker,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)

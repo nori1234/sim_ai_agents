@@ -164,7 +164,8 @@ MIN_CONCLUSIVE_FOR_POWER = 6
 
 
 def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
-                    sandbox: bool, complexity_level: int = 0) -> bool:
+                    sandbox: bool, complexity_level: int = 0,
+                    sole_banker: bool = False) -> bool:
     """Estimate each rule's conclusive yield against BATTERY_SEEDS using the
     heuristic only (no trained brain, no torch) and print it. Returns True iff
     every rule looks likely to power floor_regression. Purely advisory — it
@@ -176,7 +177,8 @@ def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
     brain does (see the module docstring's "What None means")."""
     yields = estimate_conclusive_yield(persona, rules=rules, seeds=BATTERY_SEEDS,
                                        days=days, n_agents=n_agents, sandbox=sandbox,
-                                       complexity_level=complexity_level)
+                                       complexity_level=complexity_level,
+                                       sole_banker=sole_banker)
     print(f"[preflight] estimated conclusive yield vs {len(BATTERY_SEEDS)} held-out "
           f"worlds (heuristic proxy, need >= {MIN_CONCLUSIVE_FOR_POWER} per rule for "
           "floor_regression to be powered):")
@@ -226,6 +228,16 @@ def main(argv=None) -> int:
     ap.add_argument("--sandbox", action="store_true",
                     help="train + measure in the minimal sandbox (dense behaviour, "
                          "conclusive). demurrage only — the sandbox's supported rule.")
+    ap.add_argument("--sole-banker", action="store_true",
+                    help="S6 task redesign (only applies with --sandbox): restrict "
+                         "deposits to the staffed banker, cutting the sandbox's "
+                         "agent-to-agent deposit-chain claim ratchet that made "
+                         "depositing dominate demurrage (advantage_cf -127). On the "
+                         "redesigned task the deposit-only oracle's advantage is "
+                         "slightly positive (+0.21, +0.56 sigma) -- the first task "
+                         "where grounding actually pays. Train/eval-MATCHED, same "
+                         "as --complexity-level (see docs/runs/deposit-oracle-"
+                         "redesign-1/).")
     ap.add_argument("--complexity-level", type=int, default=0,
                     help="step up the sandbox's complexity ladder (0..%d; only applies "
                          "with --sandbox). 0 is the original minimal sandbox; each "
@@ -300,7 +312,8 @@ def main(argv=None) -> int:
     status_enabled = args.status if args.status is not None else (not args.sandbox)
 
     print_preflight(args.persona, rules, days=args.days, n_agents=args.agents,
-                    sandbox=args.sandbox, complexity_level=args.complexity_level)
+                    sandbox=args.sandbox, complexity_level=args.complexity_level,
+                    sole_banker=args.sole_banker)
     if args.preflight_only:
         return 0
 
@@ -341,7 +354,8 @@ def main(argv=None) -> int:
         r: GroundingMonitor(args.persona, rule=r, days=args.days,
                             n_agents=args.agents, seed=train_pool[0],
                             threshold=args.threshold, sandbox=args.sandbox,
-                            complexity_level=args.complexity_level)
+                            complexity_level=args.complexity_level,
+                            sole_banker=args.sole_banker)
         for r in rules
     }
 
@@ -362,7 +376,8 @@ def main(argv=None) -> int:
                 args.persona, rule="demurrage", n_savers=args.agents - 1,
                 seed=seed, days=args.days,
                 cf_enabled=cf_enabled, brain_factory=training_factory,
-                complexity_level=args.complexity_level, status=status_enabled)
+                complexity_level=args.complexity_level, status=status_enabled,
+                sole_banker=args.sole_banker)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
@@ -376,7 +391,8 @@ def main(argv=None) -> int:
 
     where = "sandbox" if args.sandbox else "full town"
     level_str = (f", complexity_level={args.complexity_level}, "
-                f"regime_block_size={args.regime_block_size}") if args.sandbox else ""
+                f"regime_block_size={args.regime_block_size}, "
+                f"sole_banker={args.sole_banker}") if args.sandbox else ""
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}{level_str}, "
           f"status={status_enabled}, rules={','.join(rules)}, hparams={hparams}, "
@@ -436,11 +452,13 @@ def main(argv=None) -> int:
                                     threshold=args.threshold,
                                     sandbox=args.sandbox,
                                     complexity_level=args.complexity_level,
+                                    sole_banker=args.sole_banker,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, "sandbox": args.sandbox,
               "complexity_level": args.complexity_level, "status": status_enabled,
               "regime_block_size": args.regime_block_size,
+              "sole_banker": args.sole_banker,
               **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)

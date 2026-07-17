@@ -1268,6 +1268,25 @@ class TestDepositOracle(unittest.TestCase):
         self.assertTrue(any(d.holder == saver.id and d.amount == 10
                             for d in sim.deposits))
 
+    def test_probe_monitor_and_battery_accept_sole_banker(self):
+        # The training/eval chain (probe -> sweep -> battery, plus the
+        # monitor) forwards sole_banker to the sandbox, so #130's runner can
+        # train AND measure on the redesigned task. Heuristic floor: excess
+        # is 0 by construction; this asserts plumbing, not a verdict.
+        from emergence.grounding import run_grounding_probe, run_grounding_battery
+        from emergence.grounding_monitor import GroundingMonitor
+        result = run_grounding_probe("guardian", sandbox=True, sole_banker=True,
+                                     days=8, n_agents=4, seed=1)
+        self.assertEqual(result.excess, 0.0)
+        battery = run_grounding_battery("guardian", rules=("demurrage",),
+                                        seeds=(1, 2), days=8, n_agents=4,
+                                        sandbox=True, sole_banker=True)
+        self.assertIn("demurrage", battery.as_dict()["rules"])
+        mon = GroundingMonitor("guardian", sandbox=True, sole_banker=True,
+                               days=8, n_agents=4, seed=1)
+        mon.probe(0, None)
+        self.assertEqual(len(mon.history), 1)
+
     def test_sole_banker_keeps_the_deposit_decision_dense(self):
         # Cutting the chain must not starve the sandbox of its scored decision:
         # savers still deposit (control keeps interest income flowing, so the
