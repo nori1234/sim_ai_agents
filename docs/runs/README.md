@@ -35,6 +35,7 @@ docs/runs/regime-probe-N/full_log.txt   same, for a regime-decoding-probe.yml
 | `run-10` | [28979425565](https://github.com/nori1234/sim_ai_agents/actions/runs/28979425565) | sandbox, v2 tokenizer, block=1 — entirely-negative bootstrap CI |
 | `run-11` | [28990875855](https://github.com/nori1234/sim_ai_agents/actions/runs/28990875855) | sandbox, discounted-return credit-assignment fix (`db39ffa`) — powered-no |
 | `run-12` | [29054626520](https://github.com/nori1234/sim_ai_agents/actions/runs/29054626520) | sandbox, `freeze_backbone` (`f8badf1`) — erosion ruled out, still powered-no |
+| `run-14` | [29552064785](https://github.com/nori1234/sim_ai_agents/actions/runs/29552064785) | **first fair-task run** — sandbox + `sole_banker` (`f1917f3`), brain team's pre-registered hparams; POWERED-NO: probe excess flat (−0.30..−0.40), policy never regime-contingent (~0.8 deposit attempts/world both regimes) |
 | `regime-probe-1` | [29050759706](https://github.com/nori1234/sim_ai_agents/actions/runs/29050759706) | regime-decoding probe, unpaired (`7b40a93`), run #11 checkpoint |
 | `regime-probe-2` | [29053385381](https://github.com/nori1234/sim_ai_agents/actions/runs/29053385381) | regime-decoding probe, paired-only (`e3b91c1`), run #11 checkpoint — the trusted result |
 | `regime-probe-3` | [29065065032](https://github.com/nori1234/sim_ai_agents/actions/runs/29065065032) | regime-decoding probe, paired-only, run #12 checkpoint — freeze sanity check |

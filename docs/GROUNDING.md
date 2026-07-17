@@ -922,6 +922,33 @@ local mirror:
     of "does the brain learn grounding when the task rewards it" that the 13
     prior training runs never had. Raw:
     [`docs/runs/deposit-oracle-redesign-1/`](runs/deposit-oracle-redesign-1/).
+  * **Run #14 — the first fair-task training run: POWERED-NO.** Trained on
+    `sole_banker=True` per the brain team's pre-registered spec (their
+    hparams: `bc_weight 0.3`, `self_attempt_base 0.3`, `batch_every 64`;
+    tokenizer v2 / γ 0.99 / no freeze as defaults; pool seeds 1000–1015,
+    disjoint from the battery's 42–61). 60 episodes, never `is_stable`
+    (streak 0 throughout); the probe excess sat **flat at −0.30..−0.40 from
+    episode 5 to 60** — no learning trajectory. Battery: `mean_excess
+    −0.554` (bootstrap CI [−0.593, −0.506]), `fraction_grounded 0.00`,
+    floor-regression **powered** (n=14) and negative → per-rule
+    `grounded_confirmed = False` — the pre-registered **POWERED-NO** branch,
+    now measured for the first time on a task where grounding pays. (The
+    battery-level conjunction reads `None` only because 6/20 held-out worlds
+    saw no deposit attempt at all, listing the rule inconclusive at the
+    battery level; the powered per-rule verdict is the honest headline.)
+    **Mechanism observation:** the trained policy barely deposits in either
+    regime — 15 control / 18 counterfactual attempts summed over all 20
+    worlds (the heuristic floor deposits densely) — i.e. it collapsed to the
+    regime-*independent* never-deposit arm, which the transfer metric
+    correctly refuses to call grounded. Also notable: `teacher_frac_in_batch
+    = 0.1875` surfaced in the training diagnostics — the S2 signal that was
+    previously unmeasurable. Next, per the pre-registration fixed before
+    this run: **representation learnability** (brain side), not more metric
+    or task tuning; an engine-side observation for that discussion is that
+    both arms' margins are deliberately small (the +0.21 oracle advantage),
+    so the control-side pull toward depositing (interest) may be weak
+    relative to reward noise — changing that would be a NEW pre-registration
+    round, not a silent knob turn. Raw: [`docs/runs/run-14/`](runs/run-14/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
