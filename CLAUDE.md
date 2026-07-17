@@ -1,5 +1,9 @@
 # Working notes for Claude
 
+**New session? Read [`docs/HANDOFF.md`](docs/HANDOFF.md) first** — the current
+state of the grounding program, team roles (engine ⇄ brain relay), and where
+every thread stands.
+
 ## Merge workflow — MUST keep the dev branch synced to main
 
 We ship via: branch → PR → **squash-merge** → resync. A squash-merge makes

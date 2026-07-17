@@ -11,7 +11,7 @@ training prior, the two are indistinguishable, so success proves nothing.
 
 ## Where things stand (see "Current status" below for the full run-by-run record)
 
-**Not confirmed, not refuted — narrowing.** Across 12 real-engine CI runs, four
+**Not confirmed, not refuted — narrowing.** Across 14 real-engine CI runs, four
 structural hypotheses have each been investigated to a specific mechanism:
 the floor confound (engine-side, fixed), the v1→v2 observation tokenizer
 (brain-side, fixed), single-step→discounted credit assignment (brain-side,
@@ -43,10 +43,24 @@ cross-check (`measure_teacher_agreement`, shadow-querying a blind
 with the teacher is low (~12%) and essentially regime-independent
 (`gap=-0.008`) — the policy has moved well past imitating the teacher, just
 not toward anything regime-sensitive. With S1/S2/S3 all healthy and the
-battery still `POWERED-NO`, the brain team's own stop rule says the next
-step is revisiting task/reward design, not another structural-bug hunt.
-Tracked on issue #130; `--complexity-level`/`--status` (the complexity
-ladder, the status factorial) remain queued behind this.
+battery still `POWERED-NO`, the brain team's own stop rule said the next
+step was revisiting task/reward design — and that step is now **done**: the
+S6 deposit-only oracle established the task gradient pointed the wrong way
+(`advantage_cf = −127.3`), the mechanism was pinned to the sandbox's
+agent-to-agent deposit-chain claim ratchet (reward-side levers all measured
+insufficient), and the `sole_banker` redesign flipped the task to slightly
+rewarding grounding (+0.2075, +0.56σ, oracle ahead 12/20). **Run #14 — the
+first training run on that fair task, under the brain team's pre-registered
+hparams — still came back POWERED-NO**: the probe curve stayed flat for all
+60 episodes and the policy collapsed to the regime-independent never-deposit
+arm (see "Current status"). So the question is now sharply posed for the
+first time: the task rewards grounding and the policy does not find it. The
+open branches, in the brain team's hands: representation learnability
+(engine can immediately re-run the regime-decoding probe on run #14's
+checkpoint), or a NEW pre-registration round that widens the task's margins
+(the control-side pull toward depositing — interest — may sit below reward
+noise). Tracked on issue #130; `--complexity-level`/`--status` (the
+complexity ladder, the status factorial) remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
 see [`docs/runs/`](runs/) (index + how to add a new one). Prose here can be
