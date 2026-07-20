@@ -1,13 +1,17 @@
 # Run #15 pre-registration proposal — widen the contingency margin
 
-Status: **ACTIVE — owner-approved, calibration executed.** The owner delegated
-execution ("任せる、接地を目指す", 2026-07-20); the brain team is notified via
-issue #130 and can still object to the band/rate before the run is read as
-their pre-registration. Calibration landed on **0.25/day** with all four gates
-passing — see `docs/runs/contingency-calib-1/`. Written per the run #14 note on
-issue #130: *"changing that would be a NEW pre-registration round, not a silent
-knob turn."* This is that round, drafted before any training result existed to
-bias it.
+Status: **EXECUTED — run #15 landed on grid branch 2; the task dial is
+closed.** Calibration chose **0.25/day** (all four gates passed,
+`docs/runs/contingency-calib-1/`); run #15
+([`docs/runs/run-15/`](../runs/run-15/)) came back POWERED-NO with the policy
+still on the never-deposit arm (19/18 attempts over 20 worlds, probe flat
+−0.37..−0.51). Per §6 as written: incentive ruled out, **S4 credit assignment
+is the primary suspect**, no further rate raises (§7 one-round rule). The
+owner delegated execution ("任せる、接地を目指す", 2026-07-20); the brain team
+was notified via issue #130 before the run. Written per the run #14 note on
+issue #130: *"changing that would be a NEW pre-registration round, not a
+silent knob turn."* This was that round, drafted before any training result
+existed to bias it.
 
 ## 1. Motivation (what control-margin-1 changed)
 

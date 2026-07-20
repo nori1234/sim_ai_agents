@@ -43,10 +43,20 @@ cross-check (`measure_teacher_agreement`, shadow-querying a blind
 with the teacher is low (~12%) and essentially regime-independent
 (`gap=-0.008`) — the policy has moved well past imitating the teacher, just
 not toward anything regime-sensitive. With S1/S2/S3 all healthy and the
-battery still `POWERED-NO`, the brain team's own stop rule says the next
-step is revisiting task/reward design, not another structural-bug hunt.
-Tracked on issue #130; `--complexity-level`/`--status` (the complexity
-ladder, the status factorial) remain queued behind this.
+battery still `POWERED-NO`, the brain team's own stop rule said the next
+step was revisiting task/reward design — and that round has now run to
+completion: the S6 arc found and fixed the sandbox's inverted reward
+gradient (`sole_banker`), `control-margin-1` showed the control-side pull
+was never weak (+4.35σ) and located the one thin margin (the cf-side
+contingency margin, +0.20σ — the exact quantity the battery scores), and a
+pre-registered calibration round (run #15, `demurrage_per_day` 0.15→0.25,
+contingency margin +0.53σ) widened it above the noise floor. Run #15 still
+came back POWERED-NO with the policy at the same never-deposit corner —
+so the pre-registered grid closes the task dial for good and puts the
+program's weight on **S4: value/credit assignment on the deposit decision**
+(brain side, per-decision advantage instrumentation). Tracked on issue
+#130; `--complexity-level`/`--status` (the complexity ladder, the status
+factorial) remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
 see [`docs/runs/`](runs/) (index + how to add a new one). Prose here can be
@@ -980,6 +990,35 @@ local mirror:
     run #14 note called for, gated on `control_margin.py`'s `contingency_margin`
     field before any training run. Raw:
     [`docs/runs/control-margin-1/`](runs/control-margin-1/).
+  * **That round ran: pre-registration → calibration → run #15 → POWERED-NO
+    again, and the pre-registered grid closes the task dial.** The proposal
+    ([`docs/proposals/run15-contingency-margin.md`](../proposals/run15-contingency-margin.md))
+    fixed the band ([+0.5σ, +1.0σ] on the paired-difference σ), the
+    smallest-rate rule, four gates, a 4-branch interpretation grid, and a
+    one-round limit — all before any training. `contingency-calib-1`
+    calibrated `demurrage_per_day` (plumbed through the whole
+    sandbox/probe/battery/driver/CI chain, default 0.15 byte-identical) to
+    **0.25/day** (+0.60, +0.53σ, 15/20 worlds; control pull exactly
+    +10.3485 at every rate — the structural invariance held; yield 20/20,
+    density held, survival 20/20). Run #15 = run #14's exact spec + that one
+    change. Result: 60 episodes, streak 0, probe excess flat −0.37..−0.51
+    throughout; battery `mean_excess −0.5775` (CI [−0.617, −0.515]),
+    `n_conclusive 17/20`, floor-regression powered → per-rule
+    `grounded_confirmed = False`. **Raw attempts: control 19 /
+    counterfactual 18 over all 20 worlds — still the never-deposit arm.**
+    Per the grid fixed before the run, this is branch 2: **the contingency
+    incentive is ruled out as the blocker** (it was calibrated above the
+    noise floor and the policy behaved identically), the task dial is closed
+    (no further rate raises, per the one-round rule), and the primary
+    suspect is **S4 — value/credit assignment on the deposit decision**
+    (brain side; the per-decision advantage instrumentation requested on
+    #130). A new in-run observation for that work: `teacher_frac_in_batch`
+    now prints every episode (~0.4–0.5 typical) — half of each batch is BC
+    toward a densely-depositing teacher, yet the learned policy deposits
+    ~once per world; BC targets and PG/value gradients appear to pull in
+    opposite directions on this action. Raw:
+    [`docs/runs/run-15/`](runs/run-15/),
+    [`docs/runs/contingency-calib-1/`](runs/contingency-calib-1/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
