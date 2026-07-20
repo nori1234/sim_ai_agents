@@ -949,6 +949,37 @@ local mirror:
     so the control-side pull toward depositing (interest) may be weak
     relative to reward noise — changing that would be a NEW pre-registration
     round, not a silent knob turn. Raw: [`docs/runs/run-14/`](runs/run-14/).
+  * **control-margin-1 — the diagnostic run #14's collapse demanded; it
+    falsifies the "weak control pull" conjecture and relocates the small
+    margin to exactly the part the battery scores.** `scripts/control_margin.py`
+    measures the full 2×2 of {deposit-per-rule, never-deposit} × {control, cf}
+    with the same telescoped `survival_reward` the policy optimizes
+    (deterministic, no torch). Guardian, 20 held-out worlds, `sole_banker`:
+    the **control-side pull** (deposit vs hold, control) is **+10.35 (+4.35σ,
+    survivors-only +6.62σ, 20/20 worlds)** — not weak but one of the strongest
+    gradients in the task; depositing in control is a dominant, densely-rewarded
+    action. So run #14's never-deposit policy sat at the **pessimal** corner
+    (return −4.38, ~+10.35 below grounded and below even regime-blind
+    always-deposit at +5.77): RL failed to climb a large, dense reward
+    gradient and never found even the trivial dominant strategy — a
+    credit-assignment / value-learning failure (the S4 candidate: deposit's
+    interest is delayed and thin while the deposit action is wealth-neutral
+    on the step), **not** a task-reward gap. The one margin that *is* small is
+    the one the battery scores: grounded and regime-blind always-deposit differ
+    **only** in the cf cell, so the reward for regime-*contingency* is exactly
+    the cf advantage — **+0.20σ, buried in noise**. The `sole_banker`
+    calibration put the overall cf oracle advantage in the requested "+0.2–0.5σ,
+    not large" band, but that same +0.20σ *is* the entire contingency gradient a
+    learner needs to prefer grounded over always-deposit. So the engine-side
+    intuition above was right that a margin is too small, but wrong about which
+    side: the control pull is huge; the **cf-side contingency margin** is the
+    needle. This separates two blockers — (learning) why RL avoids the dominant
+    always-deposit arm (brain-side S4 value/advantage), and (task) that even a
+    perfect learner sees only +0.20σ for contingency, whose fix (steeper
+    demurrage to widen the cf penalty) is the NEW pre-registration round the
+    run #14 note called for, gated on `control_margin.py`'s `contingency_margin`
+    field before any training run. Raw:
+    [`docs/runs/control-margin-1/`](runs/control-margin-1/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
