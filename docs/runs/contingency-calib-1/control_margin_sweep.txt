@@ -1,0 +1,51 @@
+=== contingency-calib-1: official calibration through the plumbed parameters ===
+pre-registered rule: band [+0.5, +1.0] sigma on the paired-difference std; smallest rate in band
+
+--- demurrage_per_day 0.15 ---
+[control-margin] persona=guardian sole_banker=True demurrage_per_day=0.15 worlds=20
+CONTROL pull (deposit in control)  +10.3485  (std 2.3775, +4.35 sigma, 20/20 worlds +)
+  survivors-only                   +10.8088  (std 1.6316, +6.62 sigma, 17/17 worlds +)
+CF advantage (hold cash in cf)      +0.2075  (std 1.0131, +0.20 sigma, 12/20 worlds +)
+  survivors-only                    +0.2288  (std 1.0603, +0.22 sigma, 10/17 worlds +)
+CONTINGENCY margin (grnd-always)    +0.2075  (std 1.0131, +0.20 sigma, 12/20 worlds +)
+  --- policy returns ---
+grounded (dep C / hold CF)          +5.9725  (std 2.5320, +2.36 sigma, 19/20 worlds +)
+never-deposit (run #14 collapse)    -4.3760  (std 2.2080, -1.98 sigma, 1/20 worlds +)
+always-deposit (regime-blind)       +5.7650  (std 2.1757, +2.65 sigma, 19/20 worlds +)
+
+--- demurrage_per_day 0.20 ---
+[control-margin] persona=guardian sole_banker=True demurrage_per_day=0.2 worlds=20
+CONTROL pull (deposit in control)  +10.3485  (std 2.3775, +4.35 sigma, 20/20 worlds +)
+  survivors-only                   +10.7675  (std 1.6732, +6.44 sigma, 16/16 worlds +)
+CF advantage (hold cash in cf)      +0.4495  (std 1.0401, +0.43 sigma, 14/20 worlds +)
+  survivors-only                    +0.3463  (std 1.1144, +0.31 sigma, 10/16 worlds +)
+CONTINGENCY margin (grnd-always)    +0.4495  (std 1.0401, +0.43 sigma, 14/20 worlds +)
+  --- policy returns ---
+grounded (dep C / hold CF)          +5.9725  (std 2.5320, +2.36 sigma, 19/20 worlds +)
+never-deposit (run #14 collapse)    -4.3760  (std 2.2080, -1.98 sigma, 1/20 worlds +)
+always-deposit (regime-blind)       +5.5230  (std 2.2974, +2.40 sigma, 19/20 worlds +)
+
+--- demurrage_per_day 0.25 ---
+[control-margin] persona=guardian sole_banker=True demurrage_per_day=0.25 worlds=20
+CONTROL pull (deposit in control)  +10.3485  (std 2.3775, +4.35 sigma, 20/20 worlds +)
+  survivors-only                   +10.8088  (std 1.6316, +6.62 sigma, 17/17 worlds +)
+CF advantage (hold cash in cf)      +0.6010  (std 1.1345, +0.53 sigma, 15/20 worlds +)
+  survivors-only                    +0.5682  (std 1.1851, +0.48 sigma, 12/17 worlds +)
+CONTINGENCY margin (grnd-always)    +0.6010  (std 1.1345, +0.53 sigma, 15/20 worlds +)
+  --- policy returns ---
+grounded (dep C / hold CF)          +5.9725  (std 2.5320, +2.36 sigma, 19/20 worlds +)
+never-deposit (run #14 collapse)    -4.3760  (std 2.2080, -1.98 sigma, 1/20 worlds +)
+always-deposit (regime-blind)       +5.3715  (std 2.1827, +2.46 sigma, 19/20 worlds +)
+
+--- demurrage_per_day 0.30 ---
+[control-margin] persona=guardian sole_banker=True demurrage_per_day=0.3 worlds=20
+CONTROL pull (deposit in control)  +10.3485  (std 2.3775, +4.35 sigma, 20/20 worlds +)
+  survivors-only                   +10.8088  (std 1.6316, +6.62 sigma, 17/17 worlds +)
+CF advantage (hold cash in cf)      +0.7105  (std 1.1273, +0.63 sigma, 13/20 worlds +)
+  survivors-only                    +0.6688  (std 1.1786, +0.57 sigma, 11/17 worlds +)
+CONTINGENCY margin (grnd-always)    +0.7105  (std 1.1273, +0.63 sigma, 13/20 worlds +)
+  --- policy returns ---
+grounded (dep C / hold CF)          +5.9725  (std 2.5320, +2.36 sigma, 19/20 worlds +)
+never-deposit (run #14 collapse)    -4.3760  (std 2.2080, -1.98 sigma, 1/20 worlds +)
+always-deposit (regime-blind)       +5.2620  (std 2.1069, +2.50 sigma, 19/20 worlds +)
+

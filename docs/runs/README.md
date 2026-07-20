@@ -61,6 +61,7 @@ from `docs/GROUNDING.md`'s "Current status".
 | `deposit-oracle-calib-1` | S6 lever-2 calibration sweep (`--deposit-weight`); the dial is monotone but asymptotes at ≈0⁻ (−0.27σ) — a reward-reweight can't cross the sign |
 | `deposit-oracle-redesign-1` | S6 task redesign (`--sole-banker`): the deposit-chain claim ratchet diagnosed, levers 1–3 falsified, and the sign crossed — `advantage_cf = +0.21` (+0.56σ), the brain team's calibration target |
 | `control-margin-1` | `control_margin.py` — the margin run #14's never-deposit collapse demanded. Control-side pull is huge (+4.35σ, survivors +6.62σ) → the "weak control pull" conjecture is falsified; run #14 sits at the pessimal never-deposit corner (a credit-assignment failure). The only small margin is the cf-side **contingency** margin (+0.20σ) — the part the battery scores |
+| `contingency-calib-1` | the run #15 dial calibrated through the real `demurrage_per_day` parameter: **0.25/day** (smallest rate in the pre-registered [+0.5,+1.0]σ band, +0.53σ), all four gates pass (control pull exactly invariant, yield 20/20, density held, survival 20/20) |
 
 ## Adding a new run
 

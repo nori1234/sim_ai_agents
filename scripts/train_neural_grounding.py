@@ -165,7 +165,8 @@ MIN_CONCLUSIVE_FOR_POWER = 6
 
 def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
                     sandbox: bool, complexity_level: int = 0,
-                    sole_banker: bool = False) -> bool:
+                    sole_banker: bool = False,
+                    demurrage_per_day: float = 0.15) -> bool:
     """Estimate each rule's conclusive yield against BATTERY_SEEDS using the
     heuristic only (no trained brain, no torch) and print it. Returns True iff
     every rule looks likely to power floor_regression. Purely advisory — it
@@ -178,7 +179,8 @@ def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
     yields = estimate_conclusive_yield(persona, rules=rules, seeds=BATTERY_SEEDS,
                                        days=days, n_agents=n_agents, sandbox=sandbox,
                                        complexity_level=complexity_level,
-                                       sole_banker=sole_banker)
+                                       sole_banker=sole_banker,
+                                       demurrage_per_day=demurrage_per_day)
     print(f"[preflight] estimated conclusive yield vs {len(BATTERY_SEEDS)} held-out "
           f"worlds (heuristic proxy, need >= {MIN_CONCLUSIVE_FOR_POWER} per rule for "
           "floor_regression to be powered):")
@@ -238,6 +240,15 @@ def main(argv=None) -> int:
                          "where grounding actually pays. Train/eval-MATCHED, same "
                          "as --complexity-level (see docs/runs/deposit-oracle-"
                          "redesign-1/).")
+    ap.add_argument("--demurrage-per-day", type=float, default=0.15,
+                    help="run #15 contingency-margin dial (cf world only; 0.15 = "
+                         "canonical, byte-identical). Widens the cf-side "
+                         "contingency margin (== advantage_cf) that a learner is "
+                         "paid for regime-contingency; the control-side pull is "
+                         "structurally untouched. Train/eval-MATCHED like "
+                         "--sole-banker. Calibrated via contingency-calib-1, "
+                         "never tuned against training outcomes (see docs/"
+                         "proposals/run15-contingency-margin.md).")
     ap.add_argument("--complexity-level", type=int, default=0,
                     help="step up the sandbox's complexity ladder (0..%d; only applies "
                          "with --sandbox). 0 is the original minimal sandbox; each "
@@ -313,7 +324,8 @@ def main(argv=None) -> int:
 
     print_preflight(args.persona, rules, days=args.days, n_agents=args.agents,
                     sandbox=args.sandbox, complexity_level=args.complexity_level,
-                    sole_banker=args.sole_banker)
+                    sole_banker=args.sole_banker,
+                    demurrage_per_day=args.demurrage_per_day)
     if args.preflight_only:
         return 0
 
@@ -355,7 +367,8 @@ def main(argv=None) -> int:
                             n_agents=args.agents, seed=train_pool[0],
                             threshold=args.threshold, sandbox=args.sandbox,
                             complexity_level=args.complexity_level,
-                            sole_banker=args.sole_banker)
+                            sole_banker=args.sole_banker,
+                            demurrage_per_day=args.demurrage_per_day)
         for r in rules
     }
 
@@ -377,7 +390,8 @@ def main(argv=None) -> int:
                 seed=seed, days=args.days,
                 cf_enabled=cf_enabled, brain_factory=training_factory,
                 complexity_level=args.complexity_level, status=status_enabled,
-                sole_banker=args.sole_banker)
+                sole_banker=args.sole_banker,
+                demurrage_per_day=args.demurrage_per_day)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
@@ -385,14 +399,16 @@ def main(argv=None) -> int:
             config=SimulationConfig(seed=seed, days=args.days),
             counterfactual=CounterfactualConfig(
                 enabled=rule is not None, rule=rule or "demurrage",
-                hide_rate=True, instrument=True),
+                hide_rate=True, instrument=True,
+                demurrage_per_day=args.demurrage_per_day),
             brain_factory=training_factory,
         )
 
     where = "sandbox" if args.sandbox else "full town"
     level_str = (f", complexity_level={args.complexity_level}, "
                 f"regime_block_size={args.regime_block_size}, "
-                f"sole_banker={args.sole_banker}") if args.sandbox else ""
+                f"sole_banker={args.sole_banker}, "
+                f"demurrage_per_day={args.demurrage_per_day}") if args.sandbox else ""
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}{level_str}, "
           f"status={status_enabled}, rules={','.join(rules)}, hparams={hparams}, "
@@ -453,12 +469,14 @@ def main(argv=None) -> int:
                                     sandbox=args.sandbox,
                                     complexity_level=args.complexity_level,
                                     sole_banker=args.sole_banker,
+                                    demurrage_per_day=args.demurrage_per_day,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, "sandbox": args.sandbox,
               "complexity_level": args.complexity_level, "status": status_enabled,
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
+              "demurrage_per_day": args.demurrage_per_day,
               **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)

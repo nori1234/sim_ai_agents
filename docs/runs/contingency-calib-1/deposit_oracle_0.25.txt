@@ -1,0 +1,226 @@
+{
+  "rule": "demurrage",
+  "n_worlds": 20,
+  "deposit_wealth_weight": 1.0,
+  "sole_banker": true,
+  "demurrage_per_day": 0.25,
+  "blind_return_control": 8.1605,
+  "blind_return_counterfactual": -2.789,
+  "oracle_return_control": 8.1605,
+  "oracle_return_counterfactual": -2.188,
+  "advantage_control": 0.0,
+  "advantage_counterfactual": 0.601,
+  "blind_cf_variance": 0.0643,
+  "blind_cf_std": 0.2537,
+  "blind_control_variance": 5.0662,
+  "effect_size": 2.3693,
+  "oracle_cf_deaths": 2,
+  "worlds_oracle_ahead": 15,
+  "per_world": [
+    {
+      "seed": 42,
+      "blind_control": 9.05,
+      "oracle_control": 9.05,
+      "blind_cf": -2.62,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.28,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 43,
+      "blind_control": 7.23,
+      "oracle_control": 7.23,
+      "blind_cf": -2.77,
+      "blind_cf_alive": true,
+      "oracle_cf": 1.51,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 44,
+      "blind_control": 8.21,
+      "oracle_control": 8.21,
+      "blind_cf": -3.01,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.18,
+      "oracle_cf_alive": false,
+      "oracle_cf_day_of_death": 5
+    },
+    {
+      "seed": 45,
+      "blind_control": 8.07,
+      "oracle_control": 8.07,
+      "blind_cf": -2.72,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.31,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 46,
+      "blind_control": 7.95,
+      "oracle_control": 7.95,
+      "blind_cf": -3.05,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.74,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 47,
+      "blind_control": 9.55,
+      "oracle_control": 9.55,
+      "blind_cf": -2.32,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.82,
+      "oracle_cf_alive": false,
+      "oracle_cf_day_of_death": 11
+    },
+    {
+      "seed": 48,
+      "blind_control": 10.06,
+      "oracle_control": 10.06,
+      "blind_cf": -2.91,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.84,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 49,
+      "blind_control": 7.94,
+      "oracle_control": 7.94,
+      "blind_cf": -2.4,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.19,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 50,
+      "blind_control": 9.14,
+      "oracle_control": 9.14,
+      "blind_cf": -2.9,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.33,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 51,
+      "blind_control": 8.69,
+      "oracle_control": 8.69,
+      "blind_cf": -2.79,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.01,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 52,
+      "blind_control": 7.77,
+      "oracle_control": 7.77,
+      "blind_cf": -2.67,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.22,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 53,
+      "blind_control": 8.19,
+      "oracle_control": 8.19,
+      "blind_cf": -2.97,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.06,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 54,
+      "blind_control": 8.89,
+      "oracle_control": 8.89,
+      "blind_cf": -3.01,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.27,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 55,
+      "blind_control": 10.04,
+      "oracle_control": 10.04,
+      "blind_cf": -2.96,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.43,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 56,
+      "blind_control": 10.25,
+      "oracle_control": 10.25,
+      "blind_cf": -2.45,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.28,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 57,
+      "blind_control": 6.59,
+      "oracle_control": 6.59,
+      "blind_cf": -2.4,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.67,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 58,
+      "blind_control": -0.19,
+      "oracle_control": -0.19,
+      "blind_cf": -2.68,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.65,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 59,
+      "blind_control": 7.15,
+      "oracle_control": 7.15,
+      "blind_cf": -2.95,
+      "blind_cf_alive": true,
+      "oracle_cf": -2.76,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 60,
+      "blind_control": 8.04,
+      "oracle_control": 8.04,
+      "blind_cf": -3.26,
+      "blind_cf_alive": true,
+      "oracle_cf": -3.22,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    },
+    {
+      "seed": 61,
+      "blind_control": 10.59,
+      "oracle_control": 10.59,
+      "blind_cf": -2.94,
+      "blind_cf_alive": true,
+      "oracle_cf": -1.01,
+      "oracle_cf_alive": true,
+      "oracle_cf_day_of_death": null
+    }
+  ]
+}
+
+[deposit-oracle] deposit_wealth_weight (lever 2): 1.0  |  sole_banker (task redesign): True  |  demurrage_per_day: 0.25
+[deposit-oracle] advantage_cf (oracle - blind, counterfactual): +0.6010 (control sanity check: +0.0000, must be 0)
+[deposit-oracle] blind cf per-world std: 0.2537 (variance 0.0643) -> effect size +2.3693
+[deposit-oracle] oracle ahead in 15/20 worlds; oracle deaths in cf: 2/20

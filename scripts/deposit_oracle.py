@@ -56,6 +56,11 @@ def main() -> None:
                           "deposit-chain claim ratchet. Crosses the sign: "
                           "advantage_cf lands slightly positive (see "
                           "docs/runs/deposit-oracle-redesign-1/)")
+    ap.add_argument("--demurrage-per-day", type=float, default=0.15,
+                     help="run #15 contingency-margin dial (cf world only; "
+                          "0.15 = canonical). Calibration rule: band "
+                          "[+0.5, +1.0] sigma, smallest rate in band (see "
+                          "docs/proposals/run15-contingency-margin.md)")
     args = ap.parse_args()
 
     kwargs = {}
@@ -66,13 +71,15 @@ def main() -> None:
         args.persona, rule=args.rule, days=args.days, n_agents=args.agents,
         complexity_level=args.complexity_level,
         deposit_wealth_weight=args.deposit_weight,
-        sole_banker=args.sole_banker, **kwargs)
+        sole_banker=args.sole_banker,
+        demurrage_per_day=args.demurrage_per_day, **kwargs)
 
     d = result.as_dict()
     print(json.dumps(d, indent=2))
     print(f"\n[deposit-oracle] deposit_wealth_weight (lever 2): "
           f"{d['deposit_wealth_weight']}  |  sole_banker (task redesign): "
-          f"{d['sole_banker']}")
+          f"{d['sole_banker']}  |  demurrage_per_day: "
+          f"{d['demurrage_per_day']}")
     print(f"[deposit-oracle] advantage_cf (oracle - blind, counterfactual): "
           f"{d['advantage_counterfactual']:+.4f} "
           f"(control sanity check: {d['advantage_control']:+.4f}, must be 0)")

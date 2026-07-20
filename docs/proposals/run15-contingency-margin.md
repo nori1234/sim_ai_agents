@@ -1,9 +1,13 @@
 # Run #15 pre-registration proposal — widen the contingency margin
 
-Status: **PROPOSAL** — needs sign-off (brain team + owner) before any training
-run. Written per the run #14 note on issue #130: *"changing that would be a NEW
-pre-registration round, not a silent knob turn."* This is that round, drafted
-before any training result exists to bias it.
+Status: **ACTIVE — owner-approved, calibration executed.** The owner delegated
+execution ("任せる、接地を目指す", 2026-07-20); the brain team is notified via
+issue #130 and can still object to the band/rate before the run is read as
+their pre-registration. Calibration landed on **0.25/day** with all four gates
+passing — see `docs/runs/contingency-calib-1/`. Written per the run #14 note on
+issue #130: *"changing that would be a NEW pre-registration round, not a silent
+knob turn."* This is that round, drafted before any training result existed to
+bias it.
 
 ## 1. Motivation (what control-margin-1 changed)
 

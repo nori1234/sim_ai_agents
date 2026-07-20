@@ -57,7 +57,7 @@ def _summary(xs):
 
 def measure_control_margin(persona="guardian", *, seeds=tuple(range(42, 62)),
                             days=20, n_agents=6, sole_banker=False,
-                            complexity_level=0):
+                            complexity_level=0, demurrage_per_day=0.15):
     Oracle = g._deposit_only_oracle_brain_class()
 
     def blind_factory(agent, persona, rng):
@@ -71,7 +71,8 @@ def measure_control_margin(persona="guardian", *, seeds=tuple(range(42, 62)),
         sim = g.make_grounding_sandbox(
             persona, rule="demurrage", n_savers=n_agents - 1, seed=seed,
             days=days, cf_enabled=cf_enabled, brain_factory=factory,
-            complexity_level=complexity_level, sole_banker=sole_banker)
+            complexity_level=complexity_level, sole_banker=sole_banker,
+            demurrage_per_day=demurrage_per_day)
         agent = sim.agents[1]  # agents[0] is the banker
         ret, alive, _ = g._episode_outcome(sim, agent, None)
         return ret, alive
@@ -102,6 +103,7 @@ def measure_control_margin(persona="guardian", *, seeds=tuple(range(42, 62)),
 
     return {
         "persona": persona, "sole_banker": sole_banker, "n_worlds": len(seeds),
+        "demurrage_per_day": demurrage_per_day,
         "seeds": list(seeds),
         # the two margins to a grounded policy
         "control_pull": _summary(control_pull),          # from never-deposit
@@ -129,6 +131,9 @@ def main():
     ap.add_argument("--sole-banker", action="store_true",
                     help="the S6 task redesign run #14 trained on")
     ap.add_argument("--complexity-level", type=int, default=0)
+    ap.add_argument("--demurrage-per-day", type=float, default=0.15,
+                    help="run #15 contingency-margin dial (cf world only; "
+                         "0.15 = canonical)")
     args = ap.parse_args()
 
     kwargs = {}
@@ -138,6 +143,7 @@ def main():
     res = measure_control_margin(
         args.persona, days=args.days, n_agents=args.agents,
         sole_banker=args.sole_banker, complexity_level=args.complexity_level,
+        demurrage_per_day=args.demurrage_per_day,
         **kwargs)
 
     print(json.dumps(res, indent=2))
@@ -147,7 +153,7 @@ def main():
                 f"{s['effect_size']:+5.2f} sigma, {s['worlds_positive']}/{s['n']} worlds +)")
 
     print(f"\n[control-margin] persona={res['persona']} sole_banker={res['sole_banker']} "
-          f"worlds={res['n_worlds']}")
+          f"demurrage_per_day={res['demurrage_per_day']} worlds={res['n_worlds']}")
     print(line("CONTROL pull (deposit in control)", res["control_pull"]))
     print(line("  survivors-only", res["control_pull_survivors"]))
     print(line("CF advantage (hold cash in cf)", res["cf_advantage"]))
