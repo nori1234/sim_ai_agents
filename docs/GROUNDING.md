@@ -58,13 +58,22 @@ of `agents[0]`, the sole banker, the one agent that structurally cannot
 deposit under `sole_banker=True` (its teacher demonstrated deposit zero
 times in every batch — the probe's `probe_teacher_n=0` was the tell). The
 five saver brains, whose teachers deposit densely, were trained and
-discarded. So **the fair-task test has not actually been run yet**; the
-driver now measures the sandbox saver `agents[1]` (the same agent every
-instrument measures), and run #17 — the same pre-registered spec on the
-fixed driver — is the first genuinely fair fair-task run. The rate dial
-stays closed at 0.25 per the one-round rule regardless. Tracked on issue
-#130; `--complexity-level`/`--status` (the complexity ladder, the status
-factorial) remain queued behind this.
+discarded. The driver now measures the sandbox saver
+`agents[1]` (the same agent every instrument measures), and run #17 — the
+same pre-registered spec on the fixed driver — became the first genuinely
+fair fair-task run: **POWERED-NO, valid, with the S4 mechanism quantified.**
+The saver's brain learns deposit-in-general (BC works; propensity 4× the
+uniform floor) but regime-independently, because the decision-level credit
+noise (within-batch advantage spread, tens of reward units) is ~2 orders of
+magnitude above the ±0.60/episode contingency signal — deposit's
+post-normalisation advantage averages ≈ 0 (−0.0116). Grounding is currently
+blocked not by representation (probe 0.81–0.98), not by incentive
+(+0.53σ calibrated), not by exploration (attempts are dense now), but by
+**credit-side signal-to-noise on the scored margin** — the next work is
+brain-side variance reduction aimed at that number, verified in the probe
+fields before any battery is spent. The rate dial stays closed at 0.25 per
+the one-round rule. Tracked on issue #130; `--complexity-level`/`--status`
+(the complexity ladder, the status factorial) remain queued behind this.
 
 Every number in this document is backed by a committed, byte-exact CI log —
 see [`docs/runs/`](runs/) (index + how to add a new one). Prose here can be
@@ -1060,6 +1069,37 @@ local mirror:
     deposits) is resolved by the same finding — that batch was the banker's,
     whose teacher demos everything *except* deposit. Raw:
     [`docs/runs/run-16/`](runs/run-16/) (incl. `probe_analysis.txt`).
+  * **Run #17 — the first VALID fair-task run (fixed driver, measured brain
+    = the sandbox saver): POWERED-NO, with the S4 mechanism finally
+    quantified instead of suspected.** Battery: `n_conclusive = 20/20` (a
+    first), floor-regression powered (n=20), `mean_excess −0.606` (CI
+    entirely negative), `fraction_grounded 0.0`; raw attempts control 91 /
+    cf 117 — ~6× run #15's checkpoint, in *both* regimes. The probe: BC now
+    works (`probe_teacher_n=112`; the saver's teacher demos deposit
+    constantly), the policy learned deposit-in-general (propensity ~0.031 →
+    ~0.083, ~4× the uniform floor, still rising at ep60) — but
+    regime-**independently** (segment-joined propensity control 0.0525 vs
+    cf 0.0522), and the decision-level credit shows why: per-batch returns
+    swing ±10..±140 while the entire regime-contingent payoff is ±0.60 per
+    episode, so deposit's raw (G−V) credit even reads *inverted*
+    (cf +28.7 > control +22.5, episode-return noise, not signal) and its
+    post-normalisation advantage — the thing PG multiplies — averages
+    **−0.0116 ≈ zero**. The calibrated +0.53σ was in oracle-return σ across
+    worlds; the learner faces the within-batch advantage σ, ~2 orders of
+    magnitude larger — a third σ convention, and the one that gates
+    learning. So S4 is not mis-attribution: the contingency signal is
+    simply ~1% of the credit noise at the decision level, and the
+    regime-blind teacher (issue #10's R2) can teach deposit-in-general but
+    not the contingency. Next per the stop rule: brain-side variance
+    reduction aimed at exactly this number (per-episode return centering,
+    regime-aware value baseline — legitimate, the value head already sees
+    the regime-decodable representation — or paired/counterfactual
+    advantage), each falsifiable in the probe fields (success =
+    `probe_adv_used_mean` on deposit separating by regime segment) before
+    any battery is spent. Caveats recorded: `trained_stable=False` with
+    propensity still rising at ep60 (a longer run is cheap and untried),
+    and the cf>control attempt asymmetry (117 vs 91) is unexplained. Raw:
+    [`docs/runs/run-17/`](runs/run-17/) (incl. `probe_analysis.txt`).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
