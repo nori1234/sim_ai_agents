@@ -51,10 +51,18 @@ was never weak (+4.35σ) and located the one thin margin (the cf-side
 contingency margin, +0.20σ — the exact quantity the battery scores), and a
 pre-registered calibration round (run #15, `demurrage_per_day` 0.15→0.25,
 contingency margin +0.53σ) widened it above the noise floor. Run #15 still
-came back POWERED-NO with the policy at the same never-deposit corner —
-so the pre-registered grid closes the task dial for good and puts the
-program's weight on **S4: value/credit assignment on the deposit decision**
-(brain side, per-decision advantage instrumentation). Tracked on issue
+came back POWERED-NO — but the first S4-instrumented run (#16) then caught
+a measurement-selection defect that invalidates runs #14/#15 as fair-task
+tests: the driver had been checkpointing and battery-evaluating the brain
+of `agents[0]`, the sole banker, the one agent that structurally cannot
+deposit under `sole_banker=True` (its teacher demonstrated deposit zero
+times in every batch — the probe's `probe_teacher_n=0` was the tell). The
+five saver brains, whose teachers deposit densely, were trained and
+discarded. So **the fair-task test has not actually been run yet**; the
+driver now measures the sandbox saver `agents[1]` (the same agent every
+instrument measures), and run #17 — the same pre-registered spec on the
+fixed driver — is the first genuinely fair fair-task run. The rate dial
+stays closed at 0.25 per the one-round rule regardless. Tracked on issue
 #130; `--complexity-level`/`--status` (the complexity ladder, the status
 factorial) remain queued behind this.
 
@@ -1019,6 +1027,39 @@ local mirror:
     opposite directions on this action. Raw:
     [`docs/runs/run-15/`](runs/run-15/),
     [`docs/runs/contingency-calib-1/`](runs/contingency-calib-1/).
+  * **Run #16 (the first S4-instrumented run) — the probe found a
+    measurement-selection defect that INVALIDATES runs #14/#15 as fair-task
+    tests; the branch-2 reading above is withdrawn.** The brain side's
+    `probe_verb` instrumentation (per-batch deposit credit/propensity in
+    every training log line, `llm_model_agi@ead7e35`) ran on run #15's exact
+    spec and returned three facts: the logged brain's teacher demonstrated
+    deposit **zero times in every batch** (`probe_teacher_n=0`; its
+    `teacher_frac_in_batch` was ~0.3–0.7, so teacher steps abounded — just
+    never deposits), its deposit propensity sat flat at the uniform floor
+    (~1/47) from first batch to last, and deposit's raw (G−V) credit was
+    *positive and larger than non-deposit's* (+17.2 vs +13.0; regime-ordered
+    correctly, control +25.9 vs cf +8.8). Those three together pin the
+    mechanism, verified in code and empirically: the driver trains a brain
+    per agent but logged/checkpointed **`agents[0]` — the staffed banker —
+    which under `sole_banker=True` is the sole deposit *receiver* and
+    structurally cannot deposit** (`_banker_near` excludes self;
+    `_do_deposit` refuses `bank is agent`). Runs #14/#15 therefore
+    battery-evaluated a brain that never faced the scored decision during
+    training; their POWERED-NO verdicts truthfully describe that checkpoint
+    but say nothing about whether a brain that *did* face the decision
+    learns grounding — **the fair-task test has not actually run yet.** The
+    S6 redesign, the 0.25 calibration, control-margin-1, and the rate-dial
+    one-round rule all stand (instrument-side, brain-independent). Runs
+    #8–#13 are not invalidated by this (without `sole_banker` the banker had
+    chain counterparties and did face the decision). Driver fixed: the
+    measured brain is now the sandbox saver `agents[1]` — the same agent
+    every instrument already measures — selected explicitly and printed at
+    episode 1 and checkpoint time; verified locally (the saver's teacher
+    demonstrates deposit from the very first batch, `probe_teacher_n=15/16`).
+    The teacher-side puzzle noted under run #15 (BC ~0.5 of batch yet no
+    deposits) is resolved by the same finding — that batch was the banker's,
+    whose teacher demos everything *except* deposit. Raw:
+    [`docs/runs/run-16/`](runs/run-16/) (incl. `probe_analysis.txt`).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**

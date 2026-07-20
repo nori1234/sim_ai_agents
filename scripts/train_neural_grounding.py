@@ -415,11 +415,32 @@ def main(argv=None) -> int:
           f"train_pool={train_pool} (battery held-out: {list(BATTERY_SEEDS)})",
           flush=True)
     stable = False
+    measured_id = None   # whose brain gets logged AND checkpointed (see below)
     for ep in range(args.episodes):
         sim = build_episode(ep)
+
+        # Which agent's brain is THE subject of this run? Every agent trains
+        # its own brain, but only one is logged, checkpointed, and battery-
+        # evaluated — and that choice is load-bearing. In the sole-banker
+        # sandbox, agents[0] IS the sole deposit receiver: _banker_near
+        # excludes self, so the banker structurally cannot deposit, and its
+        # teacher never once demonstrates the scored behaviour (run #16's S4
+        # probe measured exactly that: probe_teacher_n=0 across every batch,
+        # deposit propensity flat at the uniform floor). Checkpointing "the
+        # first brain created" therefore evaluated an agent that never faced
+        # the deposit decision — invalidating runs #14/#15 as fair-task tests.
+        # Fix: in sandbox mode the measured agent is agents[1], the same
+        # convention the oracle and battery instruments already use
+        # (emergence/grounding.py: "agents[0] is the banker").
+        if measured_id is None:
+            measured_id = (sim.agents[1].id if args.sandbox else sim.agents[0].id)
+            print(f"[train] measured brain: agent {measured_id} "
+                  f"({'sandbox saver — agents[0] is the banker' if args.sandbox else 'agents[0]'})",
+                  flush=True)
+
         sim.run()
 
-        first = brains[next(iter(brains))]
+        first = brains[measured_id]
         if first._broken or first._dev is None:
             sys.exit("[fatal] the neural backend is not live (fell back to the "
                      "heuristic). Install torch + llm_model_agi and retry — a "
@@ -449,8 +470,12 @@ def main(argv=None) -> int:
             break
 
     # -- final checkpoint + the acceptance battery ----------------------------
-    first = brains[next(iter(brains))]
+    # Checkpoint the MEASURED brain (see the selection note in the training
+    # loop) — not "the first brain created", which in the sole-banker sandbox
+    # is the banker: the one agent that cannot perform the scored behaviour.
+    first = brains[measured_id]
     first._dev.save_checkpoint(ckpt)
+    print(f"[checkpoint] saved agent {measured_id}'s brain -> {ckpt}", flush=True)
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
