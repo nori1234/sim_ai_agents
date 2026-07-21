@@ -3,8 +3,9 @@
 > **系の全体像（3リポジトリ＝1つの系・器官マップ・ロードマップ）は [`docs/SYSTEM.md`](SYSTEM.md) が真実の単一ソース。**
 > この HANDOFF は sim(世界)側の運用引き継ぎ、SYSTEM.md は3リポ横断の背骨。
 
-次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #20/#25(A1)完了・
-訓練不安定の根本修正済み・run #26(v1b)訓練中)。
+次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #25(A1)=POWERED-NO・
+訓練不安定の根本修正済み・decodability 94%・**記憶 v2a 実装/実測(ヒット8.6%→66%)**・
+recall 性能修正・run #27(v1b)訓練中)。要約と深掘りは `GROUNDING.md` 冒頭。
 古くなっていたら、この日付以降の `main` の履歴・issue #99/#130 のコメントが正。
 
 ## 体制と役割
@@ -80,15 +81,30 @@
 - 一次資料: `docs/runs/run-1[5-9]/`・`run-20/`・`run-25/`(各 README+battery.json)、
   `control-margin-1`・`contingency-calib-1`、叙述は `docs/GROUNDING.md`、経緯は #130。
 
+### 最上位の枠組み（`GROUNDING.md` 冒頭「現在の全体像」＋「帰結の行動化」深掘り）
+知覚は解けた。世界→観測→符号化(94%保持)→教師→記憶、まで信号は通り、**方策/行動の1段だけ
+で止まる**。∴ 接地の壁 = **帰結の"行動化"**（登録済みの帰結を行動に効かせる＝クレジット割当）。
+分解すると壁は **②標本密度 × ③信号純度**（①帰属は#18/19でほぼ解決、④表現力は限界でない）。
+さらに芯: **"回避行動"は自己抑制する**（止めるべき行動こそが、なぜ止めるかを標本する唯一の手段）
+→ 正面の解は探索/PG調整でなく**帰結の off-policy 保持**＝**記憶** ＋ **予測的/特権critic**。
+
 **次の分岐**:
-(a) **表現の学習可能性ライン(POWERED-NO の事前登録フォローアップ)**: まず上記の
-LayerNorm 交絡チェック(正規化状態の regime decodability probe)、次に観測エンコード/
-memoryless方策が「demurrage→預けない」を*表現・学習*できるかを直接測る。メトリクスの
-再チューニングではない。
-(b) **記憶ライン(v1b=run #26 訓練中)**: `memory_into_policy=true` で「この状況の過去の
-帰結」を想起して h に足す。memoryless方策の信号の薄さ(ticksをまたぐ随伴性)への構造的
-回答になりうるか——#17–20/#25 に対して接地が動くかを測る。結果待ち。
-(c) 本物のLLM親——ただし CI 訓練ループは CPU・LLM未接続なので要環境整備。
+(a) **記憶ライン（本線化）**: v1b=run #27（`memory_into_policy`, exact-hash）訓練中・結果待ち。
+   だが**記憶機構の実測が進んだ**: 完全一致キーは想起ヒット **5.7%**（`scratchpad/mem_hitrate*.py`）
+   ＝near-inert。→ **v2a 実装済み**: `memory_key_mode="state_lsh"`（符号化状態の決定論LSHバケット、
+   既定オフで byte一致不変）。同一ストリームで **8.6%→66%（12bit）/78%（8bit）** に被覆↑を実測。
+   粗いほど regime 平滑化（demurrage 想起 −0.284→−0.145→−0.082）＝v2b(文脈キー)の動機。
+   設計は `agent_agi/docs/10_associative_memory_v2.md`（v0→部分→文脈→推移グラフの梯子）。
+   **即・次の dispatch**: v1b 着地後、`hparams` に `memory_key_mode:"state_lsh"`（12bit）を載せた
+   grounding run（＝v1b 6% への直接対照「被覆を66%に上げたら control−cf は動くか」）。build_brain
+   が hparams→AgentConfig を通すのでコード変更不要。**性能修正済み**: `DeterministicMemoryStore`
+   の recall が O(全件)→O(tag件)（run #27 が A1 より遥かに長い主因。determinism不変・テスト有）。
+(b) **予測的/特権critic ライン**: 密で純な per-step クレジット（訓練時 regime を見て「ここでの
+   deposit は損」を毎step出す）。密度(軸1)と純度(軸2)を1手で。iStar/process-reward 系（外部整合）。
+(c) **表現の学習可能性ライン**: 第一問「符号化に随伴性は在るか」は decodability probe が **94%で
+   YES**＝**エンコードは詰まりでない**と回答済み。以降このラインの優先度は下がる（トークナイザ改良
+   より上記(a)(b)）。
+(d) 本物のLLM親——ただし CI 訓練ループは CPU・LLM未接続なので要環境整備。
 
 ## 実行の要点(グラウンディング計測)
 
