@@ -70,11 +70,26 @@ carried in the *scale* of `encode_state` (rather than the token pattern), this
 run could not see it — a confound this specific config did not have before.
 Mitigating argument: the regime shows up in the observation as a token-level
 *pattern* (deposit/money trend), which LayerNorm preserves; and this POWERED-NO
-matches the pre-stabilization runs #17–20, which had no such norm. Still, a
-clean check (a with/without-norm control on a config that *did* ground, or a
-decodability probe on the normalised state) is owed before treating "the
-representation can't learn it" as settled. Filed as the first task of the
-representation-learnability line.
+matches the pre-stabilization runs #17–20, which had no such norm.
+
+**Checked and CLOSED** by `scripts/probe_regime_decodability.py` (a linear probe
+regime←representation, 7680 sandbox observations, held-out 30%):
+
+| representation | balanced accuracy |
+|---|---|
+| raw `encode_state` (pre-norm) | **0.944** |
+| normed (LayerNorm'd — what the policy reads) | **0.942** |
+| shuffled-label control | 0.517 (≈ chance) |
+
+Regime is 94% linearly decodable from the state, and LayerNorm keeps essentially
+all of it (−0.002). So (a) the norm is not a confound, and (b) — the stronger
+finding — the **encoding is not the bottleneck**: the contingency is richly,
+linearly present in exactly the vector the policy reads. A1's POWERED-NO is a
+**policy / credit-assignment** failure (BC + sparse PG can't convert a decodable
+feature into contingent behaviour), not a representation-encoding one. This
+de-prioritises tokenizer/representation work and re-prioritises the credit /
+exploration / temporal-memory levers (v1b included). Full output:
+[`repr-decodability-1.txt`](repr-decodability-1.txt).
 
 ## Also new this run
 

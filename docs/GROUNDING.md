@@ -1137,6 +1137,61 @@ local mirror:
     exploration, or the **temporal-memory/body integration** (`agent_agi/docs/09`
     — a memoryless policy has almost no signal about a consequence that unfolds
     over ticks). Raw: [`docs/runs/run-20/`](runs/run-20/).
+  * **Run #25 — A1, the grounded scripted teacher (#10(c)): the teaching
+    channel does NOT transmit grounding. POWERED-NO.** The regime-*blind*
+    HeuristicBrain teacher was replaced by the regime-*aware* grounded
+    heuristic (deposits in control, RESTs under demurrage), told the
+    ground-truth regime each episode, with `bc_weight` held open at 0.3 (no
+    anneal — keep the channel open). This measures the teaching-channel
+    ceiling: can grounding transmit through BC *at all* when the teacher has
+    it? It cannot. `grounded_confirmed = False`, POWERED-NO
+    (`fraction_grounded 0.00`, `wilcoxon_p 1.0`, mean excess ≈ −0.59, n=20);
+    raw attempts **control 167 ≈ counterfactual 160** — the student deposits
+    at the same rate in both regimes, and even the control-side density stays
+    near the not-deposit floor (~0.08). So a teacher demonstrating the correct
+    contingent behaviour every step still transmits neither the *contingency*
+    nor much *density*. This is the run-20 pre-registered **fail** branch: it
+    **implicates policy / representation capacity, not the availability of a
+    grounded teacher** — the bottleneck is not "we need an LLM/human parent."
+    Next is the POWERED-NO follow-up: *representation learnability* (can the
+    observation encoding + memoryless policy even express/learn "demurrage →
+    don't deposit"), not more metric tuning. Raw:
+    [`docs/runs/run-25/`](runs/run-25/).
+    * **Two infrastructure facts this run also nailed down.** (1) Runs #21/#22
+      (this A1 config, and v1b) had crashed to a *silent heuristic fallback*:
+      the developmental brain diverged numerically (`encode_state` had no
+      output norm → value MSE / raw world-model curiosity / policy logits grew
+      until `torch.multinomial` raised on NaN), and `decide()`'s bare `except`
+      swallowed the cause. Metastable — an unlucky weight init diverged at
+      episode 1, a lucky one limped to ~ep163 — and the trainer never seeded
+      RNG, so the timing was luck. Fixed brain-side (parameter-free
+      `F.layer_norm` on the state + skip-update-on-nonfinite guard) and
+      engine-side (seed RNG from `--seed`; surface the swallowed traceback in
+      the fatal message). Run #25 is the first fully deterministic run and the
+      CI validation of the fix (200 clean episodes). (2) `agent_agi` (the
+      memory organ) is installed in CI only when `memory="episodic"` is
+      requested, guarded to fail loud rather than fall back silently.
+    * **The LayerNorm caveat — raised, then CLOSED by a decodability probe.**
+      The stabilizing LayerNorm discards state magnitude, so if the regime
+      signal lived in the *scale* of `encode_state` this run could not see it.
+      `scripts/probe_regime_decodability.py` settled it: fit a linear probe
+      regime←representation on 7680 sandbox observations (control+demurrage,
+      held-out 30%). **Regime is 94% linearly decodable** from the raw state
+      (0.944) and **LayerNorm keeps essentially all of it** (normed 0.942;
+      shuffled-label control 0.517 ≈ chance). So the norm is not a confound,
+      and — more importantly — the encoding is *not* the bottleneck: the regime
+      is richly, linearly present in exactly the vector the policy reads.
+    * **What that does to the representation-learnability line.** The first
+      question of that line ("is the contingency even present/recoverable in
+      the encoded observation?") is answered **yes** — decisively. So A1's
+      POWERED-NO is **not** a representation-encoding failure; the wall is the
+      **policy / credit-assignment channel**, which cannot convert a
+      94%-decodable state feature into regime-contingent behaviour from the
+      available signals (BC toward the teacher + sparse self-play PG). This
+      *de-prioritises* tokenizer/representation work and *re-prioritises* the
+      credit/exploration and temporal-memory levers — i.e. it strengthens the
+      case for the memory line (v1b) and for a stronger credit signal over
+      more encoding work.
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
