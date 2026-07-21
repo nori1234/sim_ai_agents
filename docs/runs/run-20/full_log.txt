@@ -1,0 +1,1235 @@
+Current runner version: '2.335.1'
+##[group]Runner Image Provisioner
+Hosted Compute Agent
+Version: 20260707.563
+Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+Build Date: 2026-07-07T19:33:50Z
+Worker ID: {464712d5-8e73-4864-968f-04a84d182f13}
+Azure Region: westus3
+##[endgroup]
+##[group]Operating System
+Ubuntu
+24.04.4
+LTS
+##[endgroup]
+##[group]Runner Image
+Image: ubuntu-24.04
+Version: 20260714.240.1
+Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260714.240/images/ubuntu/Ubuntu2404-Readme.md
+Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260714.240
+##[endgroup]
+##[group]GITHUB_TOKEN Permissions
+Contents: read
+Metadata: read
+##[endgroup]
+Secret source: Actions
+Prepare workflow directory
+Prepare all required actions
+Getting action download info
+Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Complete job name: train-and-battery
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/checkout@v4
+with:
+  repository: nori1234/sim_ai_agents
+  token: ***
+  ssh-strict: true
+  ssh-user: git
+  persist-credentials: true
+  clean: true
+  sparse-checkout-cone-mode: true
+  fetch-depth: 1
+  fetch-tags: false
+  show-progress: true
+  lfs: false
+  submodules: false
+  set-safe-directory: true
+  allow-unsafe-pr-checkout: false
+##[endgroup]
+Syncing repository: nori1234/sim_ai_agents
+##[group]Getting Git version info
+Working directory is '/home/runner/work/sim_ai_agents/sim_ai_agents'
+[command]/usr/bin/git version
+git version 2.54.0
+##[endgroup]
+Temporarily overriding HOME='/home/runner/work/_temp/be2e9e8e-2074-44cb-bddb-adca66432c1d' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+Deleting the contents of '/home/runner/work/sim_ai_agents/sim_ai_agents'
+##[group]Initializing the repository
+[command]/usr/bin/git init /home/runner/work/sim_ai_agents/sim_ai_agents
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: will change to "main" in Git 3.0. To configure the initial branch name
+hint: to use in all of your new repositories, which will suppress this warning,
+hint: call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /home/runner/work/sim_ai_agents/sim_ai_agents/.git/
+[command]/usr/bin/git remote add origin https://github.com/nori1234/sim_ai_agents
+##[endgroup]
+##[group]Disabling automatic garbage collection
+[command]/usr/bin/git config --local gc.auto 0
+##[endgroup]
+##[group]Setting up auth
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+[command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+##[endgroup]
+##[group]Fetching the repository
+[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e25567cb50e8998b6e664a22e7b632aa99568d3a:refs/remotes/origin/claude/investigation-t0zm4z
+From https://github.com/nori1234/sim_ai_agents
+ * [new ref]         e25567cb50e8998b6e664a22e7b632aa99568d3a -> origin/claude/investigation-t0zm4z
+##[endgroup]
+##[group]Determining the checkout info
+##[endgroup]
+[command]/usr/bin/git sparse-checkout disable
+[command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+##[group]Checking out the ref
+[command]/usr/bin/git checkout --progress --force -B claude/investigation-t0zm4z refs/remotes/origin/claude/investigation-t0zm4z
+Switched to a new branch 'claude/investigation-t0zm4z'
+branch 'claude/investigation-t0zm4z' set up to track 'origin/claude/investigation-t0zm4z'.
+##[endgroup]
+[command]/usr/bin/git log -1 --format=%H
+e25567cb50e8998b6e664a22e7b632aa99568d3a
+##[group]Run actions/setup-python@v6
+with:
+  python-version: 3.11
+  check-latest: false
+  token: ***
+  update-environment: true
+  allow-prereleases: false
+  freethreaded: false
+##[endgroup]
+##[group]Installed versions
+Successfully set up CPython (3.11.15)
+##[endgroup]
+##[group]Run pip install -e .
+[36;1mpip install -e .[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+Obtaining file:///home/runner/work/sim_ai_agents/sim_ai_agents
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: emergence-world
+  Building editable for emergence-world (pyproject.toml): started
+  Building editable for emergence-world (pyproject.toml): finished with status 'done'
+  Created wheel for emergence-world: filename=emergence_world-0.1.0-0.editable-py3-none-any.whl size=13185 sha256=fde185627f5ee0b00c3f65ea070d0d47f1e2424f69a0362fdb15e65b677f198e
+  Stored in directory: /tmp/pip-ephem-wheel-cache-7qycbkcq/wheels/52/8d/d8/bfe3e6ecdd7e97f01df2b7362d9aba166e0556e354d0854f92
+Successfully built emergence-world
+Installing collected packages: emergence-world
+Successfully installed emergence-world-0.1.0
+##[group]Run if [ -z "$LLM_TOKEN" ]; then
+[36;1mif [ -z "$LLM_TOKEN" ]; then[0m
+[36;1m  echo "::error::LLM_MODEL_AGI_TOKEN secret is empty — set it in the repo's Actions secrets."[0m
+[36;1m  exit 1[0m
+[36;1mfi[0m
+[36;1mgit config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  LLM_TOKEN: ***
+##[endgroup]
+##[group]Run pip install "$TORCH_SPEC"
+[36;1mpip install "$TORCH_SPEC"[0m
+[36;1mpip install "$LLM_MODEL_AGI_REF"[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  TORCH_SPEC: torch
+  LLM_MODEL_AGI_REF: git+https://github.com/nori1234/llm_model_agi@claude/investigation-t0zm4z
+##[endgroup]
+Collecting torch
+  Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl.metadata (38 kB)
+Collecting filelock (from torch)
+  Downloading filelock-3.31.1-py3-none-any.whl.metadata (2.0 kB)
+Collecting typing-extensions>=4.10.0 (from torch)
+  Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch) (79.0.1)
+Collecting sympy>=1.13.3 (from torch)
+  Downloading sympy-1.14.0-py3-none-any.whl.metadata (12 kB)
+Collecting networkx>=2.5.1 (from torch)
+  Downloading networkx-3.6.1-py3-none-any.whl.metadata (6.8 kB)
+Collecting jinja2 (from torch)
+  Downloading jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+Collecting fsspec>=0.8.5 (from torch)
+  Downloading fsspec-2026.6.0-py3-none-any.whl.metadata (10 kB)
+Collecting cuda-toolkit==13.0.3 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl.metadata (17 kB)
+Collecting cuda-bindings<14,>=13.0.3 (from torch)
+  Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (2.5 kB)
+Collecting nvidia-cudnn-cu13==9.20.0.48 (from torch)
+  Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl.metadata (1.9 kB)
+Collecting nvidia-cusparselt-cu13==0.8.1 (from torch)
+  Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl.metadata (12 kB)
+Collecting nvidia-nccl-cu13==2.29.7 (from torch)
+  Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl.metadata (2.1 kB)
+Collecting nvidia-nvshmem-cu13==3.4.5 (from torch)
+  Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.1 kB)
+Collecting triton==3.7.1 (from torch)
+  Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cublas==13.1.1.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cuda-nvrtc==13.0.88.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-runtime==13.0.96.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cufft==12.0.0.61.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvjitlink<14,>=13.0.88 (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cufile==1.15.1.6.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cuda-cupti==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-curand==10.4.0.35.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl.metadata (1.7 kB)
+Collecting nvidia-cusolver==12.0.4.66.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-cusparse==12.6.3.3.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (1.8 kB)
+Collecting nvidia-nvtx==13.0.85.* (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch)
+  Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl.metadata (1.8 kB)
+Collecting cuda-pathfinder>=1.4.2 (from cuda-bindings<14,>=13.0.3->torch)
+  Downloading cuda_pathfinder-1.5.6-py3-none-any.whl.metadata (1.9 kB)
+Collecting mpmath<1.4,>=1.1.0 (from sympy>=1.13.3->torch)
+  Downloading mpmath-1.3.0-py3-none-any.whl.metadata (8.6 kB)
+Collecting MarkupSafe>=2.0 (from jinja2->torch)
+  Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+Downloading torch-2.13.0-cp311-cp311-manylinux_2_28_x86_64.whl (526.6 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 526.6/526.6 MB 80.6 MB/s  0:00:04
+Downloading cuda_toolkit-13.0.3.0-py2.py3-none-any.whl (2.5 kB)
+Downloading nvidia_cudnn_cu13-9.20.0.48-py3-none-manylinux_2_27_x86_64.whl (366.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 366.2/366.2 MB 89.4 MB/s  0:00:03
+Downloading nvidia_cusparselt_cu13-0.8.1-py3-none-manylinux2014_x86_64.whl (170.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 170.1/170.1 MB 270.8 MB/s  0:00:00
+Downloading nvidia_nccl_cu13-2.29.7-py3-none-manylinux_2_18_x86_64.whl (206.0 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 206.0/206.0 MB 219.3 MB/s  0:00:00
+Downloading nvidia_nvshmem_cu13-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (60.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 MB 174.7 MB/s  0:00:00
+Downloading triton-3.7.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (197.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 197.7/197.7 MB 92.9 MB/s  0:00:02
+Downloading cuda_bindings-13.3.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (6.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.7/6.7 MB 197.7 MB/s  0:00:00
+Downloading nvidia_cublas-13.1.1.3-py3-none-manylinux_2_27_x86_64.whl (423.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 423.1/423.1 MB 79.1 MB/s  0:00:03
+Downloading nvidia_cuda_cupti-13.0.85-py3-none-manylinux_2_25_x86_64.whl (10.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 10.7/10.7 MB 254.9 MB/s  0:00:00
+Downloading nvidia_cuda_nvrtc-13.0.88-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (90.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.2/90.2 MB 222.0 MB/s  0:00:00
+Downloading nvidia_cuda_runtime-13.0.96-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 124.5 MB/s  0:00:00
+Downloading nvidia_cufft-12.0.0.61-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (214.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 MB 185.3 MB/s  0:00:01
+Downloading nvidia_cufile-1.15.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 2.0 MB/s  0:00:00
+Downloading nvidia_curand-10.4.0.35-py3-none-manylinux_2_27_x86_64.whl (59.5 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.5/59.5 MB 245.1 MB/s  0:00:00
+Downloading nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_x86_64.whl (200.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 200.9/200.9 MB 175.5 MB/s  0:00:01
+Downloading nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (145.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 145.9/145.9 MB 148.7 MB/s  0:00:00
+Downloading nvidia_nvjitlink-13.3.33-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl (40.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 40.7/40.7 MB 118.7 MB/s  0:00:00
+Downloading nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl (148 kB)
+Downloading cuda_pathfinder-1.5.6-py3-none-any.whl (52 kB)
+Downloading fsspec-2026.6.0-py3-none-any.whl (203 kB)
+Downloading networkx-3.6.1-py3-none-any.whl (2.1 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 183.3 MB/s  0:00:00
+Downloading sympy-1.14.0-py3-none-any.whl (6.3 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.3/6.3 MB 375.6 MB/s  0:00:00
+Downloading mpmath-1.3.0-py3-none-any.whl (536 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 536.2/536.2 kB 104.9 MB/s  0:00:00
+Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Downloading filelock-3.31.1-py3-none-any.whl (97 kB)
+Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+Installing collected packages: nvidia-cusparselt-cu13, mpmath, cuda-toolkit, typing-extensions, triton, sympy, nvidia-nvtx, nvidia-nvshmem-cu13, nvidia-nvjitlink, nvidia-nccl-cu13, nvidia-curand, nvidia-cufile, nvidia-cuda-runtime, nvidia-cuda-nvrtc, nvidia-cuda-cupti, networkx, MarkupSafe, fsspec, filelock, cuda-pathfinder, nvidia-cusparse, nvidia-cufft, nvidia-cublas, jinja2, cuda-bindings, nvidia-cusolver, nvidia-cudnn-cu13, torch
+
+Successfully installed MarkupSafe-3.0.3 cuda-bindings-13.3.1 cuda-pathfinder-1.5.6 cuda-toolkit-13.0.3.0 filelock-3.31.1 fsspec-2026.6.0 jinja2-3.1.6 mpmath-1.3.0 networkx-3.6.1 nvidia-cublas-13.1.1.3 nvidia-cuda-cupti-13.0.85 nvidia-cuda-nvrtc-13.0.88 nvidia-cuda-runtime-13.0.96 nvidia-cudnn-cu13-9.20.0.48 nvidia-cufft-12.0.0.61 nvidia-cufile-1.15.1.6 nvidia-curand-10.4.0.35 nvidia-cusolver-12.0.4.66 nvidia-cusparse-12.6.3.3 nvidia-cusparselt-cu13-0.8.1 nvidia-nccl-cu13-2.29.7 nvidia-nvjitlink-13.3.33 nvidia-nvshmem-cu13-3.4.5 nvidia-nvtx-13.0.85 sympy-1.14.0 torch-2.13.0 triton-3.7.1 typing-extensions-4.16.0
+Collecting git+https://github.com/nori1234/llm_model_agi@claude/investigation-t0zm4z
+  Cloning https://github.com/nori1234/llm_model_agi (to revision claude/investigation-t0zm4z) to /tmp/pip-req-build-t67ifk0m
+  Running command git clone --filter=blob:none --quiet https://github.com/nori1234/llm_model_agi /tmp/pip-req-build-t67ifk0m
+  Running command git checkout -b claude/investigation-t0zm4z --track origin/claude/investigation-t0zm4z
+  Switched to a new branch 'claude/investigation-t0zm4z'
+  branch 'claude/investigation-t0zm4z' set up to track 'origin/claude/investigation-t0zm4z'.
+  Resolved https://github.com/nori1234/llm_model_agi to commit a7f7ddc184cdf4710e2897bc4e7ba5ee1b31baba
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: torch>=2.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from llm_model_agi==0.1.0) (2.13.0)
+Collecting numpy>=1.24 (from llm_model_agi==0.1.0)
+  Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (6.6 kB)
+Requirement already satisfied: filelock in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.31.1)
+Requirement already satisfied: typing-extensions>=4.10.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (4.16.0)
+Requirement already satisfied: setuptools>=77.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (79.0.1)
+Requirement already satisfied: sympy>=1.13.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.6.1)
+Requirement already satisfied: jinja2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2026.6.0)
+Requirement already satisfied: cuda-toolkit==13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.3.0)
+Requirement already satisfied: cuda-bindings<14,>=13.0.3 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (13.3.1)
+Requirement already satisfied: nvidia-cudnn-cu13==9.20.0.48 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (9.20.0.48)
+Requirement already satisfied: nvidia-cusparselt-cu13==0.8.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (0.8.1)
+Requirement already satisfied: nvidia-nccl-cu13==2.29.7 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (2.29.7)
+Requirement already satisfied: nvidia-nvshmem-cu13==3.4.5 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.4.5)
+Requirement already satisfied: triton==3.7.1 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from torch>=2.2->llm_model_agi==0.1.0) (3.7.1)
+Requirement already satisfied: nvidia-cublas==13.1.1.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.1.1.3)
+Requirement already satisfied: nvidia-cuda-nvrtc==13.0.88.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.88)
+Requirement already satisfied: nvidia-cuda-runtime==13.0.96.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.96)
+Requirement already satisfied: nvidia-cufft==12.0.0.61.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.0.61)
+Requirement already satisfied: nvidia-nvjitlink<14,>=13.0.88 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.3.33)
+Requirement already satisfied: nvidia-cufile==1.15.1.6.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (1.15.1.6)
+Requirement already satisfied: nvidia-cuda-cupti==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+Requirement already satisfied: nvidia-curand==10.4.0.35.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (10.4.0.35)
+Requirement already satisfied: nvidia-cusolver==12.0.4.66.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.0.4.66)
+Requirement already satisfied: nvidia-cusparse==12.6.3.3.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (12.6.3.3)
+Requirement already satisfied: nvidia-nvtx==13.0.85.* in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-toolkit[cublas,cudart,cufft,cufile,cupti,curand,cusolver,cusparse,nvjitlink,nvrtc,nvtx]==13.0.3; platform_system == "Linux"->torch>=2.2->llm_model_agi==0.1.0) (13.0.85)
+Requirement already satisfied: cuda-pathfinder>=1.4.2 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from cuda-bindings<14,>=13.0.3->torch>=2.2->llm_model_agi==0.1.0) (1.5.6)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from sympy>=1.13.3->torch>=2.2->llm_model_agi==0.1.0) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages (from jinja2->torch>=2.2->llm_model_agi==0.1.0) (3.0.3)
+Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 36.9 MB/s  0:00:00
+Building wheels for collected packages: llm_model_agi
+  Building wheel for llm_model_agi (pyproject.toml): started
+  Building wheel for llm_model_agi (pyproject.toml): finished with status 'done'
+  Created wheel for llm_model_agi: filename=llm_model_agi-0.1.0-py3-none-any.whl size=72569 sha256=deba917e63af85fe0a834785a0cbc0b35f6e632e27c1588d9d67b996e977eedb
+  Stored in directory: /tmp/pip-ephem-wheel-cache-r_ok42pz/wheels/16/82/26/cd362eee88569d284ae46857f33c16ca098ecda4ff0c798906
+Successfully built llm_model_agi
+Installing collected packages: numpy, llm_model_agi
+
+Successfully installed llm_model_agi-0.1.0 numpy-2.4.6
+##[group]Run python - <<'PY'
+[36;1mpython - <<'PY'[0m
+[36;1mimport importlib.util, sys[0m
+[36;1mif importlib.util.find_spec("agent.adapters.emergence") is None:[0m
+[36;1m    sys.exit("agent.adapters.emergence did not install — training would "[0m
+[36;1m             "silently fall back to the heuristic. Check llm_model_agi_ref.")[0m
+[36;1mprint("adapter importable — training for real.")[0m
+[36;1mPY[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+adapter importable — training for real.
+##[group]Run python - <<'PY'
+[36;1mpython - <<'PY'[0m
+[36;1mimport sys[0m
+[36;1mfrom agent.adapters.emergence import build_brain[0m
+[36;1mbrain = build_brain("guardian", None, None)[0m
+[36;1mversion = getattr(getattr(brain, "tokenize", None), "version",[0m
+[36;1m                  "PRE-v2 CODE (= v1!)")[0m
+[36;1mprint(f"[guard] obs tokenizer version: {version}")[0m
+[36;1mif version != "v2":[0m
+[36;1m    sys.exit(f"[fatal] expected obs tokenizer v2, got {version!r} — "[0m
+[36;1m             "llm_model_agi_ref is pinned before the v2 fix (commit "[0m
+[36;1m             "9bc016c). v1 collapses observation structure into opaque "[0m
+[36;1m             "hashes (see docs/GROUNDING.md) — measuring with it silently "[0m
+[36;1m             "invalidates any grounding result. Update llm_model_agi_ref "[0m
+[36;1m             "to a ref that includes the fix and re-dispatch.")[0m
+[36;1mPY[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+[guard] obs tokenizer version: v2
+##[group]Run python scripts/train_neural_grounding.py \
+[36;1mpython scripts/train_neural_grounding.py \[0m
+[36;1m  --episodes "$EPISODES" \[0m
+[36;1m  --days "$DAYS" \[0m
+[36;1m  --agents "$AGENTS" \[0m
+[36;1m  --seed "$SEED" \[0m
+[36;1m  --pool-size "$POOL_SIZE" \[0m
+[36;1m  --probe-every "$PROBE_EVERY" \[0m
+[36;1m  --window "$WINDOW" \[0m
+[36;1m  --sandbox \[0m
+[36;1m  --sole-banker \[0m
+[36;1m  --complexity-level "$COMPLEXITY_LEVEL" \[0m
+[36;1m  --demurrage-per-day "$DEMURRAGE_PER_DAY" \[0m
+[36;1m   \[0m
+[36;1m   \[0m
+[36;1m  --regime-block-size "$REGIME_BLOCK_SIZE" \[0m
+[36;1m  --floor-rollouts "$FLOOR_ROLLOUTS" \[0m
+[36;1m   \[0m
+[36;1m  --hparams "$HPARAMS" \[0m
+[36;1m  --out grounding_out[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+  EPISODES: 200
+  DAYS: 20
+  AGENTS: 6
+  SEED: 1000
+  POOL_SIZE: 16
+  PROBE_EVERY: 5
+  WINDOW: 3
+  COMPLEXITY_LEVEL: 0
+  DEMURRAGE_PER_DAY: 0.25
+  REGIME_BLOCK_SIZE: 1
+  FLOOR_ROLLOUTS: 1
+  HPARAMS: {"bc_weight": 0.3, "self_attempt_base": 0.3, "batch_every": 64, "adv_baseline": "episode", "bc_weight_decay_steps": 300, "bc_weight_min": 0.05}
+##[endgroup]
+[preflight] estimated conclusive yield vs 20 held-out worlds (heuristic proxy, need >= 6 per rule for floor_regression to be powered):
+   demurrage: 20/20 conclusive  [ok]
+[train] up to 200 episodes x 20 days, 6 agents, persona=guardian, sandbox, complexity_level=0, regime_block_size=1, sole_banker=True, demurrage_per_day=0.25, status=False, rules=demurrage, hparams={'bc_weight': 0.3, 'self_attempt_base': 0.3, 'batch_every': 64, 'adv_baseline': 'episode', 'bc_weight_decay_steps': 300, 'bc_weight_min': 0.05}, train_pool=[1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015] (battery held-out: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61])
+[train] measured brain: agent a2 (sandbox saver — agents[0] is the banker)
+[train] episode 1/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.226593017578125, 'curiosity': 0.10642914474010468, 'competence': 0.0209, 'loss': 193.04464721679688, 'grad_steps': 2, 'lr': 0.0003, 'episodes_seen': 1, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.734375, 'bc_weight_effective': 0.3, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 12.6298, 'probe_prob_mean': 0.0216, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0216, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 2/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 20.61106300354004, 'curiosity': 0.14757709205150604, 'competence': 0.0211, 'loss': 415.5458068847656, 'grad_steps': 4, 'lr': 0.0003, 'episodes_seen': 2, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2999, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.0034, 'probe_adv_used_mean': -0.5615, 'probe_G_mean': 15.454, 'nonprobe_adv_raw_mean': 18.5101, 'probe_prob_mean': 0.0258, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0258, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.0034, 'probe_adv_used_mean': -0.5615}]}
+[train] episode 3/200 done | {'stage': 'REACTIVE', 'reward': -0.12, 'return': 37.639408111572266, 'curiosity': 0.2906910181045532, 'competence': 0.0546, 'loss': 1420.3740234375, 'grad_steps': 7, 'lr': 0.0003, 'episodes_seen': 3, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.2998, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 58.2535, 'probe_adv_used_mean': 1.3519, 'probe_G_mean': 64.3408, 'nonprobe_adv_raw_mean': 38.9712, 'probe_prob_mean': 0.0205, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0205, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 58.2535, 'probe_adv_used_mean': 1.3519}]}
+[train] episode 4/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 54.585636138916016, 'curiosity': 0.4103577435016632, 'competence': 0.0257, 'loss': 2842.915283203125, 'grad_steps': 9, 'lr': 0.0003, 'episodes_seen': 4, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.703125, 'bc_weight_effective': 0.2996, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 47.9815, 'probe_prob_mean': 0.0202, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0202, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 5/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 58.203147888183594, 'curiosity': 0.4170464277267456, 'competence': 0.0424, 'loss': 3063.03662109375, 'grad_steps': 11, 'lr': 0.0003, 'episodes_seen': 5, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.703125, 'bc_weight_effective': 0.2993, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 45.8631, 'probe_prob_mean': 0.021, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.021, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 5: excess demurrage=-0.5056(streak 0)
+[train] episode 6/200 done | {'stage': 'REACTIVE', 'reward': 0.54, 'return': 39.61775207519531, 'curiosity': 0.2788082957267761, 'competence': 0.0089, 'loss': 1106.8909912109375, 'grad_steps': 14, 'lr': 0.0003, 'episodes_seen': 6, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.71875, 'bc_weight_effective': 0.2988, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 28.8281, 'probe_prob_mean': 0.0203, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0203, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 7/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 35.848899841308594, 'curiosity': 0.23290230333805084, 'competence': 0.0177, 'loss': 846.2648315429688, 'grad_steps': 16, 'lr': 0.0003, 'episodes_seen': 7, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.2985, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.0362, 'probe_adv_used_mean': -1.734, 'probe_G_mean': 12.9086, 'nonprobe_adv_raw_mean': 22.5298, 'probe_prob_mean': 0.0223, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0223, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.0362, 'probe_adv_used_mean': -1.734}]}
+[train] episode 8/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 31.958419799804688, 'curiosity': 0.1966938078403473, 'competence': 0.0239, 'loss': 614.6380615234375, 'grad_steps': 18, 'lr': 0.0003, 'episodes_seen': 8, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.298, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 23.2046, 'probe_prob_mean': 0.0239, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0239, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 9/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 19.88953399658203, 'curiosity': 0.10564794391393661, 'competence': 0.0455, 'loss': 119.29778289794922, 'grad_steps': 20, 'lr': 0.0003, 'episodes_seen': 9, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.71875, 'bc_weight_effective': 0.2975, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 11, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 25.7963, 'nonprobe_adv_raw_mean': 9.1008, 'probe_prob_mean': 0.0261, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0261, 'probe_self_n': 0, 'probe_teacher_n': 11, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 10/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 15.964802742004395, 'curiosity': 0.0684828907251358, 'competence': 0.0567, 'loss': 42.64398956298828, 'grad_steps': 23, 'lr': 0.0003, 'episodes_seen': 10, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.2967, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 5.9212, 'probe_prob_mean': 0.0298, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0298, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 10: excess demurrage=-0.3833(streak 0)
+[train] episode 11/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.438769340515137, 'curiosity': 0.046472351998090744, 'competence': 0.0382, 'loss': 13.197866439819336, 'grad_steps': 25, 'lr': 0.0003, 'episodes_seen': 11, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.2961, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 3.1616, 'probe_prob_mean': 0.0337, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0337, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 12/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.64788818359375, 'curiosity': 0.04488740116357803, 'competence': 0.0605, 'loss': 8.430447578430176, 'grad_steps': 27, 'lr': 0.0003, 'episodes_seen': 12, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.2954, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 2.1583, 'probe_prob_mean': 0.0385, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0385, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 13/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.922074317932129, 'curiosity': 0.038709744811058044, 'competence': 0.1047, 'loss': 7.1530985832214355, 'grad_steps': 29, 'lr': 0.0003, 'episodes_seen': 13, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2947, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 2.7309, 'probe_adv_used_mean': 0.3434, 'probe_G_mean': 13.8867, 'nonprobe_adv_raw_mean': 1.9831, 'probe_prob_mean': 0.0419, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0419, 'probe_self_n': 2, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 2.7309, 'probe_adv_used_mean': 0.3434}]}
+[train] episode 14/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.018622398376465, 'curiosity': 0.02845850959420204, 'competence': 0.1736, 'loss': 6.209390640258789, 'grad_steps': 32, 'lr': 0.0003, 'episodes_seen': 14, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.2935, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.231, 'probe_adv_used_mean': -1.1735, 'probe_G_mean': 11.9002, 'nonprobe_adv_raw_mean': 2.2878, 'probe_prob_mean': 0.0471, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0471, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.231, 'probe_adv_used_mean': -1.1735}]}
+[train] episode 15/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 10.06312370300293, 'curiosity': 0.01899612322449684, 'competence': 0.0837, 'loss': 2.4627599716186523, 'grad_steps': 34, 'lr': 0.0003, 'episodes_seen': 15, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.2926, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': -0.5786, 'probe_prob_mean': 0.0504, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0504, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 15: excess demurrage=-0.5000(streak 0)
+[train] episode 16/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 9.982368469238281, 'curiosity': 0.01631937362253666, 'competence': 0.0997, 'loss': 3.3739612102508545, 'grad_steps': 36, 'lr': 0.0003, 'episodes_seen': 16, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2917, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 9, 'probe_adv_raw_mean': -1.0348, 'probe_adv_used_mean': -0.4807, 'probe_G_mean': 8.6859, 'nonprobe_adv_raw_mean': -0.4253, 'probe_prob_mean': 0.0498, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0498, 'probe_self_n': 1, 'probe_teacher_n': 9, 'probe_adv_raw_mean': -1.0348, 'probe_adv_used_mean': -0.4807}]}
+[train] episode 17/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.86534595489502, 'curiosity': 0.014114711433649063, 'competence': 0.2086, 'loss': 1.6359103918075562, 'grad_steps': 39, 'lr': 0.0003, 'episodes_seen': 17, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.2902, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.8828, 'probe_adv_used_mean': 0.5167, 'probe_G_mean': 9.1789, 'nonprobe_adv_raw_mean': -1.233, 'probe_prob_mean': 0.0492, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0492, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.8828, 'probe_adv_used_mean': 0.5167}]}
+[train] episode 18/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 10.152519226074219, 'curiosity': 0.024479281157255173, 'competence': 0.118, 'loss': 1.6405532360076904, 'grad_steps': 41, 'lr': 0.0003, 'episodes_seen': 18, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.2892, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.952, 'probe_adv_used_mean': 0.5664, 'probe_G_mean': 10.4482, 'nonprobe_adv_raw_mean': 0.6548, 'probe_prob_mean': 0.0461, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0461, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.952, 'probe_adv_used_mean': 0.5664}]}
+[train] episode 19/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 9.790140151977539, 'curiosity': 0.020903756842017174, 'competence': 0.1588, 'loss': 1.1157100200653076, 'grad_steps': 43, 'lr': 0.0003, 'episodes_seen': 19, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.2881, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 0.9767, 'probe_adv_used_mean': 0.5228, 'probe_G_mean': 10.0817, 'nonprobe_adv_raw_mean': 0.8101, 'probe_prob_mean': 0.0448, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0448, 'probe_self_n': 1, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 0.9767, 'probe_adv_used_mean': 0.5228}]}
+[train] episode 20/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.297481536865234, 'curiosity': 0.015230746939778328, 'competence': 0.1382, 'loss': 1.034639596939087, 'grad_steps': 45, 'lr': 0.0003, 'episodes_seen': 20, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.3125, 'bc_weight_effective': 0.287, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 4, 'probe_adv_raw_mean': -0.4661, 'probe_adv_used_mean': -0.1952, 'probe_G_mean': 7.983, 'nonprobe_adv_raw_mean': -0.3378, 'probe_prob_mean': 0.0452, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0452, 'probe_self_n': 2, 'probe_teacher_n': 4, 'probe_adv_raw_mean': -0.4661, 'probe_adv_used_mean': -0.1952}]}
+[probe] ep 20: excess demurrage=-0.4532(streak 0)
+[train] episode 21/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.7579803466796875, 'curiosity': 0.012783326208591461, 'competence': 0.1982, 'loss': 1.0727880001068115, 'grad_steps': 47, 'lr': 0.0003, 'episodes_seen': 21, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2858, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 7.5879, 'nonprobe_adv_raw_mean': -0.2331, 'probe_prob_mean': 0.0472, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0472, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 22/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.657948970794678, 'curiosity': 0.017350709065794945, 'competence': 0.2192, 'loss': 1.736711025238037, 'grad_steps': 49, 'lr': 0.0003, 'episodes_seen': 22, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.2845, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 1, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 7.7059, 'nonprobe_adv_raw_mean': 0.8234, 'probe_prob_mean': 0.0518, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0518, 'probe_self_n': 0, 'probe_teacher_n': 1, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 23/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.01251220703125, 'curiosity': 0.01931479014456272, 'competence': 0.2205, 'loss': 5.386521816253662, 'grad_steps': 52, 'lr': 0.0003, 'episodes_seen': 23, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.2826, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.1474, 'probe_adv_used_mean': -0.0888, 'probe_G_mean': 7.9334, 'nonprobe_adv_raw_mean': 2.0519, 'probe_prob_mean': 0.0589, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0589, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.1474, 'probe_adv_used_mean': -0.0888}]}
+[train] episode 24/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.535642147064209, 'curiosity': 0.017892109230160713, 'competence': 0.1932, 'loss': 11.037009239196777, 'grad_steps': 53, 'lr': 0.0003, 'episodes_seen': 24, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.2819, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 8.3626, 'nonprobe_adv_raw_mean': 0.188, 'probe_prob_mean': 0.0621, 'probe_segments': [{'n': 18, 'probe_prob_mean': 0.0621, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 46, 'probe_prob_mean': 0.0621, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 25/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.131005764007568, 'curiosity': 0.013903217390179634, 'competence': 0.2244, 'loss': 4.373653411865234, 'grad_steps': 55, 'lr': 0.0003, 'episodes_seen': 25, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.2805, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 2.7884, 'probe_adv_used_mean': 1.1898, 'probe_G_mean': 7.8555, 'nonprobe_adv_raw_mean': 1.6774, 'probe_prob_mean': 0.0711, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0711, 'probe_self_n': 1, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 2.7884, 'probe_adv_used_mean': 1.1898}]}
+[probe] ep 25: excess demurrage=-0.5222(streak 0)
+[train] episode 26/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.304446220397949, 'curiosity': 0.019034521654248238, 'competence': 0.1302, 'loss': 6.8424248695373535, 'grad_steps': 57, 'lr': 0.0003, 'episodes_seen': 26, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.2791, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 2.6269, 'probe_adv_used_mean': 0.3587, 'probe_G_mean': 8.3363, 'nonprobe_adv_raw_mean': 2.3155, 'probe_prob_mean': 0.0803, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0803, 'probe_self_n': 1, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 2.6269, 'probe_adv_used_mean': 0.3587}]}
+[train] episode 27/200 done | {'stage': 'REACTIVE', 'reward': -0.7, 'return': 6.509696960449219, 'curiosity': 0.019314026460051537, 'competence': 0.1053, 'loss': 4.971879482269287, 'grad_steps': 60, 'lr': 0.0003, 'episodes_seen': 27, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.2769, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.5244, 'probe_adv_used_mean': -0.1809, 'probe_G_mean': 6.319, 'nonprobe_adv_raw_mean': 1.6962, 'probe_prob_mean': 0.093, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.093, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.5244, 'probe_adv_used_mean': -0.1809}]}
+[train] episode 28/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 6.325586795806885, 'curiosity': 0.01699964329600334, 'competence': 0.1979, 'loss': 2.67148756980896, 'grad_steps': 62, 'lr': 0.0003, 'episodes_seen': 28, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.2754, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.49, 'probe_adv_used_mean': -1.0767, 'probe_G_mean': 5.381, 'nonprobe_adv_raw_mean': 1.4841, 'probe_prob_mean': 0.1032, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1032, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.49, 'probe_adv_used_mean': -1.0767}]}
+[train] episode 29/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 5.766095161437988, 'curiosity': 0.011468678712844849, 'competence': 0.276, 'loss': 0.15285351872444153, 'grad_steps': 64, 'lr': 0.0003, 'episodes_seen': 29, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.2738, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3643, 'probe_adv_used_mean': -0.8175, 'probe_G_mean': 5.3446, 'nonprobe_adv_raw_mean': 0.6965, 'probe_prob_mean': 0.1126, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1126, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3643, 'probe_adv_used_mean': -0.8175}]}
+[train] episode 30/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.06575870513916, 'curiosity': 0.009087122976779938, 'competence': 0.0606, 'loss': 1.2457600831985474, 'grad_steps': 66, 'lr': 0.0003, 'episodes_seen': 30, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.2721, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7886, 'probe_adv_used_mean': 0.4879, 'probe_G_mean': 4.2309, 'nonprobe_adv_raw_mean': -0.9665, 'probe_prob_mean': 0.1145, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1145, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7886, 'probe_adv_used_mean': 0.4879}]}
+[probe] ep 30: excess demurrage=-0.4062(streak 0)
+[train] episode 31/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.337172985076904, 'curiosity': 0.014166910201311111, 'competence': 0.1074, 'loss': 1.1414746046066284, 'grad_steps': 68, 'lr': 0.0003, 'episodes_seen': 31, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.2705, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 12, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 5.9089, 'nonprobe_adv_raw_mean': 0.7157, 'probe_prob_mean': 0.114, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.114, 'probe_self_n': 0, 'probe_teacher_n': 12, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 32/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.6291067600250244, 'curiosity': 0.009117366746068, 'competence': 0.0637, 'loss': 0.7264634370803833, 'grad_steps': 71, 'lr': 0.0003, 'episodes_seen': 32, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.765625, 'bc_weight_effective': 0.2679, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': -0.4991, 'probe_adv_used_mean': 0.5311, 'probe_G_mean': 3.3015, 'nonprobe_adv_raw_mean': -0.6415, 'probe_prob_mean': 0.1149, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1149, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': -0.4991, 'probe_adv_used_mean': 0.5311}]}
+[train] episode 33/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.4504146575927734, 'curiosity': 0.00582561269402504, 'competence': 0.0696, 'loss': 0.09489910304546356, 'grad_steps': 73, 'lr': 0.0003, 'episodes_seen': 33, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.2661, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.8069, 'probe_adv_used_mean': -0.4229, 'probe_G_mean': 3.3183, 'nonprobe_adv_raw_mean': -0.6862, 'probe_prob_mean': 0.1265, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1265, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.8069, 'probe_adv_used_mean': -0.4229}]}
+[train] episode 34/200 done | {'stage': 'REACTIVE', 'reward': -0.35, 'return': 5.08312463760376, 'curiosity': 0.01666438579559326, 'competence': 0.0994, 'loss': 3.0014917850494385, 'grad_steps': 75, 'lr': 0.0003, 'episodes_seen': 34, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.2643, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.4041, 'probe_adv_used_mean': 0.0711, 'probe_G_mean': 5.1207, 'nonprobe_adv_raw_mean': 1.3392, 'probe_prob_mean': 0.1338, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1338, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.4041, 'probe_adv_used_mean': 0.0711}]}
+[train] episode 35/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 4.457823753356934, 'curiosity': 0.01438989955931902, 'competence': 0.0673, 'loss': 2.6965229511260986, 'grad_steps': 78, 'lr': 0.0003, 'episodes_seen': 35, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.2615, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.4599, 'probe_adv_used_mean': 0.5305, 'probe_G_mean': 4.7971, 'nonprobe_adv_raw_mean': 1.0338, 'probe_prob_mean': 0.1427, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1427, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.4599, 'probe_adv_used_mean': 0.5305}]}
+[probe] ep 35: excess demurrage=-0.3528(streak 0)
+[train] episode 36/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.807397842407227, 'curiosity': 0.01834779605269432, 'competence': 0.1775, 'loss': 6.388369083404541, 'grad_steps': 80, 'lr': 0.0003, 'episodes_seen': 36, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.2596, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.6556, 'probe_adv_used_mean': 0.274, 'probe_G_mean': 6.0191, 'nonprobe_adv_raw_mean': 2.2851, 'probe_prob_mean': 0.1584, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1584, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.6556, 'probe_adv_used_mean': 0.274}]}
+[train] episode 37/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.431124210357666, 'curiosity': 0.02243090234696865, 'competence': 0.0891, 'loss': 5.440379619598389, 'grad_steps': 82, 'lr': 0.0003, 'episodes_seen': 37, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.2577, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.5793, 'probe_adv_used_mean': 0.434, 'probe_G_mean': 5.9445, 'nonprobe_adv_raw_mean': 2.1, 'probe_prob_mean': 0.1777, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1777, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.5793, 'probe_adv_used_mean': 0.434}]}
+[train] episode 38/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 4.10066556930542, 'curiosity': 0.010632937774062157, 'competence': 0.1826, 'loss': 1.2772390842437744, 'grad_steps': 85, 'lr': 0.0003, 'episodes_seen': 38, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.2547, 'probe_verb': 37, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6735, 'probe_adv_used_mean': 0.1015, 'probe_G_mean': 4.1436, 'nonprobe_adv_raw_mean': 0.6494, 'probe_prob_mean': 0.2076, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.2076, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6735, 'probe_adv_used_mean': 0.1015}]}
+[train] episode 39/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.183887004852295, 'curiosity': 0.011221887543797493, 'competence': 0.0731, 'loss': 0.5883114337921143, 'grad_steps': 87, 'lr': 0.0003, 'episodes_seen': 39, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.2526, 'probe_verb': 37, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6346, 'probe_adv_used_mean': 0.5329, 'probe_G_mean': 4.3164, 'nonprobe_adv_raw_mean': 0.48, 'probe_prob_mean': 0.2291, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.2291, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6346, 'probe_adv_used_mean': 0.5329}]}
+[train] episode 40/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.860381603240967, 'curiosity': 0.006902707275003195, 'competence': 0.1671, 'loss': 0.006251968443393707, 'grad_steps': 89, 'lr': 0.0003, 'episodes_seen': 40, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.2506, 'probe_verb': 37, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.0427, 'probe_adv_used_mean': -0.2708, 'probe_G_mean': 3.7817, 'nonprobe_adv_raw_mean': 0.0499, 'probe_prob_mean': 0.2551, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.2551, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.0427, 'probe_adv_used_mean': -0.2708}]}
+[probe] ep 40: excess demurrage=-0.5237(streak 0)
+[train] episode 41/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.453824043273926, 'curiosity': 0.013516418635845184, 'competence': 0.0663, 'loss': 0.9230122566223145, 'grad_steps': 91, 'lr': 0.0003, 'episodes_seen': 41, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.2485, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6553, 'probe_adv_used_mean': 0.0336, 'probe_G_mean': 4.4688, 'nonprobe_adv_raw_mean': 0.6993, 'probe_prob_mean': 0.2032, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.2032, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6553, 'probe_adv_used_mean': 0.0336}]}
+[train] episode 42/200 done | {'stage': 'REACTIVE', 'reward': 0.08985008299350739, 'return': 4.740793704986572, 'curiosity': 0.018550949171185493, 'competence': 0.153, 'loss': 2.605569839477539, 'grad_steps': 94, 'lr': 0.0003, 'episodes_seen': 42, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.2453, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.2195, 'probe_adv_used_mean': 0.268, 'probe_G_mean': 5.0522, 'nonprobe_adv_raw_mean': 0.9147, 'probe_prob_mean': 0.1382, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1382, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.2195, 'probe_adv_used_mean': 0.268}]}
+[train] episode 43/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.693318843841553, 'curiosity': 0.016444791108369827, 'competence': 0.132, 'loss': 1.6023808717727661, 'grad_steps': 95, 'lr': 0.0003, 'episodes_seen': 43, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2442, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 13, 'probe_adv_raw_mean': 0.6754, 'probe_adv_used_mean': -0.126, 'probe_G_mean': 5.1656, 'nonprobe_adv_raw_mean': 0.8889, 'probe_prob_mean': 0.1236, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1236, 'probe_self_n': 3, 'probe_teacher_n': 13, 'probe_adv_raw_mean': 0.6754, 'probe_adv_used_mean': -0.126}]}
+[train] episode 44/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.379753112792969, 'curiosity': 0.01049891859292984, 'competence': 0.1907, 'loss': 1.384573221206665, 'grad_steps': 97, 'lr': 0.0003, 'episodes_seen': 44, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.242, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 1.222, 'probe_adv_used_mean': 0.127, 'probe_G_mean': 5.4571, 'nonprobe_adv_raw_mean': 1.1802, 'probe_prob_mean': 0.1024, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1024, 'probe_self_n': 4, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 1.222, 'probe_adv_used_mean': 0.127}]}
+[train] episode 45/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.968019485473633, 'curiosity': 0.015725284814834595, 'competence': 0.1777, 'loss': 2.459751605987549, 'grad_steps': 100, 'lr': 0.0003, 'episodes_seen': 45, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.2386, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.7793, 'probe_adv_used_mean': 0.4391, 'probe_G_mean': 6.3317, 'nonprobe_adv_raw_mean': 1.4783, 'probe_prob_mean': 0.0819, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0819, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.7793, 'probe_adv_used_mean': 0.4391}]}
+[probe] ep 45: excess demurrage=-0.4476(streak 0)
+[train] episode 46/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.614602565765381, 'curiosity': 0.007176773156970739, 'competence': 0.0866, 'loss': 0.48891156911849976, 'grad_steps': 102, 'lr': 0.0003, 'episodes_seen': 46, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.2364, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.2346, 'probe_adv_used_mean': 1.1995, 'probe_G_mean': 5.0398, 'nonprobe_adv_raw_mean': -0.2902, 'probe_prob_mean': 0.0743, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0743, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.2346, 'probe_adv_used_mean': 1.1995}]}
+[train] episode 47/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.591598033905029, 'curiosity': 0.01323159970343113, 'competence': 0.1318, 'loss': 0.722077488899231, 'grad_steps': 104, 'lr': 0.0003, 'episodes_seen': 47, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.2341, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.9405, 'probe_adv_used_mean': 0.2522, 'probe_G_mean': 5.7109, 'nonprobe_adv_raw_mean': 0.685, 'probe_prob_mean': 0.0741, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0741, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.9405, 'probe_adv_used_mean': 0.2522}]}
+[train] episode 48/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.397439479827881, 'curiosity': 0.017699742689728737, 'competence': 0.0225, 'loss': 1.0266531705856323, 'grad_steps': 106, 'lr': 0.0003, 'episodes_seen': 48, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.2317, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.6259, 'probe_prob_mean': 0.0745, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0745, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 49/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.529723644256592, 'curiosity': 0.007520286366343498, 'competence': 0.1141, 'loss': 0.477370023727417, 'grad_steps': 109, 'lr': 0.0003, 'episodes_seen': 49, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.2282, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.508, 'probe_adv_used_mean': -1.126, 'probe_G_mean': 4.2593, 'nonprobe_adv_raw_mean': -0.2035, 'probe_prob_mean': 0.076, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.076, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.508, 'probe_adv_used_mean': -1.126}]}
+[train] episode 50/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.867091655731201, 'curiosity': 0.01595144346356392, 'competence': 0.1406, 'loss': 3.5631282329559326, 'grad_steps': 111, 'lr': 0.0003, 'episodes_seen': 50, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.2258, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.8586, 'probe_adv_used_mean': 0.7592, 'probe_G_mean': 6.4774, 'nonprobe_adv_raw_mean': 1.524, 'probe_prob_mean': 0.0655, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0655, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.8586, 'probe_adv_used_mean': 0.7592}]}
+[probe] ep 50: excess demurrage=-0.4463(streak 0)
+[train] episode 51/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.250040054321289, 'curiosity': 0.02609582245349884, 'competence': 0.1002, 'loss': 9.731751441955566, 'grad_steps': 113, 'lr': 0.0003, 'episodes_seen': 51, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.2234, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.2974, 'probe_adv_used_mean': -0.2897, 'probe_G_mean': 6.7894, 'nonprobe_adv_raw_mean': 2.6806, 'probe_prob_mean': 0.0599, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0599, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.2974, 'probe_adv_used_mean': -0.2897}]}
+[train] episode 52/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.342386245727539, 'curiosity': 0.009737944230437279, 'competence': 0.108, 'loss': 0.20240367949008942, 'grad_steps': 116, 'lr': 0.0003, 'episodes_seen': 52, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.2198, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1528, 'probe_adv_used_mean': -0.2435, 'probe_G_mean': 4.2702, 'nonprobe_adv_raw_mean': -0.1357, 'probe_prob_mean': 0.055, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.055, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1528, 'probe_adv_used_mean': -0.2435}]}
+[train] episode 53/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.906220436096191, 'curiosity': 0.031955644488334656, 'competence': 0.1072, 'loss': 17.15974235534668, 'grad_steps': 118, 'lr': 0.0003, 'episodes_seen': 53, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.2173, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 5.957, 'probe_adv_used_mean': 1.2187, 'probe_G_mean': 10.2236, 'nonprobe_adv_raw_mean': 3.6585, 'probe_prob_mean': 0.0517, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0517, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 5.957, 'probe_adv_used_mean': 1.2187}]}
+[train] episode 54/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 27.32718849182129, 'curiosity': 0.12845468521118164, 'competence': 0.2396, 'loss': 667.4235229492188, 'grad_steps': 120, 'lr': 0.0003, 'episodes_seen': 54, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.2149, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.3087, 'probe_adv_used_mean': -1.5906, 'probe_G_mean': 8.5944, 'nonprobe_adv_raw_mean': 24.0845, 'probe_prob_mean': 0.0501, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0501, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.3087, 'probe_adv_used_mean': -1.5906}]}
+[train] episode 55/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 43.76130294799805, 'curiosity': 0.249630868434906, 'competence': 0.1104, 'loss': 1926.602783203125, 'grad_steps': 122, 'lr': 0.0003, 'episodes_seen': 55, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.2124, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 51.5712, 'probe_adv_used_mean': 0.623, 'probe_G_mean': 46.9909, 'nonprobe_adv_raw_mean': 41.7149, 'probe_prob_mean': 0.0507, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0507, 'probe_self_n': 1, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 51.5712, 'probe_adv_used_mean': 0.623}]}
+[probe] ep 55: excess demurrage=-0.4389(streak 0)
+[train] episode 56/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 62.17284393310547, 'curiosity': 0.3927037715911865, 'competence': 0.2148, 'loss': 4134.62939453125, 'grad_steps': 124, 'lr': 0.0003, 'episodes_seen': 56, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.2099, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 58.646, 'probe_prob_mean': 0.0526, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0526, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 57/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 85.76470184326172, 'curiosity': 0.5470836162567139, 'competence': 0.1583, 'loss': 8114.95458984375, 'grad_steps': 126, 'lr': 0.0003, 'episodes_seen': 57, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.2074, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 95.1572, 'probe_adv_used_mean': 0.3613, 'probe_G_mean': 100.6395, 'nonprobe_adv_raw_mean': 81.8575, 'probe_prob_mean': 0.0554, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0554, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 95.1572, 'probe_adv_used_mean': 0.3613}]}
+[train] episode 58/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 90.36636352539062, 'curiosity': 0.7623305320739746, 'competence': 0.1376, 'loss': 8906.953125, 'grad_steps': 129, 'lr': 0.0003, 'episodes_seen': 58, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.2035, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 83.014, 'probe_adv_used_mean': -0.0226, 'probe_G_mean': 89.3849, 'nonprobe_adv_raw_mean': 77.7595, 'probe_prob_mean': 0.0597, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0597, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 83.014, 'probe_adv_used_mean': -0.0226}]}
+[train] episode 59/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 88.64517211914062, 'curiosity': 0.926191508769989, 'competence': 0.1159, 'loss': 8391.662109375, 'grad_steps': 131, 'lr': 0.0003, 'episodes_seen': 59, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.201, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 36.3735, 'probe_adv_used_mean': -1.0796, 'probe_G_mean': 43.4003, 'nonprobe_adv_raw_mean': 96.0201, 'probe_prob_mean': 0.0631, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0631, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 36.3735, 'probe_adv_used_mean': -1.0796}]}
+[train] episode 60/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 93.18341064453125, 'curiosity': 1.0475246906280518, 'competence': 0.1907, 'loss': 9255.615234375, 'grad_steps': 133, 'lr': 0.0003, 'episodes_seen': 60, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.1984, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 136.4903, 'probe_adv_used_mean': 1.1475, 'probe_G_mean': 149.643, 'nonprobe_adv_raw_mean': 76.2281, 'probe_prob_mean': 0.0661, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0661, 'probe_self_n': 3, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 136.4903, 'probe_adv_used_mean': 1.1475}]}
+[probe] ep 60: excess demurrage=-0.5000(streak 0)
+[train] episode 61/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 101.64288330078125, 'curiosity': 1.21864914894104, 'competence': 0.2528, 'loss': 10912.0185546875, 'grad_steps': 136, 'lr': 0.0003, 'episodes_seen': 61, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.1946, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 105.6576, 'probe_adv_used_mean': 0.2641, 'probe_G_mean': 114.3029, 'nonprobe_adv_raw_mean': 97.0989, 'probe_prob_mean': 0.0711, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0711, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 105.6576, 'probe_adv_used_mean': 0.2641}]}
+[train] episode 62/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 111.09992980957031, 'curiosity': 1.372326135635376, 'competence': 0.185, 'loss': 13072.154296875, 'grad_steps': 138, 'lr': 0.0003, 'episodes_seen': 62, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.192, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 135.3901, 'probe_adv_used_mean': 0.6407, 'probe_G_mean': 144.6649, 'nonprobe_adv_raw_mean': 97.1798, 'probe_prob_mean': 0.0743, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0743, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 135.3901, 'probe_adv_used_mean': 0.6407}]}
+[train] episode 63/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 98.0879135131836, 'curiosity': 1.4168273210525513, 'competence': 0.1604, 'loss': 9826.25, 'grad_steps': 140, 'lr': 0.0003, 'episodes_seen': 63, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.1894, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 109.8327, 'probe_adv_used_mean': 0.4745, 'probe_G_mean': 119.7025, 'nonprobe_adv_raw_mean': 86.0873, 'probe_prob_mean': 0.0778, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0778, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 109.8327, 'probe_adv_used_mean': 0.4745}]}
+[train] episode 64/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 118.23576354980469, 'curiosity': 1.4767043590545654, 'competence': 0.2535, 'loss': 14690.88671875, 'grad_steps': 142, 'lr': 0.0003, 'episodes_seen': 64, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.1868, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 166.0618, 'probe_adv_used_mean': 1.0442, 'probe_G_mean': 176.4732, 'nonprobe_adv_raw_mean': 106.997, 'probe_prob_mean': 0.08, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.08, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 166.0618, 'probe_adv_used_mean': 1.0442}]}
+[train] episode 65/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 65.52471923828125, 'curiosity': 1.4438328742980957, 'competence': 0.2354, 'loss': 4472.8203125, 'grad_steps': 143, 'lr': 0.0003, 'episodes_seen': 65, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.1855, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 21, 'probe_adv_raw_mean': 59.6599, 'probe_adv_used_mean': 0.1037, 'probe_G_mean': 84.1834, 'nonprobe_adv_raw_mean': 48.2807, 'probe_prob_mean': 0.0837, 'probe_segments': [{'n': 18, 'probe_prob_mean': 0.0832, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.5566, 'probe_adv_used_mean': -0.6498}, {'n': 46, 'probe_prob_mean': 0.0839, 'probe_self_n': 3, 'probe_teacher_n': 21, 'probe_adv_raw_mean': 79.7321, 'probe_adv_used_mean': 0.3548}]}
+[probe] ep 65: excess demurrage=-0.3970(streak 0)
+[train] episode 66/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 104.85269927978516, 'curiosity': 1.5070630311965942, 'competence': 0.148, 'loss': 11044.1826171875, 'grad_steps': 146, 'lr': 0.0003, 'episodes_seen': 66, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.1815, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 93.8489, 'probe_adv_used_mean': 0.0048, 'probe_G_mean': 105.0827, 'nonprobe_adv_raw_mean': 91.8876, 'probe_prob_mean': 0.0897, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0897, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 93.8489, 'probe_adv_used_mean': 0.0048}]}
+[train] episode 67/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 85.2306137084961, 'curiosity': 1.5211470127105713, 'competence': 0.1685, 'loss': 6856.74462890625, 'grad_steps': 148, 'lr': 0.0003, 'episodes_seen': 67, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.1789, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 102.6717, 'probe_adv_used_mean': 0.7631, 'probe_G_mean': 114.1323, 'nonprobe_adv_raw_mean': 74.2116, 'probe_prob_mean': 0.0904, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0904, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 102.6717, 'probe_adv_used_mean': 0.7631}]}
+[train] episode 68/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 99.12031555175781, 'curiosity': 1.3167698383331299, 'competence': 0.1494, 'loss': 9645.3681640625, 'grad_steps': 151, 'lr': 0.0003, 'episodes_seen': 68, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.175, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 43.5698, 'probe_adv_used_mean': -0.9725, 'probe_G_mean': 55.2695, 'nonprobe_adv_raw_mean': 87.4141, 'probe_prob_mean': 0.0895, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0895, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 43.5698, 'probe_adv_used_mean': -0.9725}]}
+[train] episode 69/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 93.64312744140625, 'curiosity': 1.1219313144683838, 'competence': 0.1759, 'loss': 8388.7724609375, 'grad_steps': 153, 'lr': 0.0003, 'episodes_seen': 69, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.703125, 'bc_weight_effective': 0.1724, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 49.1293, 'probe_adv_used_mean': -0.7847, 'probe_G_mean': 119.743, 'nonprobe_adv_raw_mean': 75.1448, 'probe_prob_mean': 0.0924, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0924, 'probe_self_n': 2, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 49.1293, 'probe_adv_used_mean': -0.7847}]}
+[train] episode 70/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 95.80960845947266, 'curiosity': 0.8574668169021606, 'competence': 0.1527, 'loss': 8830.83984375, 'grad_steps': 156, 'lr': 0.0003, 'episodes_seen': 70, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.1685, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 53.758, 'probe_adv_used_mean': -0.6925, 'probe_G_mean': 65.92, 'nonprobe_adv_raw_mean': 79.6711, 'probe_prob_mean': 0.0984, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0984, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 53.758, 'probe_adv_used_mean': -0.6925}]}
+[probe] ep 70: excess demurrage=-0.4500(streak 0)
+[train] episode 71/200 done | {'stage': 'REACTIVE', 'reward': -0.4, 'return': 93.76752471923828, 'curiosity': 0.7291770577430725, 'competence': 0.1833, 'loss': 8363.341796875, 'grad_steps': 158, 'lr': 0.0003, 'episodes_seen': 71, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.1658, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 92.1203, 'probe_adv_used_mean': 0.2551, 'probe_G_mean': 104.4737, 'nonprobe_adv_raw_mean': 79.5277, 'probe_prob_mean': 0.1017, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1017, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 92.1203, 'probe_adv_used_mean': 0.2551}]}
+[train] episode 72/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 102.22451782226562, 'curiosity': 0.626844048500061, 'competence': 0.2151, 'loss': 10141.8046875, 'grad_steps': 160, 'lr': 0.0003, 'episodes_seen': 72, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.1632, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 91.1778, 'probe_prob_mean': 0.1033, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1033, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 73/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 66.39329528808594, 'curiosity': 0.5515797138214111, 'competence': 0.1179, 'loss': 3621.479736328125, 'grad_steps': 162, 'lr': 0.0003, 'episodes_seen': 73, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.1606, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 37.5968, 'probe_adv_used_mean': -0.5869, 'probe_G_mean': 50.322, 'nonprobe_adv_raw_mean': 65.712, 'probe_prob_mean': 0.1038, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1038, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 37.5968, 'probe_adv_used_mean': -0.5869}]}
+[train] episode 74/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 64.24640655517578, 'curiosity': 0.48340246081352234, 'competence': 0.1727, 'loss': 3299.89990234375, 'grad_steps': 164, 'lr': 0.0003, 'episodes_seen': 74, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.158, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 8, 'probe_adv_raw_mean': 44.6648, 'probe_adv_used_mean': -0.2572, 'probe_G_mean': 81.0108, 'nonprobe_adv_raw_mean': 57.795, 'probe_prob_mean': 0.1034, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1034, 'probe_self_n': 4, 'probe_teacher_n': 8, 'probe_adv_raw_mean': 44.6648, 'probe_adv_used_mean': -0.2572}]}
+[train] episode 75/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 70.23359680175781, 'curiosity': 0.426227867603302, 'competence': 0.2235, 'loss': 4110.38037109375, 'grad_steps': 166, 'lr': 0.0003, 'episodes_seen': 75, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.1554, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.0582, 'probe_adv_used_mean': -1.7437, 'probe_G_mean': 19.152, 'nonprobe_adv_raw_mean': 56.6386, 'probe_prob_mean': 0.1024, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1024, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.0582, 'probe_adv_used_mean': -1.7437}]}
+[probe] ep 75: excess demurrage=-0.4402(streak 0)
+[train] episode 76/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 57.21353530883789, 'curiosity': 0.36273351311683655, 'competence': 0.0982, 'loss': 2427.866943359375, 'grad_steps': 168, 'lr': 0.0003, 'episodes_seen': 76, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.1529, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 36.9206, 'probe_adv_used_mean': -0.3124, 'probe_G_mean': 58.2403, 'nonprobe_adv_raw_mean': 49.8105, 'probe_prob_mean': 0.1009, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1009, 'probe_self_n': 4, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 36.9206, 'probe_adv_used_mean': -0.3124}]}
+[train] episode 77/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 41.77894592285156, 'curiosity': 0.2523553967475891, 'competence': 0.1771, 'loss': 1004.7432250976562, 'grad_steps': 171, 'lr': 0.0003, 'episodes_seen': 77, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.149, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 42.6971, 'probe_adv_used_mean': 0.9957, 'probe_G_mean': 56.2568, 'nonprobe_adv_raw_mean': 27.6744, 'probe_prob_mean': 0.0988, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0988, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 42.6971, 'probe_adv_used_mean': 0.9957}]}
+[train] episode 78/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 30.70374298095703, 'curiosity': 0.1728263944387436, 'competence': 0.1454, 'loss': 362.6495666503906, 'grad_steps': 173, 'lr': 0.0003, 'episodes_seen': 78, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.1465, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 15.9761, 'probe_adv_used_mean': -0.1125, 'probe_G_mean': 29.7225, 'nonprobe_adv_raw_mean': 17.4558, 'probe_prob_mean': 0.0975, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0975, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 15.9761, 'probe_adv_used_mean': -0.1125}]}
+[train] episode 79/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 22.835847854614258, 'curiosity': 0.12029106914997101, 'competence': 0.0906, 'loss': 100.91963958740234, 'grad_steps': 175, 'lr': 0.0003, 'episodes_seen': 79, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.1439, 'probe_verb': 37, 'probe_self_n': 6, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 9.1987, 'probe_adv_used_mean': 0.0637, 'probe_G_mean': 23.2418, 'nonprobe_adv_raw_mean': 8.8026, 'probe_prob_mean': 0.0965, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0965, 'probe_self_n': 6, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 9.1987, 'probe_adv_used_mean': 0.0637}]}
+[train] episode 80/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 18.677770614624023, 'curiosity': 0.06867940723896027, 'competence': 0.1385, 'loss': 24.262760162353516, 'grad_steps': 178, 'lr': 0.0003, 'episodes_seen': 80, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.1401, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 5.5502, 'probe_adv_used_mean': 0.5228, 'probe_G_mean': 19.8478, 'nonprobe_adv_raw_mean': 4.3307, 'probe_prob_mean': 0.095, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.095, 'probe_self_n': 3, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 5.5502, 'probe_adv_used_mean': 0.5228}]}
+[probe] ep 80: excess demurrage=-0.4024(streak 0)
+[train] episode 81/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 14.127920150756836, 'curiosity': 0.0402546301484108, 'competence': 0.0836, 'loss': 2.6823549270629883, 'grad_steps': 180, 'lr': 0.0003, 'episodes_seen': 81, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.1376, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.0373, 'probe_adv_used_mean': 0.2314, 'probe_G_mean': 14.2942, 'nonprobe_adv_raw_mean': -0.1074, 'probe_prob_mean': 0.0956, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0956, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.0373, 'probe_adv_used_mean': 0.2314}]}
+[train] episode 82/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.63833999633789, 'curiosity': 0.02617032267153263, 'competence': 0.1242, 'loss': 0.9447001814842224, 'grad_steps': 182, 'lr': 0.0003, 'episodes_seen': 82, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.1351, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.2362, 'probe_adv_used_mean': -0.8921, 'probe_G_mean': 13.2026, 'nonprobe_adv_raw_mean': -0.741, 'probe_prob_mean': 0.0994, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0994, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.2362, 'probe_adv_used_mean': -0.8921}]}
+[train] episode 83/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.876718521118164, 'curiosity': 0.03529157117009163, 'competence': 0.1543, 'loss': 0.48816612362861633, 'grad_steps': 184, 'lr': 0.0003, 'episodes_seen': 83, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.1327, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7072, 'probe_adv_used_mean': -0.3619, 'probe_G_mean': 13.7718, 'nonprobe_adv_raw_mean': -0.5992, 'probe_prob_mean': 0.0949, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0949, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7072, 'probe_adv_used_mean': -0.3619}]}
+[train] episode 84/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 14.347371101379395, 'curiosity': 0.030837927013635635, 'competence': 0.1353, 'loss': 1.433249592781067, 'grad_steps': 186, 'lr': 0.0003, 'episodes_seen': 84, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.1302, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4139, 'probe_adv_used_mean': 0.796, 'probe_G_mean': 14.8678, 'nonprobe_adv_raw_mean': -0.0656, 'probe_prob_mean': 0.0862, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0862, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4139, 'probe_adv_used_mean': 0.796}]}
+[train] episode 85/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.130424499511719, 'curiosity': 0.017927056178450584, 'competence': 0.1726, 'loss': 5.220749378204346, 'grad_steps': 188, 'lr': 0.0003, 'episodes_seen': 85, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.1278, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 2, 'probe_adv_raw_mean': -3.3764, 'probe_adv_used_mean': -1.0079, 'probe_G_mean': 10.8034, 'nonprobe_adv_raw_mean': -2.5026, 'probe_prob_mean': 0.0935, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0935, 'probe_self_n': 3, 'probe_teacher_n': 2, 'probe_adv_raw_mean': -3.3764, 'probe_adv_used_mean': -1.0079}]}
+[probe] ep 85: excess demurrage=-0.3542(streak 0)
+[train] episode 86/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 14.111385345458984, 'curiosity': 0.02968704141676426, 'competence': 0.129, 'loss': 0.22572383284568787, 'grad_steps': 191, 'lr': 0.0003, 'episodes_seen': 86, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.1242, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.1044, 'probe_adv_used_mean': 0.1987, 'probe_G_mean': 14.1747, 'nonprobe_adv_raw_mean': -0.02, 'probe_prob_mean': 0.0964, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0964, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.1044, 'probe_adv_used_mean': 0.1987}]}
+[train] episode 87/200 done | {'stage': 'REACTIVE', 'reward': 0.54, 'return': 14.376423835754395, 'curiosity': 0.04188553988933563, 'competence': 0.1676, 'loss': 1.7058686017990112, 'grad_steps': 193, 'lr': 0.0003, 'episodes_seen': 87, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.734375, 'bc_weight_effective': 0.1218, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4786, 'probe_adv_used_mean': 0.1402, 'probe_G_mean': 14.4364, 'nonprobe_adv_raw_mean': 0.5619, 'probe_prob_mean': 0.0995, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0995, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4786, 'probe_adv_used_mean': 0.1402}]}
+[train] episode 88/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 17.83378028869629, 'curiosity': 0.06281253695487976, 'competence': 0.1338, 'loss': 22.13150978088379, 'grad_steps': 196, 'lr': 0.0003, 'episodes_seen': 88, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.1183, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.3733, 'probe_adv_used_mean': -0.675, 'probe_G_mean': 16.2155, 'nonprobe_adv_raw_mean': 3.8817, 'probe_prob_mean': 0.098, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.098, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.3733, 'probe_adv_used_mean': -0.675}]}
+[train] episode 89/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 21.537944793701172, 'curiosity': 0.07616657018661499, 'competence': 0.1811, 'loss': 68.77679443359375, 'grad_steps': 198, 'lr': 0.0003, 'episodes_seen': 89, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.1159, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.5961, 'probe_adv_used_mean': -0.8779, 'probe_G_mean': 18.5384, 'nonprobe_adv_raw_mean': 6.981, 'probe_prob_mean': 0.0983, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0983, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.5961, 'probe_adv_used_mean': -0.8779}]}
+[train] episode 90/200 done | {'stage': 'REACTIVE', 'reward': 0.54, 'return': 23.65036964416504, 'curiosity': 0.11190231889486313, 'competence': 0.1824, 'loss': 118.28870391845703, 'grad_steps': 201, 'lr': 0.0003, 'episodes_seen': 90, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.1125, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 12.0427, 'probe_adv_used_mean': 0.4746, 'probe_G_mean': 26.1286, 'nonprobe_adv_raw_mean': 10.0245, 'probe_prob_mean': 0.0991, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0991, 'probe_self_n': 1, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 12.0427, 'probe_adv_used_mean': 0.4746}]}
+[probe] ep 90: excess demurrage=-0.5148(streak 0)
+[train] episode 91/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 28.283233642578125, 'curiosity': 0.12545831501483917, 'competence': 0.2253, 'loss': 250.25009155273438, 'grad_steps': 203, 'lr': 0.0003, 'episodes_seen': 91, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.1102, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.2923, 'probe_adv_used_mean': -0.1029, 'probe_G_mean': 27.5287, 'nonprobe_adv_raw_mean': 13.6033, 'probe_prob_mean': 0.1016, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1016, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.2923, 'probe_adv_used_mean': -0.1029}]}
+[train] episode 92/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 28.89838981628418, 'curiosity': 0.13668227195739746, 'competence': 0.149, 'loss': 261.1546325683594, 'grad_steps': 205, 'lr': 0.0003, 'episodes_seen': 92, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.108, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.2929, 'probe_adv_used_mean': -0.1723, 'probe_G_mean': 27.6728, 'nonprobe_adv_raw_mean': 14.1497, 'probe_prob_mean': 0.1049, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1049, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 13.2929, 'probe_adv_used_mean': -0.1723}]}
+[train] episode 93/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 23.128610610961914, 'curiosity': 0.11192426830530167, 'competence': 0.0844, 'loss': 95.628173828125, 'grad_steps': 208, 'lr': 0.0003, 'episodes_seen': 93, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.1047, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.1559, 'probe_adv_used_mean': -0.5086, 'probe_G_mean': 20.7071, 'nonprobe_adv_raw_mean': 7.5823, 'probe_prob_mean': 0.1097, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1097, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.1559, 'probe_adv_used_mean': -0.5086}]}
+[train] episode 94/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 21.884449005126953, 'curiosity': 0.09155667573213577, 'competence': 0.0928, 'loss': 66.49605560302734, 'grad_steps': 210, 'lr': 0.0003, 'episodes_seen': 94, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.1026, 'probe_verb': 37, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 8.9952, 'probe_adv_used_mean': 0.4688, 'probe_G_mean': 23.661, 'nonprobe_adv_raw_mean': 6.6318, 'probe_prob_mean': 0.1123, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1123, 'probe_self_n': 7, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 8.9952, 'probe_adv_used_mean': 0.4688}]}
+[train] episode 95/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 19.683828353881836, 'curiosity': 0.0632859319448471, 'competence': 0.2288, 'loss': 31.447132110595703, 'grad_steps': 212, 'lr': 0.0003, 'episodes_seen': 95, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.1005, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.23, 'probe_adv_used_mean': -0.6212, 'probe_G_mean': 17.9987, 'nonprobe_adv_raw_mean': 4.9742, 'probe_prob_mean': 0.1144, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1144, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.23, 'probe_adv_used_mean': -0.6212}]}
+[probe] ep 95: excess demurrage=-0.3924(streak 0)
+[train] episode 96/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 15.506925582885742, 'curiosity': 0.044736042618751526, 'competence': 0.1533, 'loss': 0.9439186453819275, 'grad_steps': 214, 'lr': 0.0003, 'episodes_seen': 96, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.0984, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.6709, 'probe_prob_mean': 0.1155, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1155, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 97/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 15.319668769836426, 'curiosity': 0.029854143038392067, 'competence': 0.227, 'loss': -0.15333165228366852, 'grad_steps': 216, 'lr': 0.0003, 'episodes_seen': 97, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.0963, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3349, 'probe_adv_used_mean': -0.2155, 'probe_G_mean': 15.2388, 'nonprobe_adv_raw_mean': 0.4034, 'probe_prob_mean': 0.1156, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1156, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3349, 'probe_adv_used_mean': -0.2155}]}
+[train] episode 98/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.84781551361084, 'curiosity': 0.015822451561689377, 'competence': 0.1813, 'loss': 5.404633045196533, 'grad_steps': 218, 'lr': 0.0003, 'episodes_seen': 98, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.4375, 'bc_weight_effective': 0.0943, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.7374, 'probe_adv_used_mean': 0.3781, 'probe_G_mean': 13.2085, 'nonprobe_adv_raw_mean': -2.0279, 'probe_prob_mean': 0.1121, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1121, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.7374, 'probe_adv_used_mean': 0.3781}]}
+[train] episode 99/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.05846118927002, 'curiosity': 0.01088461559265852, 'competence': 0.2169, 'loss': 10.050008773803711, 'grad_steps': 221, 'lr': 0.0003, 'episodes_seen': 99, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.0914, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -4.7167, 'probe_adv_used_mean': -1.0674, 'probe_G_mean': 10.1943, 'nonprobe_adv_raw_mean': -3.0758, 'probe_prob_mean': 0.1095, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1095, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -4.7167, 'probe_adv_used_mean': -1.0674}]}
+[train] episode 100/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 11.27792739868164, 'curiosity': 0.013078253716230392, 'competence': 0.2326, 'loss': 21.032487869262695, 'grad_steps': 222, 'lr': 0.0003, 'episodes_seen': 100, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.0904, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 9, 'probe_adv_raw_mean': -3.7331, 'probe_adv_used_mean': -0.6068, 'probe_G_mean': 10.7963, 'nonprobe_adv_raw_mean': -3.3967, 'probe_prob_mean': 0.1088, 'probe_segments': [{'n': 3, 'probe_prob_mean': 0.1088, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 61, 'probe_prob_mean': 0.1088, 'probe_self_n': 5, 'probe_teacher_n': 9, 'probe_adv_raw_mean': -3.7331, 'probe_adv_used_mean': -0.6068}]}
+[probe] ep 100: excess demurrage=-0.4372(streak 0)
+[train] episode 101/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 11.602123260498047, 'curiosity': 0.015344162471592426, 'competence': 0.1202, 'loss': 10.379752159118652, 'grad_steps': 225, 'lr': 0.0003, 'episodes_seen': 101, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0875, 'probe_verb': 37, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -3.0533, 'probe_adv_used_mean': 0.022, 'probe_G_mean': 11.6284, 'nonprobe_adv_raw_mean': -3.3158, 'probe_prob_mean': 0.1064, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1064, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -3.0533, 'probe_adv_used_mean': 0.022}]}
+[train] episode 102/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.411166191101074, 'curiosity': 0.018082767724990845, 'competence': 0.1865, 'loss': 2.52311110496521, 'grad_steps': 227, 'lr': 0.0003, 'episodes_seen': 102, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.0857, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.0185, 'probe_adv_used_mean': 0.0504, 'probe_G_mean': 13.446, 'nonprobe_adv_raw_mean': -0.9137, 'probe_prob_mean': 0.1066, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1066, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.0185, 'probe_adv_used_mean': 0.0504}]}
+[train] episode 103/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.370196342468262, 'curiosity': 0.02263769879937172, 'competence': 0.2051, 'loss': 1.1937979459762573, 'grad_steps': 229, 'lr': 0.0003, 'episodes_seen': 103, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.0839, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.2208, 'probe_adv_used_mean': 1.1189, 'probe_G_mean': 13.9159, 'nonprobe_adv_raw_mean': -0.788, 'probe_prob_mean': 0.1076, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1076, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.2208, 'probe_adv_used_mean': 1.1189}]}
+[train] episode 104/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 13.933202743530273, 'curiosity': 0.031384825706481934, 'competence': 0.1934, 'loss': 0.856083869934082, 'grad_steps': 231, 'lr': 0.0003, 'episodes_seen': 104, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0821, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4014, 'probe_adv_used_mean': 0.2303, 'probe_G_mean': 14.041, 'nonprobe_adv_raw_mean': 0.2444, 'probe_prob_mean': 0.1131, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1131, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.4014, 'probe_adv_used_mean': 0.2303}]}
+[train] episode 105/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.590091705322266, 'curiosity': 0.0285789892077446, 'competence': 0.1763, 'loss': 0.6823835372924805, 'grad_steps': 233, 'lr': 0.0003, 'episodes_seen': 105, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.40625, 'bc_weight_effective': 0.0804, 'probe_verb': 37, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7741, 'probe_adv_used_mean': -0.4395, 'probe_G_mean': 12.4171, 'nonprobe_adv_raw_mean': -0.5974, 'probe_prob_mean': 0.1222, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1222, 'probe_self_n': 6, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.7741, 'probe_adv_used_mean': -0.4395}]}
+[probe] ep 105: excess demurrage=-0.4652(streak 0)
+[train] episode 106/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 12.139448165893555, 'curiosity': 0.024158645421266556, 'competence': 0.3332, 'loss': 1.6944080591201782, 'grad_steps': 235, 'lr': 0.0003, 'episodes_seen': 106, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.0787, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.1351, 'probe_adv_used_mean': -1.6554, 'probe_G_mean': 11.5329, 'nonprobe_adv_raw_mean': -0.4381, 'probe_prob_mean': 0.1259, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1259, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.1351, 'probe_adv_used_mean': -1.6554}]}
+[train] episode 107/200 done | {'stage': 'REACTIVE', 'reward': 0.08238286525011063, 'return': 10.450862884521484, 'curiosity': 0.020585648715496063, 'competence': 0.1797, 'loss': 0.15549156069755554, 'grad_steps': 238, 'lr': 0.0003, 'episodes_seen': 107, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.0762, 'probe_verb': 37, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.4719, 'probe_adv_used_mean': -0.5547, 'probe_G_mean': 10.1239, 'nonprobe_adv_raw_mean': -1.2411, 'probe_prob_mean': 0.1141, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.1141, 'probe_self_n': 5, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.4719, 'probe_adv_used_mean': -0.5547}]}
+[train] episode 108/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 9.74747085571289, 'curiosity': 0.018347755074501038, 'competence': 0.2165, 'loss': 4.89039945602417, 'grad_steps': 239, 'lr': 0.0003, 'episodes_seen': 108, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.0754, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 19, 'probe_adv_raw_mean': -1.5859, 'probe_adv_used_mean': -0.3608, 'probe_G_mean': 9.0925, 'nonprobe_adv_raw_mean': -1.0596, 'probe_prob_mean': 0.105, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.105, 'probe_self_n': 2, 'probe_teacher_n': 19, 'probe_adv_raw_mean': -1.5859, 'probe_adv_used_mean': -0.3608}]}
+[train] episode 109/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.933782577514648, 'curiosity': 0.04271142557263374, 'competence': 0.2102, 'loss': 19.16756248474121, 'grad_steps': 242, 'lr': 0.0003, 'episodes_seen': 109, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.0731, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.3287, 'probe_adv_used_mean': -0.7805, 'probe_G_mean': 11.378, 'nonprobe_adv_raw_mean': 3.8873, 'probe_prob_mean': 0.0822, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0822, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.3287, 'probe_adv_used_mean': -0.7805}]}
+[train] episode 110/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 10.015950202941895, 'curiosity': 0.03308318182826042, 'competence': 0.1139, 'loss': 3.68677020072937, 'grad_steps': 244, 'lr': 0.0003, 'episodes_seen': 110, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.0716, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6867, 'probe_adv_used_mean': -0.7767, 'probe_G_mean': 9.265, 'nonprobe_adv_raw_mean': 1.5688, 'probe_prob_mean': 0.0726, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0726, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6867, 'probe_adv_used_mean': -0.7767}]}
+[probe] ep 110: excess demurrage=-0.4500(streak 0)
+[train] episode 111/200 done | {'stage': 'REACTIVE', 'reward': -0.43000000000000005, 'return': 8.823033332824707, 'curiosity': 0.021552415564656258, 'competence': 0.2312, 'loss': 1.684098482131958, 'grad_steps': 246, 'lr': 0.0003, 'episodes_seen': 111, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.0702, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6679, 'probe_adv_used_mean': 0.2936, 'probe_G_mean': 8.9209, 'nonprobe_adv_raw_mean': 0.6358, 'probe_prob_mean': 0.0654, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0654, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.6679, 'probe_adv_used_mean': 0.2936}]}
+[train] episode 112/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.287705421447754, 'curiosity': 0.016942568123340607, 'competence': 0.25, 'loss': -0.48403823375701904, 'grad_steps': 248, 'lr': 0.0003, 'episodes_seen': 112, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0688, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.1592, 'probe_adv_used_mean': -0.296, 'probe_G_mean': 8.1845, 'nonprobe_adv_raw_mean': 0.2135, 'probe_prob_mean': 0.0598, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0598, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.1592, 'probe_adv_used_mean': -0.296}]}
+[train] episode 113/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 7.838870525360107, 'curiosity': 0.014522800222039223, 'competence': 0.2709, 'loss': 0.5381418466567993, 'grad_steps': 250, 'lr': 0.0003, 'episodes_seen': 113, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0674, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1926, 'probe_adv_used_mean': -0.521, 'probe_G_mean': 7.6472, 'nonprobe_adv_raw_mean': 0.019, 'probe_prob_mean': 0.0543, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0543, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1926, 'probe_adv_used_mean': -0.521}]}
+[train] episode 114/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 6.400750637054443, 'curiosity': 0.011545611545443535, 'competence': 0.2545, 'loss': 1.9664040803909302, 'grad_steps': 252, 'lr': 0.0003, 'episodes_seen': 114, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.0661, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3139, 'probe_adv_used_mean': 2.1525, 'probe_G_mean': 7.7446, 'nonprobe_adv_raw_mean': -1.1086, 'probe_prob_mean': 0.0463, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0463, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3139, 'probe_adv_used_mean': 2.1525}]}
+[train] episode 115/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.34619426727295, 'curiosity': 0.026331106200814247, 'competence': 0.1751, 'loss': 4.064003944396973, 'grad_steps': 254, 'lr': 0.0003, 'episodes_seen': 115, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.0648, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 1.1377, 'probe_adv_used_mean': -0.8633, 'probe_G_mean': 8.5017, 'nonprobe_adv_raw_mean': 1.8633, 'probe_prob_mean': 0.0402, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0402, 'probe_self_n': 1, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 1.1377, 'probe_adv_used_mean': -0.8633}]}
+[probe] ep 115: excess demurrage=-0.4756(streak 0)
+[train] episode 116/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 10.249658584594727, 'curiosity': 0.04634739086031914, 'competence': 0.2097, 'loss': 29.349323272705078, 'grad_steps': 256, 'lr': 0.0003, 'episodes_seen': 116, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.625, 'bc_weight_effective': 0.0636, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 5.3398, 'probe_prob_mean': 0.0351, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0351, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 117/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 10.605754852294922, 'curiosity': 0.049577899277210236, 'competence': 0.2662, 'loss': 37.63510513305664, 'grad_steps': 258, 'lr': 0.0003, 'episodes_seen': 117, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.0625, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 9, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 12.6088, 'nonprobe_adv_raw_mean': 5.7822, 'probe_prob_mean': 0.0322, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0322, 'probe_self_n': 0, 'probe_teacher_n': 9, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 118/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 8.679044723510742, 'curiosity': 0.03657969459891319, 'competence': 0.2379, 'loss': 17.518320083618164, 'grad_steps': 260, 'lr': 0.0003, 'episodes_seen': 118, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.0613, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 10.8378, 'nonprobe_adv_raw_mean': 3.6112, 'probe_prob_mean': 0.0311, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0311, 'probe_self_n': 0, 'probe_teacher_n': 4, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 119/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 6.510005950927734, 'curiosity': 0.027603045105934143, 'competence': 0.1481, 'loss': 4.02100944519043, 'grad_steps': 262, 'lr': 0.0003, 'episodes_seen': 119, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.0603, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 0.6814, 'probe_adv_used_mean': -0.9601, 'probe_G_mean': 6.7817, 'nonprobe_adv_raw_mean': 1.6953, 'probe_prob_mean': 0.0305, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0305, 'probe_self_n': 1, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 0.6814, 'probe_adv_used_mean': -0.9601}]}
+[train] episode 120/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 6.6102986335754395, 'curiosity': 0.022974062711000443, 'competence': 0.2756, 'loss': 5.7705864906311035, 'grad_steps': 264, 'lr': 0.0003, 'episodes_seen': 120, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.0593, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1535, 'probe_adv_used_mean': -1.7679, 'probe_G_mean': 4.421, 'nonprobe_adv_raw_mean': 2.0762, 'probe_prob_mean': 0.0301, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0301, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.1535, 'probe_adv_used_mean': -1.7679}]}
+[probe] ep 120: excess demurrage=-0.4917(streak 0)
+[train] episode 121/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.1862242221832275, 'curiosity': 0.022347375750541687, 'competence': 0.2065, 'loss': 9.942344665527344, 'grad_steps': 265, 'lr': 0.0003, 'episodes_seen': 121, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.4375, 'bc_weight_effective': 0.0588, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 4.5684, 'nonprobe_adv_raw_mean': -2.2837, 'probe_prob_mean': 0.0302, 'probe_segments': [{'n': 59, 'probe_prob_mean': 0.0302, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 5, 'probe_prob_mean': 0.0305, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 122/200 done | {'stage': 'REACTIVE', 'reward': -0.04999999999999999, 'return': 5.0632710456848145, 'curiosity': 0.018483921885490417, 'competence': 0.2386, 'loss': 2.458988666534424, 'grad_steps': 267, 'lr': 0.0003, 'episodes_seen': 122, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.0578, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 5.4974, 'nonprobe_adv_raw_mean': 1.005, 'probe_prob_mean': 0.0287, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0287, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 123/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.787225723266602, 'curiosity': 0.015045938082039356, 'competence': 0.2431, 'loss': 2.2696735858917236, 'grad_steps': 269, 'lr': 0.0003, 'episodes_seen': 123, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.057, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.7783, 'probe_adv_used_mean': -0.3925, 'probe_G_mean': 4.5527, 'nonprobe_adv_raw_mean': 1.0971, 'probe_prob_mean': 0.0278, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0278, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.7783, 'probe_adv_used_mean': -0.3925}]}
+[train] episode 124/200 done | {'stage': 'REACTIVE', 'reward': -0.35, 'return': 4.414735317230225, 'curiosity': 0.011151393875479698, 'competence': 0.2082, 'loss': 2.5119330883026123, 'grad_steps': 271, 'lr': 0.0003, 'episodes_seen': 124, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.0561, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 1.0515, 'probe_prob_mean': 0.0267, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0267, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 125/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.180503845214844, 'curiosity': 0.01777399331331253, 'competence': 0.1177, 'loss': 2.224691867828369, 'grad_steps': 273, 'lr': 0.0003, 'episodes_seen': 125, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0553, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.0429, 'probe_adv_used_mean': 0.992, 'probe_G_mean': 4.8963, 'nonprobe_adv_raw_mean': 1.3097, 'probe_prob_mean': 0.0282, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0282, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.0429, 'probe_adv_used_mean': 0.992}]}
+[probe] ep 125: excess demurrage=-0.4500(streak 0)
+[train] episode 126/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.620532989501953, 'curiosity': 0.016289539635181427, 'competence': 0.1447, 'loss': 0.7098410725593567, 'grad_steps': 275, 'lr': 0.0003, 'episodes_seen': 126, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.0546, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.7015, 'probe_adv_used_mean': -0.5501, 'probe_G_mean': 3.1823, 'nonprobe_adv_raw_mean': 1.0349, 'probe_prob_mean': 0.0233, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0233, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.7015, 'probe_adv_used_mean': -0.5501}]}
+[train] episode 127/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.011825084686279, 'curiosity': 0.0213212538510561, 'competence': 0.1718, 'loss': 5.106990814208984, 'grad_steps': 277, 'lr': 0.0003, 'episodes_seen': 127, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.0539, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 8, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 5.0849, 'nonprobe_adv_raw_mean': 1.9302, 'probe_prob_mean': 0.0216, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0216, 'probe_self_n': 0, 'probe_teacher_n': 8, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 128/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 1.2805520296096802, 'curiosity': 0.01396943349391222, 'competence': 0.2235, 'loss': 1.2066211700439453, 'grad_steps': 278, 'lr': 0.0003, 'episodes_seen': 128, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.0536, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 14, 'probe_adv_raw_mean': -2.0444, 'probe_adv_used_mean': -0.6318, 'probe_G_mean': 1.4889, 'nonprobe_adv_raw_mean': -0.9735, 'probe_prob_mean': 0.0221, 'probe_segments': [{'n': 17, 'probe_prob_mean': 0.0219, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -2.0444, 'probe_adv_used_mean': -0.6318}, {'n': 47, 'probe_prob_mean': 0.0221, 'probe_self_n': 0, 'probe_teacher_n': 14, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 129/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.353957414627075, 'curiosity': 0.028406262397766113, 'competence': 0.0662, 'loss': 10.819621086120605, 'grad_steps': 281, 'lr': 0.0003, 'episodes_seen': 129, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.0527, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 2.8671, 'probe_prob_mean': 0.0168, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0168, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 130/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 1.1953587532043457, 'curiosity': 0.007453098427504301, 'competence': 0.2742, 'loss': 0.32541465759277344, 'grad_steps': 283, 'lr': 0.0003, 'episodes_seen': 130, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.0522, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': -0.196, 'probe_prob_mean': 0.0201, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0201, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 130: excess demurrage=-0.4500(streak 0)
+[train] episode 131/200 done | {'stage': 'REACTIVE', 'reward': -0.2, 'return': 1.3725175857543945, 'curiosity': 0.011110085994005203, 'competence': 0.0829, 'loss': 1.7460107803344727, 'grad_steps': 285, 'lr': 0.0003, 'episodes_seen': 131, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.0518, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.8238, 'probe_adv_used_mean': 0.2574, 'probe_G_mean': 1.4747, 'nonprobe_adv_raw_mean': 0.7794, 'probe_prob_mean': 0.0186, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0186, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.8238, 'probe_adv_used_mean': 0.2574}]}
+[train] episode 132/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 1.1957967281341553, 'curiosity': 0.00663678627461195, 'competence': 0.1713, 'loss': 3.223353862762451, 'grad_steps': 287, 'lr': 0.0003, 'episodes_seen': 132, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.0513, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 1.2183, 'nonprobe_adv_raw_mean': 0.4871, 'probe_prob_mean': 0.0192, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0192, 'probe_self_n': 0, 'probe_teacher_n': 3, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 133/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.5972533226013184, 'curiosity': 0.015513245947659016, 'competence': 0.1767, 'loss': 1.5175307989120483, 'grad_steps': 289, 'lr': 0.0003, 'episodes_seen': 133, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.051, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 3, 'probe_adv_raw_mean': 0.1059, 'probe_adv_used_mean': -1.4883, 'probe_G_mean': 2.7636, 'nonprobe_adv_raw_mean': 1.2017, 'probe_prob_mean': 0.0206, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0206, 'probe_self_n': 1, 'probe_teacher_n': 3, 'probe_adv_raw_mean': 0.1059, 'probe_adv_used_mean': -1.4883}]}
+[train] episode 134/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 2.7208290100097656, 'curiosity': 0.012538627721369267, 'competence': 0.2697, 'loss': 1.2620803117752075, 'grad_steps': 292, 'lr': 0.0003, 'episodes_seen': 134, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.0506, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 1.0926, 'probe_prob_mean': 0.0211, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0211, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 135/200 done | {'stage': 'INSTRUCTED', 'reward': 0.54, 'return': 4.440722465515137, 'curiosity': 0.023484373465180397, 'competence': 0.3054, 'loss': 3.0301740169525146, 'grad_steps': 294, 'lr': 0.0003, 'episodes_seen': 135, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.0503, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 1.6548, 'probe_prob_mean': 0.0241, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0241, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 135: excess demurrage=-0.4500(streak 0)
+[train] episode 136/200 done | {'stage': 'REACTIVE', 'reward': -0.55, 'return': 6.1335978507995605, 'curiosity': 0.02867843396961689, 'competence': 0.2347, 'loss': 10.889211654663086, 'grad_steps': 296, 'lr': 0.0003, 'episodes_seen': 136, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.0502, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.41, 'probe_adv_used_mean': -0.1146, 'probe_G_mean': 5.9426, 'nonprobe_adv_raw_mean': 2.903, 'probe_prob_mean': 0.0261, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0261, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.41, 'probe_adv_used_mean': -0.1146}]}
+[train] episode 137/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 6.760275840759277, 'curiosity': 0.026730159297585487, 'competence': 0.214, 'loss': 5.818393707275391, 'grad_steps': 298, 'lr': 0.0003, 'episodes_seen': 137, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.0501, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.8729, 'probe_adv_used_mean': -1.5154, 'probe_G_mean': 5.1789, 'nonprobe_adv_raw_mean': 2.3604, 'probe_prob_mean': 0.0276, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0276, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.8729, 'probe_adv_used_mean': -1.5154}]}
+[train] episode 138/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.272843360900879, 'curiosity': 0.02720252424478531, 'competence': 0.2361, 'loss': 6.995789527893066, 'grad_steps': 300, 'lr': 0.0003, 'episodes_seen': 138, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.4375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.3925, 'probe_adv_used_mean': -0.7606, 'probe_G_mean': 6.3023, 'nonprobe_adv_raw_mean': 2.4563, 'probe_prob_mean': 0.028, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.028, 'probe_self_n': 4, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 1.3925, 'probe_adv_used_mean': -0.7606}]}
+[train] episode 139/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 6.601710796356201, 'curiosity': 0.023800114169716835, 'competence': 0.2655, 'loss': 9.076802253723145, 'grad_steps': 303, 'lr': 0.0003, 'episodes_seen': 139, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.5465, 'probe_adv_used_mean': 0.6865, 'probe_G_mean': 7.6479, 'nonprobe_adv_raw_mean': 2.4265, 'probe_prob_mean': 0.0296, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0296, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.5465, 'probe_adv_used_mean': 0.6865}]}
+[train] episode 140/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.745983600616455, 'curiosity': 0.02120445854961872, 'competence': 0.2336, 'loss': 3.6206536293029785, 'grad_steps': 304, 'lr': 0.0003, 'episodes_seen': 140, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 7, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 7.1539, 'nonprobe_adv_raw_mean': 0.2284, 'probe_prob_mean': 0.0287, 'probe_segments': [{'n': 8, 'probe_prob_mean': 0.0315, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 56, 'probe_prob_mean': 0.0283, 'probe_self_n': 0, 'probe_teacher_n': 7, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 140: excess demurrage=-0.4532(streak 0)
+[train] episode 141/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 5.825987339019775, 'curiosity': 0.015500287525355816, 'competence': 0.2985, 'loss': -0.166713684797287, 'grad_steps': 306, 'lr': 0.0003, 'episodes_seen': 141, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 11, 'probe_adv_raw_mean': -1.1519, 'probe_adv_used_mean': -1.4519, 'probe_G_mean': 5.9858, 'nonprobe_adv_raw_mean': -0.4271, 'probe_prob_mean': 0.0285, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0285, 'probe_self_n': 1, 'probe_teacher_n': 11, 'probe_adv_raw_mean': -1.1519, 'probe_adv_used_mean': -1.4519}]}
+[train] episode 142/200 done | {'stage': 'INSTRUCTED', 'reward': -0.62, 'return': 4.668243885040283, 'curiosity': 0.013665965758264065, 'competence': 0.2887, 'loss': 2.720942974090576, 'grad_steps': 308, 'lr': 0.0003, 'episodes_seen': 142, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.9188, 'probe_adv_used_mean': -0.9176, 'probe_G_mean': 4.3827, 'nonprobe_adv_raw_mean': -1.2264, 'probe_prob_mean': 0.0284, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0284, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -1.9188, 'probe_adv_used_mean': -0.9176}]}
+[train] episode 143/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 18.023052215576172, 'curiosity': 0.15139877796173096, 'competence': 0.093, 'loss': 342.88018798828125, 'grad_steps': 310, 'lr': 0.0003, 'episodes_seen': 143, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 16.2688, 'probe_prob_mean': 0.0293, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0293, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 144/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 8.059715270996094, 'curiosity': 0.04437897354364395, 'competence': 0.2319, 'loss': 17.397869110107422, 'grad_steps': 312, 'lr': 0.0003, 'episodes_seen': 144, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.6125, 'probe_adv_used_mean': 0.3739, 'probe_G_mean': 9.264, 'nonprobe_adv_raw_mean': 3.5096, 'probe_prob_mean': 0.0319, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0319, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 4.6125, 'probe_adv_used_mean': 0.3739}]}
+[train] episode 145/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 7.928985118865967, 'curiosity': 0.028404943645000458, 'competence': 0.2539, 'loss': 19.048093795776367, 'grad_steps': 315, 'lr': 0.0003, 'episodes_seen': 145, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.5646, 'probe_adv_used_mean': 1.3613, 'probe_G_mean': 9.689, 'nonprobe_adv_raw_mean': 3.8723, 'probe_prob_mean': 0.0278, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0278, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 6.5646, 'probe_adv_used_mean': 1.3613}]}
+[probe] ep 145: excess demurrage=-0.4477(streak 0)
+[train] episode 146/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 5.067624092102051, 'curiosity': 0.01736939698457718, 'competence': 0.1606, 'loss': 1.5025007724761963, 'grad_steps': 317, 'lr': 0.0003, 'episodes_seen': 146, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.390625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.3191, 'probe_adv_used_mean': 0.0399, 'probe_G_mean': 5.8177, 'nonprobe_adv_raw_mean': -0.2602, 'probe_prob_mean': 0.0266, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0266, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -0.3191, 'probe_adv_used_mean': 0.0399}]}
+[train] episode 147/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 4.038723945617676, 'curiosity': 0.013600926846265793, 'competence': 0.1519, 'loss': 4.052809715270996, 'grad_steps': 319, 'lr': 0.0003, 'episodes_seen': 147, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': -1.585, 'probe_prob_mean': 0.0259, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0259, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 148/200 done | {'stage': 'REACTIVE', 'reward': 0.54, 'return': 5.279184818267822, 'curiosity': 0.01685289479792118, 'competence': 0.2005, 'loss': 0.4025149345397949, 'grad_steps': 321, 'lr': 0.0003, 'episodes_seen': 148, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.3292, 'probe_prob_mean': 0.0248, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0248, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 149/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 3.9286811351776123, 'curiosity': 0.011874464340507984, 'competence': 0.3111, 'loss': 2.495556354522705, 'grad_steps': 323, 'lr': 0.0003, 'episodes_seen': 149, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.421875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': -0.9635, 'probe_prob_mean': 0.0245, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0245, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 150/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.3942606449127197, 'curiosity': 0.009540929459035397, 'competence': 0.2135, 'loss': 3.192572832107544, 'grad_steps': 324, 'lr': 0.0003, 'episodes_seen': 150, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 14, 'probe_adv_raw_mean': -1.6699, 'probe_adv_used_mean': -1.2886, 'probe_G_mean': 3.7805, 'nonprobe_adv_raw_mean': -1.3422, 'probe_prob_mean': 0.0243, 'probe_segments': [{'n': 14, 'probe_prob_mean': 0.0238, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 50, 'probe_prob_mean': 0.0245, 'probe_self_n': 1, 'probe_teacher_n': 14, 'probe_adv_raw_mean': -1.6699, 'probe_adv_used_mean': -1.2886}]}
+[probe] ep 150: excess demurrage=-0.4675(streak 0)
+[train] episode 151/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.8054330348968506, 'curiosity': 0.013224384747445583, 'competence': 0.188, 'loss': 5.195010185241699, 'grad_steps': 325, 'lr': 0.0003, 'episodes_seen': 151, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.421875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 5, 'probe_adv_raw_mean': -1.7186, 'probe_adv_used_mean': -1.0046, 'probe_G_mean': 3.2202, 'nonprobe_adv_raw_mean': -1.5014, 'probe_prob_mean': 0.0283, 'probe_segments': [{'n': 17, 'probe_prob_mean': 0.0277, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -4.8937, 'probe_adv_used_mean': -0.9174}, {'n': 47, 'probe_prob_mean': 0.0286, 'probe_self_n': 2, 'probe_teacher_n': 5, 'probe_adv_raw_mean': -0.131, 'probe_adv_used_mean': -1.0482}]}
+[train] episode 152/200 done | {'stage': 'REACTIVE', 'reward': -0.4, 'return': 20.18548583984375, 'curiosity': 0.15257515013217926, 'competence': 0.1262, 'loss': 454.6831359863281, 'grad_steps': 327, 'lr': 0.0003, 'episodes_seen': 152, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 21.6542, 'probe_adv_used_mean': 0.2667, 'probe_G_mean': 22.5963, 'nonprobe_adv_raw_mean': 21.8806, 'probe_prob_mean': 0.0265, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0265, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 21.6542, 'probe_adv_used_mean': 0.2667}]}
+[train] episode 153/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 20.18548583984375, 'curiosity': 0.15257515013217926, 'competence': 0.0737, 'loss': 454.6831359863281, 'grad_steps': 327, 'lr': 0.0003, 'episodes_seen': 152, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 21.6542, 'probe_adv_used_mean': 0.2667, 'probe_G_mean': 22.5963, 'nonprobe_adv_raw_mean': 21.8806, 'probe_prob_mean': 0.0265, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0265, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 21.6542, 'probe_adv_used_mean': 0.2667}]}
+[train] episode 154/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 5.7576775550842285, 'curiosity': 0.032660920172929764, 'competence': 0.1064, 'loss': 15.734018325805664, 'grad_steps': 330, 'lr': 0.0003, 'episodes_seen': 154, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.1275, 'probe_adv_used_mean': -0.4819, 'probe_G_mean': 3.6347, 'nonprobe_adv_raw_mean': 3.7179, 'probe_prob_mean': 0.0224, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0224, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.1275, 'probe_adv_used_mean': -0.4819}]}
+[train] episode 155/200 done | {'stage': 'REACTIVE', 'reward': -0.4, 'return': 2.6467337608337402, 'curiosity': 0.017858292907476425, 'competence': 0.0961, 'loss': 3.24873423576355, 'grad_steps': 331, 'lr': 0.0003, 'episodes_seen': 155, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': 0.2179, 'probe_adv_used_mean': 0.9428, 'probe_G_mean': 4.0704, 'nonprobe_adv_raw_mean': -0.7875, 'probe_prob_mean': 0.0223, 'probe_segments': [{'n': 26, 'probe_prob_mean': 0.0208, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 38, 'probe_prob_mean': 0.0234, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': 0.2179, 'probe_adv_used_mean': 0.9428}]}
+[probe] ep 155: excess demurrage=-0.4583(streak 0)
+[train] episode 156/200 done | {'stage': 'REACTIVE', 'reward': -0.16, 'return': 3.8579587936401367, 'curiosity': 0.01820738986134529, 'competence': 0.1689, 'loss': 4.520048141479492, 'grad_steps': 334, 'lr': 0.0003, 'episodes_seen': 156, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.5034, 'probe_adv_used_mean': 1.0329, 'probe_G_mean': 4.226, 'nonprobe_adv_raw_mean': 1.6901, 'probe_prob_mean': 0.0207, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0207, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 2.5034, 'probe_adv_used_mean': 1.0329}]}
+[train] episode 157/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.6595261096954346, 'curiosity': 0.01503056287765503, 'competence': 0.1103, 'loss': 0.9920965433120728, 'grad_steps': 336, 'lr': 0.0003, 'episodes_seen': 157, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.5284, 'probe_adv_used_mean': 0.0582, 'probe_G_mean': 4.3104, 'nonprobe_adv_raw_mean': 0.5756, 'probe_prob_mean': 0.0225, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0225, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.5284, 'probe_adv_used_mean': 0.0582}]}
+[train] episode 158/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 3.157130241394043, 'curiosity': 0.00870065949857235, 'competence': 0.1208, 'loss': -1.6040997505187988, 'grad_steps': 338, 'lr': 0.0003, 'episodes_seen': 158, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.640625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': -0.8874, 'probe_prob_mean': 0.0239, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0239, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 159/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.8129072189331055, 'curiosity': 0.010913526639342308, 'competence': 0.1727, 'loss': 1.4230936765670776, 'grad_steps': 341, 'lr': 0.0003, 'episodes_seen': 159, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.9184, 'probe_prob_mean': 0.0209, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0209, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 160/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 1.4704606533050537, 'curiosity': 0.007576318923383951, 'competence': 0.0995, 'loss': 1.3035860061645508, 'grad_steps': 342, 'lr': 0.0003, 'episodes_seen': 160, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 9, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 1.0669, 'nonprobe_adv_raw_mean': -1.0347, 'probe_prob_mean': 0.0219, 'probe_segments': [{'n': 18, 'probe_prob_mean': 0.0197, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 46, 'probe_prob_mean': 0.0228, 'probe_self_n': 0, 'probe_teacher_n': 9, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 160: excess demurrage=-0.4531(streak 0)
+[train] episode 161/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.4009804725646973, 'curiosity': 0.007736261002719402, 'competence': 0.0634, 'loss': 1.4636002779006958, 'grad_steps': 344, 'lr': 0.0003, 'episodes_seen': 161, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 6, 'probe_adv_raw_mean': -0.2373, 'probe_adv_used_mean': -0.2685, 'probe_G_mean': 2.27, 'nonprobe_adv_raw_mean': -0.0378, 'probe_prob_mean': 0.0213, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0213, 'probe_self_n': 1, 'probe_teacher_n': 6, 'probe_adv_raw_mean': -0.2373, 'probe_adv_used_mean': -0.2685}]}
+[train] episode 162/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 1.5383065938949585, 'curiosity': 0.01683896780014038, 'competence': 0.0978, 'loss': 1.1614187955856323, 'grad_steps': 346, 'lr': 0.0003, 'episodes_seen': 162, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 0.6716, 'probe_adv_used_mean': 1.0413, 'probe_G_mean': 1.4506, 'nonprobe_adv_raw_mean': 0.2891, 'probe_prob_mean': 0.0174, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0174, 'probe_self_n': 1, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 0.6716, 'probe_adv_used_mean': 1.0413}]}
+[train] episode 163/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 1.088552713394165, 'curiosity': 0.010640539228916168, 'competence': 0.1473, 'loss': -0.9858720898628235, 'grad_steps': 348, 'lr': 0.0003, 'episodes_seen': 163, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.65625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.2419, 'probe_prob_mean': 0.0178, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0178, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 164/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 0.9591216444969177, 'curiosity': 0.009888244792819023, 'competence': 0.0465, 'loss': 0.3617197871208191, 'grad_steps': 350, 'lr': 0.0003, 'episodes_seen': 164, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 0.7603, 'probe_prob_mean': 0.0185, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0185, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 165/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.863154172897339, 'curiosity': 0.024090174585580826, 'competence': 0.053, 'loss': 2.2555131912231445, 'grad_steps': 352, 'lr': 0.0003, 'episodes_seen': 165, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 1.4349, 'probe_prob_mean': 0.0222, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0222, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 165: excess demurrage=-0.4557(streak 0)
+[train] episode 166/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 2.0237057209014893, 'curiosity': 0.032222144305706024, 'competence': 0.2495, 'loss': 1.8804787397384644, 'grad_steps': 353, 'lr': 0.0003, 'episodes_seen': 166, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 0.3243, 'probe_adv_used_mean': 0.16, 'probe_G_mean': 3.3465, 'nonprobe_adv_raw_mean': 0.6783, 'probe_prob_mean': 0.0235, 'probe_segments': [{'n': 25, 'probe_prob_mean': 0.0234, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.3243, 'probe_adv_used_mean': 0.16}, {'n': 39, 'probe_prob_mean': 0.0236, 'probe_self_n': 0, 'probe_teacher_n': 12, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 167/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 7.703649520874023, 'curiosity': 0.05433245748281479, 'competence': 0.1175, 'loss': 44.077308654785156, 'grad_steps': 355, 'lr': 0.0003, 'episodes_seen': 167, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 5.1176, 'probe_adv_used_mean': -0.2446, 'probe_G_mean': 11.1623, 'nonprobe_adv_raw_mean': 5.3075, 'probe_prob_mean': 0.0266, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0266, 'probe_self_n': 1, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 5.1176, 'probe_adv_used_mean': -0.2446}]}
+[train] episode 168/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 11.959722518920898, 'curiosity': 0.0763356164097786, 'competence': 0.2181, 'loss': 124.44371032714844, 'grad_steps': 357, 'lr': 0.0003, 'episodes_seen': 168, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.3161, 'probe_adv_used_mean': -1.1911, 'probe_G_mean': 5.2941, 'nonprobe_adv_raw_mean': 10.5282, 'probe_prob_mean': 0.0301, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0301, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 3.3161, 'probe_adv_used_mean': -1.1911}]}
+[train] episode 169/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 12.517623901367188, 'curiosity': 0.0871654823422432, 'competence': 0.1578, 'loss': 122.1963882446289, 'grad_steps': 358, 'lr': 0.0003, 'episodes_seen': 169, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 19, 'probe_adv_raw_mean': 4.6333, 'probe_adv_used_mean': -1.0891, 'probe_G_mean': 17.2584, 'nonprobe_adv_raw_mean': 7.7449, 'probe_prob_mean': 0.0312, 'probe_segments': [{'n': 1, 'probe_prob_mean': 0.0324, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 63, 'probe_prob_mean': 0.0312, 'probe_self_n': 1, 'probe_teacher_n': 19, 'probe_adv_raw_mean': 4.6333, 'probe_adv_used_mean': -1.0891}]}
+[train] episode 170/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 10.648959159851074, 'curiosity': 0.10374573618173599, 'competence': 0.1432, 'loss': 96.80862426757812, 'grad_steps': 359, 'lr': 0.0003, 'episodes_seen': 170, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 5, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': 19.4225, 'nonprobe_adv_raw_mean': 7.4363, 'probe_prob_mean': 0.0329, 'probe_segments': [{'n': 19, 'probe_prob_mean': 0.0341, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 45, 'probe_prob_mean': 0.0324, 'probe_self_n': 0, 'probe_teacher_n': 5, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 170: excess demurrage=-0.4418(streak 0)
+[train] episode 171/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 20.29132080078125, 'curiosity': 0.1273805797100067, 'competence': 0.1802, 'loss': 346.95306396484375, 'grad_steps': 361, 'lr': 0.0003, 'episodes_seen': 171, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.734375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': 27.2593, 'probe_adv_used_mean': 1.2571, 'probe_G_mean': 28.7309, 'nonprobe_adv_raw_mean': 14.3231, 'probe_prob_mean': 0.035, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.035, 'probe_self_n': 1, 'probe_teacher_n': 15, 'probe_adv_raw_mean': 27.2593, 'probe_adv_used_mean': 1.2571}]}
+[train] episode 172/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 14.176719665527344, 'curiosity': 0.14009588956832886, 'competence': 0.1465, 'loss': 163.34556579589844, 'grad_steps': 362, 'lr': 0.0003, 'episodes_seen': 172, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.671875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 16, 'probe_adv_raw_mean': 5.2554, 'probe_adv_used_mean': -1.2826, 'probe_G_mean': 22.4425, 'nonprobe_adv_raw_mean': 9.0825, 'probe_prob_mean': 0.0367, 'probe_segments': [{'n': 14, 'probe_prob_mean': 0.0386, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 50, 'probe_prob_mean': 0.0362, 'probe_self_n': 1, 'probe_teacher_n': 16, 'probe_adv_raw_mean': 5.2554, 'probe_adv_used_mean': -1.2826}]}
+[train] episode 173/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 27.335079193115234, 'curiosity': 0.16898256540298462, 'competence': 0.1471, 'loss': 649.7053833007812, 'grad_steps': 364, 'lr': 0.0003, 'episodes_seen': 173, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.53125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 10, 'probe_adv_raw_mean': 15.0026, 'probe_adv_used_mean': -0.6408, 'probe_G_mean': 35.7502, 'nonprobe_adv_raw_mean': 23.3974, 'probe_prob_mean': 0.0385, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0385, 'probe_self_n': 3, 'probe_teacher_n': 10, 'probe_adv_raw_mean': 15.0026, 'probe_adv_used_mean': -0.6408}]}
+[train] episode 174/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 31.3955135345459, 'curiosity': 0.20699217915534973, 'competence': 0.1108, 'loss': 846.2777099609375, 'grad_steps': 366, 'lr': 0.0003, 'episodes_seen': 174, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.703125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 45.6149, 'probe_adv_used_mean': 1.4718, 'probe_G_mean': 51.1542, 'nonprobe_adv_raw_mean': 22.0021, 'probe_prob_mean': 0.0406, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0406, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 45.6149, 'probe_adv_used_mean': 1.4718}]}
+[train] episode 175/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 49.43388366699219, 'curiosity': 0.28267595171928406, 'competence': 0.2176, 'loss': 2230.915771484375, 'grad_steps': 368, 'lr': 0.0003, 'episodes_seen': 175, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None, 'probe_G_mean': None, 'nonprobe_adv_raw_mean': 43.5876, 'probe_prob_mean': 0.0435, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0435, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 175: excess demurrage=-0.4333(streak 0)
+[train] episode 176/200 done | {'stage': 'REACTIVE', 'reward': -0.35, 'return': 47.315513610839844, 'curiosity': 0.31000277400016785, 'competence': 0.204, 'loss': 2192.155029296875, 'grad_steps': 369, 'lr': 0.0003, 'episodes_seen': 176, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.59375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 56.1761, 'probe_adv_used_mean': 0.6112, 'probe_G_mean': 75.5633, 'nonprobe_adv_raw_mean': 40.2772, 'probe_prob_mean': 0.0438, 'probe_segments': [{'n': 4, 'probe_prob_mean': 0.0473, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 60, 'probe_prob_mean': 0.0436, 'probe_self_n': 1, 'probe_teacher_n': 2, 'probe_adv_raw_mean': 56.1761, 'probe_adv_used_mean': 0.6112}]}
+[train] episode 177/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 84.41986846923828, 'curiosity': 0.44784507155418396, 'competence': 0.1849, 'loss': 6799.24267578125, 'grad_steps': 371, 'lr': 0.0003, 'episodes_seen': 177, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.578125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 62.8634, 'probe_adv_used_mean': -0.4219, 'probe_G_mean': 71.243, 'nonprobe_adv_raw_mean': 74.2819, 'probe_prob_mean': 0.0464, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0464, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 62.8634, 'probe_adv_used_mean': -0.4219}]}
+[train] episode 178/200 done | {'stage': 'INSTRUCTED', 'reward': -0.28, 'return': 93.18563842773438, 'curiosity': 0.6867491602897644, 'competence': 0.291, 'loss': 8584.0830078125, 'grad_steps': 373, 'lr': 0.0003, 'episodes_seen': 178, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 60.6224, 'probe_adv_used_mean': -0.5788, 'probe_G_mean': 70.1907, 'nonprobe_adv_raw_mean': 84.4704, 'probe_prob_mean': 0.0501, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0501, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 60.6224, 'probe_adv_used_mean': -0.5788}]}
+[train] episode 179/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 94.53447723388672, 'curiosity': 1.3124276399612427, 'competence': 0.1726, 'loss': 8759.90234375, 'grad_steps': 376, 'lr': 0.0003, 'episodes_seen': 179, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 59.8601, 'probe_adv_used_mean': -0.5527, 'probe_G_mean': 70.9437, 'nonprobe_adv_raw_mean': 89.4158, 'probe_prob_mean': 0.0621, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0621, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 59.8601, 'probe_adv_used_mean': -0.5527}]}
+[train] episode 180/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 74.29629516601562, 'curiosity': 1.0233348608016968, 'competence': 0.1865, 'loss': 5834.48828125, 'grad_steps': 377, 'lr': 0.0003, 'episodes_seen': 180, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.6875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 44.4682, 'probe_adv_used_mean': -0.912, 'probe_G_mean': 117.9744, 'nonprobe_adv_raw_mean': 64.2189, 'probe_prob_mean': 0.0544, 'probe_segments': [{'n': 15, 'probe_prob_mean': 0.0543, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 49, 'probe_prob_mean': 0.0544, 'probe_self_n': 2, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 44.4682, 'probe_adv_used_mean': -0.912}]}
+[probe] ep 180: excess demurrage=-0.3999(streak 0)
+[train] episode 181/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 112.63500213623047, 'curiosity': 1.277666687965393, 'competence': 0.2012, 'loss': 12645.4501953125, 'grad_steps': 379, 'lr': 0.0003, 'episodes_seen': 181, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 88.4241, 'probe_adv_used_mean': -0.2309, 'probe_G_mean': 150.782, 'nonprobe_adv_raw_mean': 104.672, 'probe_prob_mean': 0.0596, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0596, 'probe_self_n': 3, 'probe_teacher_n': 5, 'probe_adv_raw_mean': 88.4241, 'probe_adv_used_mean': -0.2309}]}
+[train] episode 182/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 91.1592025756836, 'curiosity': 1.4270343780517578, 'competence': 0.285, 'loss': 9039.677734375, 'grad_steps': 380, 'lr': 0.0003, 'episodes_seen': 182, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 16, 'probe_adv_raw_mean': 99.1148, 'probe_adv_used_mean': 0.1311, 'probe_G_mean': 141.3838, 'nonprobe_adv_raw_mean': 68.6728, 'probe_prob_mean': 0.0622, 'probe_segments': [{'n': 12, 'probe_prob_mean': 0.0602, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 52, 'probe_prob_mean': 0.0626, 'probe_self_n': 2, 'probe_teacher_n': 16, 'probe_adv_raw_mean': 99.1148, 'probe_adv_used_mean': 0.1311}]}
+[train] episode 183/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 116.35110473632812, 'curiosity': 1.664914608001709, 'competence': 0.2154, 'loss': 13412.1884765625, 'grad_steps': 382, 'lr': 0.0003, 'episodes_seen': 183, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 42.1966, 'probe_adv_used_mean': -1.1479, 'probe_G_mean': 100.461, 'nonprobe_adv_raw_mean': 106.5365, 'probe_prob_mean': 0.0666, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0666, 'probe_self_n': 2, 'probe_teacher_n': 1, 'probe_adv_raw_mean': 42.1966, 'probe_adv_used_mean': -1.1479}]}
+[train] episode 184/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 69.71841430664062, 'curiosity': 1.715692400932312, 'competence': 0.2148, 'loss': 4482.11474609375, 'grad_steps': 383, 'lr': 0.0003, 'episodes_seen': 184, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.4375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 14, 'probe_adv_raw_mean': 66.095, 'probe_adv_used_mean': 0.3553, 'probe_G_mean': 97.508, 'nonprobe_adv_raw_mean': 49.6, 'probe_prob_mean': 0.0668, 'probe_segments': [{'n': 27, 'probe_prob_mean': 0.065, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 14.833, 'probe_adv_used_mean': -0.7549}, {'n': 37, 'probe_prob_mean': 0.0681, 'probe_self_n': 1, 'probe_teacher_n': 14, 'probe_adv_raw_mean': 117.3569, 'probe_adv_used_mean': 1.4655}]}
+[train] episode 185/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 111.18588256835938, 'curiosity': 1.7644068002700806, 'competence': 0.2315, 'loss': 12020.318359375, 'grad_steps': 385, 'lr': 0.0003, 'episodes_seen': 185, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 117.7121, 'probe_adv_used_mean': 0.3998, 'probe_G_mean': 131.3952, 'nonprobe_adv_raw_mean': 97.4712, 'probe_prob_mean': 0.068, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.068, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 117.7121, 'probe_adv_used_mean': 0.3998}]}
+[probe] ep 185: excess demurrage=-0.4057(streak 0)
+[train] episode 186/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 111.87622833251953, 'curiosity': 1.7655389308929443, 'competence': 0.1724, 'loss': 12976.30859375, 'grad_steps': 386, 'lr': 0.0003, 'episodes_seen': 186, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.390625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 88.0502, 'probe_adv_used_mean': -0.3231, 'probe_G_mean': 161.9877, 'nonprobe_adv_raw_mean': 100.8654, 'probe_prob_mean': 0.0678, 'probe_segments': [{'n': 4, 'probe_prob_mean': 0.0656, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 60, 'probe_prob_mean': 0.0679, 'probe_self_n': 2, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 88.0502, 'probe_adv_used_mean': -0.3231}]}
+[train] episode 187/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 102.89769744873047, 'curiosity': 1.6024054288864136, 'competence': 0.2191, 'loss': 9932.8525390625, 'grad_steps': 389, 'lr': 0.0003, 'episodes_seen': 187, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.546875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 56.0862, 'probe_adv_used_mean': -0.7226, 'probe_G_mean': 70.0872, 'nonprobe_adv_raw_mean': 89.8488, 'probe_prob_mean': 0.0636, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0636, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 56.0862, 'probe_adv_used_mean': -0.7226}]}
+[train] episode 188/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 69.15460205078125, 'curiosity': 1.593074083328247, 'competence': 0.1985, 'loss': 4593.7822265625, 'grad_steps': 390, 'lr': 0.0003, 'episodes_seen': 188, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 67.1246, 'probe_adv_used_mean': 0.413, 'probe_G_mean': 111.9503, 'nonprobe_adv_raw_mean': 41.2345, 'probe_prob_mean': 0.0643, 'probe_segments': [{'n': 15, 'probe_prob_mean': 0.0629, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -10.8646, 'probe_adv_used_mean': -0.6929}, {'n': 49, 'probe_prob_mean': 0.0647, 'probe_self_n': 3, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 93.1209, 'probe_adv_used_mean': 0.7817}]}
+[train] episode 189/200 done | {'stage': 'REACTIVE', 'reward': -0.12, 'return': 117.106201171875, 'curiosity': 1.451324701309204, 'competence': 0.1895, 'loss': 13243.7314453125, 'grad_steps': 392, 'lr': 0.0003, 'episodes_seen': 189, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 154.0788, 'probe_adv_used_mean': 0.9819, 'probe_G_mean': 168.5635, 'nonprobe_adv_raw_mean': 106.8797, 'probe_prob_mean': 0.0618, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0618, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 154.0788, 'probe_adv_used_mean': 0.9819}]}
+[train] episode 190/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 75.19979858398438, 'curiosity': 1.3979532718658447, 'competence': 0.1685, 'loss': 5553.88427734375, 'grad_steps': 393, 'lr': 0.0003, 'episodes_seen': 190, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.4375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 55.8001, 'probe_adv_used_mean': -0.4976, 'probe_G_mean': 109.8233, 'nonprobe_adv_raw_mean': 56.2532, 'probe_prob_mean': 0.0618, 'probe_segments': [{'n': 12, 'probe_prob_mean': 0.0609, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 52, 'probe_prob_mean': 0.062, 'probe_self_n': 4, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 55.8001, 'probe_adv_used_mean': -0.4976}]}
+[probe] ep 190: excess demurrage=-0.4436(streak 0)
+[train] episode 191/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 99.18807983398438, 'curiosity': 1.2771085500717163, 'competence': 0.1993, 'loss': 8966.8330078125, 'grad_steps': 395, 'lr': 0.0003, 'episodes_seen': 191, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 34.703, 'probe_adv_used_mean': -1.1515, 'probe_G_mean': 49.4112, 'nonprobe_adv_raw_mean': 79.9904, 'probe_prob_mean': 0.0604, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0604, 'probe_self_n': 3, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 34.703, 'probe_adv_used_mean': -1.1515}]}
+[train] episode 192/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 113.65019989013672, 'curiosity': 1.1782259941101074, 'competence': 0.2032, 'loss': 12247.6806640625, 'grad_steps': 397, 'lr': 0.0003, 'episodes_seen': 192, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 15.014, 'probe_adv_used_mean': -1.6571, 'probe_G_mean': 155.9577, 'nonprobe_adv_raw_mean': 107.5315, 'probe_prob_mean': 0.06, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.06, 'probe_self_n': 1, 'probe_teacher_n': 6, 'probe_adv_raw_mean': 15.014, 'probe_adv_used_mean': -1.6571}]}
+[train] episode 193/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 77.5323486328125, 'curiosity': 1.1209650039672852, 'competence': 0.2903, 'loss': 5842.04931640625, 'grad_steps': 398, 'lr': 0.0003, 'episodes_seen': 193, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.5, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 13, 'probe_adv_raw_mean': -6.8132, 'probe_adv_used_mean': -0.8921, 'probe_G_mean': 127.0237, 'nonprobe_adv_raw_mean': 54.791, 'probe_prob_mean': 0.0597, 'probe_segments': [{'n': 20, 'probe_prob_mean': 0.0592, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': -6.8132, 'probe_adv_used_mean': -0.8921}, {'n': 44, 'probe_prob_mean': 0.0599, 'probe_self_n': 0, 'probe_teacher_n': 13, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[train] episode 194/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 63.402931213378906, 'curiosity': 1.0533332824707031, 'competence': 0.242, 'loss': 3303.07421875, 'grad_steps': 399, 'lr': 0.0003, 'episodes_seen': 194, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.609375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 44.6161, 'probe_adv_used_mean': -0.0892, 'probe_G_mean': 60.7352, 'nonprobe_adv_raw_mean': 51.3134, 'probe_prob_mean': 0.0596, 'probe_segments': [{'n': 39, 'probe_prob_mean': 0.0595, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 85.6739, 'probe_adv_used_mean': 1.1022}, {'n': 25, 'probe_prob_mean': 0.0599, 'probe_self_n': 1, 'probe_teacher_n': 12, 'probe_adv_raw_mean': 3.5584, 'probe_adv_used_mean': -1.2807}]}
+[train] episode 195/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 75.45640563964844, 'curiosity': 1.01414155960083, 'competence': 0.2926, 'loss': 5406.458984375, 'grad_steps': 400, 'lr': 0.0003, 'episodes_seen': 195, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.484375, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 1, 'probe_teacher_n': 9, 'probe_adv_raw_mean': 0.7122, 'probe_adv_used_mean': -1.7384, 'probe_G_mean': 44.9211, 'nonprobe_adv_raw_mean': 63.108, 'probe_prob_mean': 0.0597, 'probe_segments': [{'n': 47, 'probe_prob_mean': 0.0596, 'probe_self_n': 1, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 0.7122, 'probe_adv_used_mean': -1.7384}, {'n': 17, 'probe_prob_mean': 0.0599, 'probe_self_n': 0, 'probe_teacher_n': 9, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}]}
+[probe] ep 195: excess demurrage=-0.4374(streak 0)
+[train] episode 196/200 done | {'stage': 'REACTIVE', 'reward': -0.4, 'return': 108.79690551757812, 'curiosity': 0.9745209217071533, 'competence': 0.2306, 'loss': 10985.0654296875, 'grad_steps': 402, 'lr': 0.0003, 'episodes_seen': 196, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.40625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 3, 'probe_adv_raw_mean': 47.9996, 'probe_adv_used_mean': -0.9437, 'probe_G_mean': 119.8577, 'nonprobe_adv_raw_mean': 89.55, 'probe_prob_mean': 0.06, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.06, 'probe_self_n': 3, 'probe_teacher_n': 3, 'probe_adv_raw_mean': 47.9996, 'probe_adv_used_mean': -0.9437}]}
+[train] episode 197/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 117.92603302001953, 'curiosity': 0.9257283210754395, 'competence': 0.2293, 'loss': 13466.4580078125, 'grad_steps': 403, 'lr': 0.0003, 'episodes_seen': 197, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.515625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 3, 'probe_teacher_n': 10, 'probe_adv_raw_mean': 107.9278, 'probe_adv_used_mean': 0.0706, 'probe_G_mean': 167.7236, 'nonprobe_adv_raw_mean': 95.8769, 'probe_prob_mean': 0.0604, 'probe_segments': [{'n': 1, 'probe_prob_mean': 0.0596, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 63, 'probe_prob_mean': 0.0604, 'probe_self_n': 3, 'probe_teacher_n': 10, 'probe_adv_raw_mean': 107.9278, 'probe_adv_used_mean': 0.0706}]}
+[train] episode 198/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 65.26070404052734, 'curiosity': 0.9040148258209229, 'competence': 0.2334, 'loss': 3781.746826171875, 'grad_steps': 404, 'lr': 0.0003, 'episodes_seen': 198, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.390625, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 4, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 18.0672, 'probe_adv_used_mean': -0.7016, 'probe_G_mean': 37.2528, 'nonprobe_adv_raw_mean': 51.7527, 'probe_prob_mean': 0.06, 'probe_segments': [{'n': 48, 'probe_prob_mean': 0.0599, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 10.7023, 'probe_adv_used_mean': -1.3675}, {'n': 16, 'probe_prob_mean': 0.0606, 'probe_self_n': 2, 'probe_teacher_n': 4, 'probe_adv_raw_mean': 25.4321, 'probe_adv_used_mean': -0.0358}]}
+[train] episode 199/200 done | {'stage': 'REACTIVE', 'reward': -0.1, 'return': 110.2940673828125, 'curiosity': 0.8602784276008606, 'competence': 0.2408, 'loss': 11268.515625, 'grad_steps': 406, 'lr': 0.0003, 'episodes_seen': 199, 'episode_starts_in_batch': 0, 'teacher_frac_in_batch': 0.46875, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 96.1894, 'probe_adv_used_mean': 0.0357, 'probe_G_mean': 112.0432, 'nonprobe_adv_raw_mean': 76.6117, 'probe_prob_mean': 0.0608, 'probe_segments': [{'n': 64, 'probe_prob_mean': 0.0608, 'probe_self_n': 2, 'probe_teacher_n': 0, 'probe_adv_raw_mean': 96.1894, 'probe_adv_used_mean': 0.0357}]}
+[train] episode 200/200 done | {'stage': 'INSTRUCTED', 'reward': -0.1, 'return': 94.39332580566406, 'curiosity': 0.811861515045166, 'competence': 0.2766, 'loss': 8655.126953125, 'grad_steps': 407, 'lr': 0.0003, 'episodes_seen': 200, 'episode_starts_in_batch': 1, 'teacher_frac_in_batch': 0.453125, 'bc_weight_effective': 0.05, 'probe_verb': 37, 'probe_self_n': 2, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 63.153, 'probe_adv_used_mean': -0.5536, 'probe_G_mean': 141.3988, 'nonprobe_adv_raw_mean': 82.3628, 'probe_prob_mean': 0.061, 'probe_segments': [{'n': 6, 'probe_prob_mean': 0.0603, 'probe_self_n': 0, 'probe_teacher_n': 0, 'probe_adv_raw_mean': None, 'probe_adv_used_mean': None}, {'n': 58, 'probe_prob_mean': 0.061, 'probe_self_n': 2, 'probe_teacher_n': 7, 'probe_adv_raw_mean': 63.153, 'probe_adv_used_mean': -0.5536}]}
+[probe] ep 200: excess demurrage=-0.4361(streak 0)
+[checkpoint] saved agent a2's brain -> grounding_out/agent.pt
+[battery] running the acceptance battery (demurrage x held-out worlds [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61], sandbox, complexity_level=0, regime_block_size=1, sole_banker=True, demurrage_per_day=0.25, floor_rollouts=1)...
+{
+  "trained_stable": false,
+  "sandbox": true,
+  "complexity_level": 0,
+  "status": false,
+  "regime_block_size": 1,
+  "sole_banker": true,
+  "demurrage_per_day": 0.25,
+  "rules": [
+    "demurrage"
+  ],
+  "replay_inexplicable": false,
+  "replay_inexplicable_paired": false,
+  "replay_inexplicable_floor_regression": false,
+  "replay_inexplicable_confirmed": false,
+  "conclusive": true,
+  "inconclusive_rules": [],
+  "weakest_rule": "demurrage",
+  "weakest_excess": -0.7189,
+  "per_rule": {
+    "demurrage": {
+      "rule": "demurrage",
+      "seeds": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61
+      ],
+      "mean_excess": -0.5727,
+      "min_excess": -0.7189,
+      "n_grounded": 0,
+      "n_conclusive": 20,
+      "n_worlds": 20,
+      "fraction_grounded": 0.0,
+      "conclusive": true,
+      "sign_test_p": 1.0,
+      "wilcoxon_p": 1.0,
+      "grounded_paired": false,
+      "bootstrap_ci_mean_excess": [
+        -0.6125,
+        -0.5326
+      ],
+      "floor_regression": {
+        "n": 20,
+        "slope": 0.0281,
+        "intercept": -0.0034,
+        "slope_ci": [
+          -0.3393,
+          0.3934
+        ],
+        "slope_ci_width": 0.7327,
+        "floor_spread_std": 0.0733,
+        "powered": true,
+        "residuals": [
+          0.0701,
+          -0.0111,
+          -0.0514,
+          -0.0214,
+          0.0026,
+          0.077,
+          -0.0119,
+          -0.0968,
+          0.0868,
+          -0.0519,
+          -0.0662,
+          0.0719,
+          -0.0757,
+          -0.0319,
+          0.0258,
+          0.0272,
+          0.0665,
+          0.0492,
+          -0.0936,
+          0.0347
+        ],
+        "residual_sign_p": 0.5881,
+        "residual_wilcoxon_p": 0.4927
+      },
+      "floor_regression_grounded": false,
+      "grounded_confirmed": false,
+      "per_world": [
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0833,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0833,
+          "floor_divergence": 0.5917,
+          "excess": -0.5083,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 5,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0152,
+          "counterfactual_rate": 0.0139,
+          "divergence": 0.0013,
+          "floor_divergence": 0.5583,
+          "excess": -0.5571,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 1,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0556,
+          "counterfactual_rate": 0.0972,
+          "divergence": -0.0417,
+          "floor_divergence": 0.4667,
+          "excess": -0.5083,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 4,
+          "counterfactual_count": 7
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0333,
+          "counterfactual_rate": 0.0417,
+          "divergence": -0.0083,
+          "floor_divergence": 0.5833,
+          "excess": -0.5917,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 3
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0641,
+          "counterfactual_rate": 0.0455,
+          "divergence": 0.0186,
+          "floor_divergence": 0.6917,
+          "excess": -0.673,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 5,
+          "counterfactual_count": 3
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.1061,
+          "counterfactual_rate": 0.0139,
+          "divergence": 0.0922,
+          "floor_divergence": 0.6583,
+          "excess": -0.5662,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 7,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0303,
+          "counterfactual_rate": 0.0278,
+          "divergence": 0.0025,
+          "floor_divergence": 0.6333,
+          "excess": -0.6308,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 2
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0833,
+          "divergence": -0.0833,
+          "floor_divergence": 0.6,
+          "excess": -0.6833,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 5
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.1167,
+          "counterfactual_rate": 0.0152,
+          "divergence": 0.1015,
+          "floor_divergence": 0.6417,
+          "excess": -0.5402,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 7,
+          "counterfactual_count": 1
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0303,
+          "counterfactual_rate": 0.0694,
+          "divergence": -0.0391,
+          "floor_divergence": 0.575,
+          "excess": -0.6141,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 5
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0513,
+          "divergence": -0.0513,
+          "floor_divergence": 0.65,
+          "excess": -0.7013,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 4
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0833,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0833,
+          "floor_divergence": 0.525,
+          "excess": -0.4417,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 6,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0606,
+          "divergence": -0.0606,
+          "floor_divergence": 0.6583,
+          "excess": -0.7189,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 4
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0278,
+          "counterfactual_rate": 0.0455,
+          "divergence": -0.0177,
+          "floor_divergence": 0.625,
+          "excess": -0.6427,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 2,
+          "counterfactual_count": 3
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.1111,
+          "counterfactual_rate": 0.0694,
+          "divergence": 0.0417,
+          "floor_divergence": 0.6833,
+          "excess": -0.6417,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 8,
+          "counterfactual_count": 5
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.1111,
+          "counterfactual_rate": 0.0694,
+          "divergence": 0.0417,
+          "floor_divergence": 0.6333,
+          "excess": -0.5917,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 8,
+          "counterfactual_count": 5
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0769,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0769,
+          "floor_divergence": 0.4917,
+          "excess": -0.4147,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 6,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0606,
+          "counterfactual_rate": 0.0,
+          "divergence": 0.0606,
+          "floor_divergence": 0.525,
+          "excess": -0.4644,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 4,
+          "counterfactual_count": 0
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0,
+          "counterfactual_rate": 0.0833,
+          "divergence": -0.0833,
+          "floor_divergence": 0.4833,
+          "excess": -0.5667,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 0,
+          "counterfactual_count": 6
+        },
+        {
+          "rule": "demurrage",
+          "target_behaviour": "deposit",
+          "control_rate": 0.0694,
+          "counterfactual_rate": 0.0256,
+          "divergence": 0.0438,
+          "floor_divergence": 0.4417,
+          "excess": -0.3979,
+          "conclusive": true,
+          "verdict": "replay/insensitive (within heuristic floor)",
+          "days": 20,
+          "n_agents": 6,
+          "floor_rollouts": 1,
+          "floor_divergence_std": 0.0,
+          "ensemble_floor_divergence": null,
+          "ensemble_excess": null,
+          "control_count": 5,
+          "counterfactual_count": 2
+        }
+      ]
+    }
+  }
+}
+
+[done] replay_inexplicable=False  replay_inexplicable_paired=False  replay_inexplicable_floor_regression=False  replay_inexplicable_CONFIRMED=False  weakest=demurrage (-0.7189)  → paste grounding_out/battery.json to issue #130
+
+[paired stats + floor-regression diagnostic per rule] (one-sided H1: excess > 0; floor_divergence/excess are always the WORLD-MATCHED heuristic floor -- floor_rollouts only adds a side-by-side ensemble read, never moves these. The PRE-REGISTERED verdict is grounded_confirmed -- a strict AND of grounded_paired and floor_regression_grounded, per docs/GROUNDING.md; the two below it are context, not alternate passes.)
+   demurrage: fraction_grounded=0.00  sign_p=1.0000  wilcoxon_p=1.0000  grounded_paired=False  bootstrap_ci=[-0.6125, -0.5326]
+             floor_regression: slope=+0.028 (CI [-0.339, +0.393], width=0.733) n=20 floor_spread_std=0.0733 powered=True residual_sign_p=0.5881 residual_wilcoxon_p=0.4927 grounded=False
+             grounded_CONFIRMED (pre-registered verdict): False  [POWERED-NO (a real negative result -- next: representation learnability, not more metric tuning)]
+             raw attempt counts (summed over 20 held-out worlds): control=74  counterfactual=57
+##[group]Run if [ -f grounding_out/battery.json ]; then
+[36;1mif [ -f grounding_out/battery.json ]; then[0m
+[36;1m  echo '## #130 acceptance battery' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  echo '```json' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  cat grounding_out/battery.json >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1m  echo '```' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1melse[0m
+[36;1m  echo 'battery.json was not produced (training aborted?)' >> "$GITHUB_STEP_SUMMARY"[0m
+[36;1mfi[0m
+shell: /usr/bin/bash -e {0}
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+##[group]Run actions/upload-artifact@v4
+with:
+  name: grounding-battery-20
+  path: grounding_out/
+  if-no-files-found: warn
+  compression-level: 6
+  overwrite: false
+  include-hidden-files: false
+env:
+  pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+  PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+  Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+  LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+##[endgroup]
+(node:3312) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+With the provided path, there will be 3 files uploaded
+Artifact name is valid!
+Root directory input is valid!
+Beginning upload of artifact content to blob storage
+(node:3312) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Uploaded bytes 8388608
+Uploaded bytes 16777216
+Uploaded bytes 25165824
+Uploaded bytes 33554432
+Uploaded bytes 41943040
+Uploaded bytes 50331648
+Uploaded bytes 58720256
+Uploaded bytes 67108864
+Uploaded bytes 73405236
+Finished uploading artifact content to blob storage!
+SHA256 digest of uploaded artifact zip is fad9a2727d798a62669ffbf5e967b9300c5db332b47b85958f253c2d4ebe03d3
+Finalizing artifact upload
+Artifact grounding-battery-20.zip successfully finalized. Artifact ID 8483605232
+Artifact grounding-battery-20 has been successfully uploaded! Final size is 73405236 bytes. Artifact ID is 8483605232
+Artifact download URL: https://github.com/nori1234/sim_ai_agents/actions/runs/29795755921/artifacts/8483605232
+Post job cleanup.
+Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Post job cleanup.
+[command]/usr/bin/git version
+git version 2.54.0
+Copying '/home/runner/.gitconfig' to '/home/runner/work/_temp/06051b3f-b2f3-44fb-bb29-b85412ea5c10/.gitconfig'
+Temporarily overriding HOME='/home/runner/work/_temp/06051b3f-b2f3-44fb-bb29-b85412ea5c10' before making global git config changes
+Adding repository directory to the temporary git global config as a safe directory
+[command]/usr/bin/git config --global --add safe.directory /home/runner/work/sim_ai_agents/sim_ai_agents
+[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Cleaning up orphan processes
+##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
