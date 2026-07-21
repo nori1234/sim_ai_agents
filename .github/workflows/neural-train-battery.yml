@@ -92,6 +92,17 @@ on:
           training outcomes.
         required: false
         default: "0.15"
+      grounded_teacher:
+        description: >-
+          issue #10(c) diagnostic (only applies with sandbox=true): use the
+          regime-AWARE grounded heuristic as the TEACHER (deposits in control,
+          holds under demurrage), told the ground-truth regime each episode.
+          Measures the teaching-channel ceiling — can grounding transmit via BC
+          when the teacher has it. The teacher cheats by construction (knows the
+          hidden regime): pipeline validation, NOT a grounding proof. Do NOT
+          anneal BC with this. "true" or "false".
+        required: false
+        default: "false"
       status_layer:
         description: >-
           Enable the status/esteem layer during TRAINING episodes (a
@@ -236,6 +247,7 @@ jobs:
             --window "$WINDOW" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             ${{ inputs.sole_banker == 'true' && '--sole-banker' || '' }} \
+            ${{ inputs.grounded_teacher == 'true' && '--grounded-teacher' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \

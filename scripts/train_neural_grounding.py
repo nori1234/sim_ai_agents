@@ -137,6 +137,7 @@ from emergence.esteem import StatusConfig                      # noqa: E402
 from emergence.grounding import (                              # noqa: E402
     CounterfactualConfig,
     MAX_COMPLEXITY_LEVEL,
+    _grounded_heuristic_brain_class,
     estimate_conclusive_yield,
     make_grounding_sandbox,
     run_grounding_battery,
@@ -249,6 +250,21 @@ def main(argv=None) -> int:
                          "--sole-banker. Calibrated via contingency-calib-1, "
                          "never tuned against training outcomes (see docs/"
                          "proposals/run15-contingency-margin.md).")
+    ap.add_argument("--grounded-teacher", action="store_true",
+                    help="issue #10(c) diagnostic (only applies with --sandbox): "
+                         "replace the regime-BLIND HeuristicBrain teacher with the "
+                         "regime-AWARE _GroundedHeuristicBrain (deposits in control, "
+                         "RESTs instead of depositing under demurrage), told the "
+                         "ground-truth regime each episode. Measures the TEACHING-"
+                         "CHANNEL ceiling: can grounding transmit through BC at all "
+                         "when the teacher HAS it? A pass narrows the problem to "
+                         "'we need a grounded teacher (eventually LLM/human)'; a "
+                         "fail implicates policy/representation capacity. NB: the "
+                         "teacher cheats by construction (knows the hidden regime) "
+                         "-- this is pipeline validation, NOT a grounding proof. "
+                         "Only measured/checkpointed brain (agents[1]) is the "
+                         "student; do NOT anneal BC with this (keep the channel "
+                         "open).")
     ap.add_argument("--complexity-level", type=int, default=0,
                     help="step up the sandbox's complexity ladder (0..%d; only applies "
                          "with --sandbox). 0 is the original minimal sandbox; each "
@@ -334,12 +350,22 @@ def main(argv=None) -> int:
 
     # -- persistent training brains: one per agent id, reused across episodes --
     brains: dict[str, NeuralDevelopmentalBrain] = {}
+    # A1 (issue #10c): keep refs to the grounded teachers so the loop can flip
+    # each one's ground-truth regime (`_avoid_deposit`) per episode. Empty
+    # unless --grounded-teacher. EngineTeacher holds a live ref to the brain
+    # and calls decide() every demonstrate(), so flipping the flag takes effect.
+    grounded_teachers: dict[str, object] = {}
 
     def training_factory(agent, persona, rng):
         b = brains.get(agent.id)
         if b is None:
-            b = NeuralDevelopmentalBrain(persona, teacher=HeuristicBrain(persona),
-                                         hparams=hparams)
+            if args.grounded_teacher and args.sandbox:
+                GT = _grounded_heuristic_brain_class()
+                teacher = GT(persona, avoid_deposit=False)  # flipped per episode
+                grounded_teachers[agent.id] = teacher
+            else:
+                teacher = HeuristicBrain(persona)
+            b = NeuralDevelopmentalBrain(persona, teacher=teacher, hparams=hparams)
             brains[agent.id] = b
         elif hasattr(b, "end_episode"):
             # The contract-clean episode-boundary hook (llm_model_agi commit
@@ -408,7 +434,8 @@ def main(argv=None) -> int:
     level_str = (f", complexity_level={args.complexity_level}, "
                 f"regime_block_size={args.regime_block_size}, "
                 f"sole_banker={args.sole_banker}, "
-                f"demurrage_per_day={args.demurrage_per_day}") if args.sandbox else ""
+                f"demurrage_per_day={args.demurrage_per_day}, "
+                f"grounded_teacher={args.grounded_teacher}") if args.sandbox else ""
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}{level_str}, "
           f"status={status_enabled}, rules={','.join(rules)}, hparams={hparams}, "
@@ -418,6 +445,16 @@ def main(argv=None) -> int:
     measured_id = None   # whose brain gets logged AND checkpointed (see below)
     for ep in range(args.episodes):
         sim = build_episode(ep)
+
+        # A1: tell the grounded teachers this episode's ground-truth regime
+        # (same formula build_episode uses for sandbox), so they demonstrate
+        # "deposit in control / hold under demurrage". No-op unless
+        # --grounded-teacher. Set after build_episode (brains/teachers created)
+        # and before sim.run() (when demonstrate() is called).
+        if grounded_teachers:
+            cf_this_ep = (ep // args.regime_block_size) % 2 == 1
+            for t in grounded_teachers.values():
+                t._avoid_deposit = cf_this_ep
 
         # Which agent's brain is THE subject of this run? Every agent trains
         # its own brain, but only one is logged, checkpointed, and battery-
@@ -502,6 +539,7 @@ def main(argv=None) -> int:
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
               "demurrage_per_day": args.demurrage_per_day,
+              "grounded_teacher": args.grounded_teacher,
               **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
