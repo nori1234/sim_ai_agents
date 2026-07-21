@@ -1100,6 +1100,27 @@ local mirror:
     propensity still rising at ep60 (a longer run is cheap and untried),
     and the cf>control attempt asymmetry (117 vs 91) is unexplained. Raw:
     [`docs/runs/run-17/`](runs/run-17/) (incl. `probe_analysis.txt`).
+  * **Runs #18–#19 — variance-reduction candidate 1 works; the binding
+    constraint moves to the teaching channel.** `adv_baseline="episode"`
+    (brain `435177b`; subtract each episode segment's mean advantage before
+    normalisation — the control variate aimed at the exact noise run #17
+    measured) un-inverted the deposit credit (raw control +2.95 vs cf +1.68
+    at 60 eps, spread compressed ~10×) and, at 200 episodes (run #19), the
+    pre-declared criterion was essentially met on the signal side: **deposit
+    used-advantage cf −0.123 vs control −0.005** (middle third −0.229 vs
+    +0.053) — PG is finally told the regime truth. Behaviour, however,
+    stayed regime-flat (segment propensity 0.0807 vs 0.0818; battery 359
+    control / 348 cf attempts, mean_excess −0.587, still POWERED-NO, no
+    is_stable): half of every batch is BC toward the regime-blind teacher
+    (probe_teacher_n 435 ≈ probe_self_n 443), whose dense
+    deposit-everywhere demonstrations out-pull the sparse, small, correct
+    PG differential. That is issue #10's R2 ("no parent can teach
+    grounding") materialized as numbers, and the brain side's own listed
+    remedy (b) is next: **BC annealing** (`bc_weight_decay_steps`, brain
+    `a7f7ddc` — cosine-decay bc_weight → bc_weight_min, imitation
+    bootstraps then hands off; run #20). Raw:
+    [`docs/runs/run-18/`](runs/run-18/),
+    [`docs/runs/run-19/`](runs/run-19/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
