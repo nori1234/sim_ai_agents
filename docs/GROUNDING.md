@@ -11,7 +11,7 @@ training prior, the two are indistinguishable, so success proves nothing.
 
 ## Where things stand (see "Current status" below for the full run-by-run record)
 
-**Not confirmed, not refuted — narrowing.** Across 12 real-engine CI runs, four
+**Not confirmed, not refuted — narrowing.** Across 19 real-engine CI runs, four
 structural hypotheses have each been investigated to a specific mechanism:
 the floor confound (engine-side, fixed), the v1→v2 observation tokenizer
 (brain-side, fixed), single-step→discounted credit assignment (brain-side,

@@ -15,7 +15,7 @@ on:
       llm_model_agi_ref:
         description: pip spec for the brain package (agent.adapters.emergence)
         required: true
-        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+        default: "git+https://github.com/nori1234/llm_model_agi@main"
       torch_spec:
         description: pip spec for torch (CPU wheel is fine)
         required: false
