@@ -3,7 +3,8 @@
 > **系の全体像（3リポジトリ＝1つの系・器官マップ・ロードマップ）は [`docs/SYSTEM.md`](SYSTEM.md) が真実の単一ソース。**
 > この HANDOFF は sim(世界)側の運用引き継ぎ、SYSTEM.md は3リポ横断の背骨。
 
-次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #19 直後・run #20 訓練中)。
+次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #20/#25(A1)完了・
+訓練不安定の根本修正済み・run #26(v1b)訓練中)。
 古くなっていたら、この日付以降の `main` の履歴・issue #99/#130 のコメントが正。
 
 ## 体制と役割
@@ -52,17 +53,42 @@
   ので、疎で正しいPG勾配を打ち負かす。これは issue #10 R2(盲目teacherのアンカー問題)
   そのもの。**親の実体は `money>=12→deposit` の手書きif-elseで、`deposit_rate`/
   `demurrage` を一切見ない**(接地は原理的にBCからは来ない)。
-- **実行中 run #20**: brain の `bc_weight_decay_steps`(BC annealing=issue #10(b))で
-  親離れをスケジュール化。離乳後に行動がregime分離するかが焦点。
-- 一次資料: `docs/runs/run-1[5-9]/`(各 README+probe_analysis+battery.json)、
+- **BC annealing(#20)**: 親離れをスケジュール化(0.30→0.05)。離乳しても行動は
+  regime分離せず、預金密度はむしろ低下。**POWERED-NO**。盲目teacherは*密度*を
+  ブートストラップできるが*随伴性*は無理、自己プレイPGは随伴性を勾配で表現できるが
+  まだ*勝てない*——どちらの単一チャネルもこのスケールで接地を閉じない(run-20 README)。
+- **A1=接地teacher(#25)**: #20の本命診断(issue #10(c))。regime**盲目**の親を
+  regime**認識**の grounded heuristic に差し替え(controlで預金・demurrageでREST)、
+  正解regimeを毎ep教示、BCは0.3固定(チャネルを開けたまま)。結果 **POWERED-NO**——
+  預金回数 control 167 ≒ cf 160、`fraction_grounded 0.00`、`wilcoxon_p 1.0`。
+  **接地した教師を与えても BC で随伴性は伝わらない**。ボトルネックは「接地teacherの
+  不在」ではなく、run-20 が事前登録した fail 分岐=**方策/表現の学習可能性**。
+  一次資料 `docs/runs/run-25/`。
+  - ⚠️ **交絡の注意**: この run から訓練安定化で状態表現に `LayerNorm` を導入
+    (下記)。scale情報を捨てるので、regime信号が scale に乗っていたら消えた可能性。
+    regime は token パターン(預金/残高の推移)に出るはずで LayerNorm でも保たれ、
+    かつ #17–20(正規化なし)と同じ POWERED-NO なので整合的だが、表現学習可能性を
+    「無理」と断ずる前に with/without-norm 対照 or 正規化状態の decodability probe を
+    owe(表現学習可能性ラインの第1タスク)。
+- **訓練不安定の根本修正(#21/#22 のクラッシュ原因)**: brain の `encode_state` に
+  出力正規化が無く、訓練で表現の大きさが発散→価値MSE/生の好奇心(wm_loss)/policy
+  logits がNaN→`multinomial` が例外→`decide()` の素の except が握り潰して「原因不明の
+  heuristic フォールバック」化。メタ安定なので運init次第で ep1〜ep163 のどこでも落ちる
+  (ドライバがRNG未seed)。修正: brain=パラメータ無し `F.layer_norm`(状態)+非有限loss
+  時は更新スキップ / engine=RNG seed 固定+握り潰し例外をstderrへ+fatalに真因を出す。
+  記憶の byte-identity と baseline 決定性テストは不変。#25 が200ep完走で **CI実証済み**。
+- 一次資料: `docs/runs/run-1[5-9]/`・`run-20/`・`run-25/`(各 README+battery.json)、
   `control-margin-1`・`contingency-calib-1`、叙述は `docs/GROUNDING.md`、経緯は #130。
 
-**次の分岐(run #20 の結果次第)**:
-(a) run #20 で分離が出れば延長/多seed で再現性、その後 vanity/exposure 軸へ。
-(b) 出なければ次の綱引き容疑(探索エントロピー、自己試行の預金サンプルが疎)へ。
-(c) 抜本策として issue #10(c) の**接地した scripted teacher**(controlでだけ預ける
-regime分岐付きの親)で「BC経由で接地が伝わるか(教示チャネルの天井)」を測る、
-または (d) 本物のLLM親——ただし CI 訓練ループは CPU・LLM未接続なので要環境整備。
+**次の分岐**:
+(a) **表現の学習可能性ライン(POWERED-NO の事前登録フォローアップ)**: まず上記の
+LayerNorm 交絡チェック(正規化状態の regime decodability probe)、次に観測エンコード/
+memoryless方策が「demurrage→預けない」を*表現・学習*できるかを直接測る。メトリクスの
+再チューニングではない。
+(b) **記憶ライン(v1b=run #26 訓練中)**: `memory_into_policy=true` で「この状況の過去の
+帰結」を想起して h に足す。memoryless方策の信号の薄さ(ticksをまたぐ随伴性)への構造的
+回答になりうるか——#17–20/#25 に対して接地が動くかを測る。結果待ち。
+(c) 本物のLLM親——ただし CI 訓練ループは CPU・LLM未接続なので要環境整備。
 
 ## 実行の要点(グラウンディング計測)
 
