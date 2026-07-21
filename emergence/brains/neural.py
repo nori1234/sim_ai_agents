@@ -87,14 +87,21 @@ class NeuralDevelopmentalBrain(AgentBrain):
             return self._fallback.decide(agent, observation)
         try:
             self._ensure()
-            # 1) Learn from what the *previous* action did to the world.
-            if self._learn and self._prev_obs is not None:
+            # 1) Learn from what the *previous* action did to the world. When
+            #    frozen (learn=False), still ACCUMULATE episodic memory via
+            #    observe() — remembering is perception, not learning — so a
+            #    memory-consuming policy can recall this world's own outcomes
+            #    within its life at eval (v1). No-op when the brain has no memory.
+            if self._prev_obs is not None:
                 from ._neural_reward import survival_reward
                 reward = survival_reward(self._prev_obs, observation,
                                          self._reward_weights)
-                info = self._dev.learn(observation, reward)  # curiosity is added internally
-                if isinstance(info, dict):
-                    self.last_learn_info = info
+                if self._learn:
+                    info = self._dev.learn(observation, reward)  # curiosity added internally
+                    if isinstance(info, dict):
+                        self.last_learn_info = info
+                elif hasattr(self._dev, "observe"):
+                    self._dev.observe(reward)   # eval: memory only, no RL update
             # 2) Choose an action (early stages imitate the teacher; later autonomous).
             #    `agent` is passed so the brain's EngineTeacher can call
             #    teacher.decide(agent, obs) for imitation (contract decision (a)).
