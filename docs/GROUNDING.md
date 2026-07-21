@@ -1121,6 +1121,22 @@ local mirror:
     bootstraps then hands off; run #20). Raw:
     [`docs/runs/run-18/`](runs/run-18/),
     [`docs/runs/run-19/`](runs/run-19/).
+  * **Run #20 — BC annealing (issue #10(b)): the anneal fired but grounding
+    did not appear underneath; the individual-RL ladder is largely
+    exhausted.** `bc_weight` decayed 0.3→0.05 on schedule, yet regime
+    propensity separation stayed at noise (control−cf ≈ ±0.002 across all
+    training thirds), deposit density fell as BC decayed (0.078→0.040), and
+    the battery is still POWERED-NO (`mean_excess −0.573`, `n_conclusive
+    20/20`). Reading the #17→#20 chain: the correct PG signal exists (episode
+    baseline, #18/#19) but is too sparse (~2 deposit self-samples/batch) to
+    drive a differentiated policy once the blind teacher's density-scaffold is
+    removed. The regime-blind teacher (R2, #10) bootstraps density but not
+    contingency; self-play PG represents the contingency but can't win on it.
+    Next candidates (strategy call, not an autonomous knob): a **grounded
+    scripted teacher** (#10(c), measures the teaching-channel ceiling), stronger
+    exploration, or the **temporal-memory/body integration** (`agent_agi/docs/09`
+    — a memoryless policy has almost no signal about a consequence that unfolds
+    over ticks). Raw: [`docs/runs/run-20/`](runs/run-20/).
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**
