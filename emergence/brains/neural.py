@@ -60,6 +60,7 @@ class NeuralDevelopmentalBrain(AgentBrain):
         self._hparams = hparams
         self._dev = None                 # the DevelopmentalAgent; lazy-built
         self._broken = False             # latched once deps/build fail → straight to fallback
+        self._last_error = None          # the exception that latched _broken (else None)
         self._prev_obs = None            # last observation, for the reward delta
         # The brain side's learn() may optionally return a diagnostics dict (e.g.
         # {"grad_steps": int, "lr": float}) for hparam tuning (the lr-decay
@@ -110,9 +111,22 @@ class NeuralDevelopmentalBrain(AgentBrain):
             # 3) Map the policy's output spec onto a concrete engine Action.
             from agent.adapters.emergence import to_engine_action  # type: ignore
             return to_engine_action(spec, agent, observation)
-        except Exception:
+        except Exception as exc:
             # Any failure (missing deps, bad checkpoint, runtime error) → never
             # crash the run; latch so we don't keep retrying a hopeless import.
+            # But DON'T swallow the cause silently: a bare latch here turned a
+            # mid-training NaN / a missing-extra ImportError into an
+            # indistinguishable "[fatal] not live" with no traceback (engine runs
+            # #21/#22). Record the full traceback on the instance and emit it once
+            # to stderr, so the trainer's fatal message can name the real reason.
+            import traceback
+            self._last_error = traceback.format_exc()
+            first_break = self._broken is False
             self._broken = True
             self._dev = None
+            if first_break:
+                import sys
+                print("[neural] backend failed — falling back to heuristic. "
+                      "Underlying error:\n" + self._last_error,
+                      file=sys.stderr, flush=True)
             return self._fallback.decide(agent, observation)

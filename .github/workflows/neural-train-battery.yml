@@ -20,6 +20,16 @@ on:
         description: pip spec for torch (CPU wheel is fine)
         required: false
         default: "torch"
+      agent_agi_ref:
+        description: >-
+          pip spec for the memory organ (agent_agi's DeterministicMemoryStore).
+          Needed whenever hparams set memory="episodic" (v0 recording OR v1
+          memory_into_policy): AgentAgiEpisodicMemory imports it lazily, so a
+          missing install shows up only as a silent heuristic fallback at
+          episode 1 (engine run #22). Installed unconditionally — it is inert
+          for the default memory="null" runs.
+        required: false
+        default: "git+https://github.com/nori1234/agent_agi@main"
       episodes:
         description: max training episodes
         required: false
@@ -175,13 +185,19 @@ jobs:
           fi
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install torch + the developmental-brain package
+      - name: Install torch + the developmental-brain package + the memory organ
         env:
           TORCH_SPEC: ${{ inputs.torch_spec }}
           LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
+          AGENT_AGI_REF: ${{ inputs.agent_agi_ref }}
         run: |
           pip install "$TORCH_SPEC"
           pip install "$LLM_MODEL_AGI_REF"
+          # The memory organ. memory="episodic" imports agent_agi lazily inside
+          # decide(), so without this a memory run silently falls back to the
+          # heuristic at episode 1 with no traceback (run #22). Installed always
+          # (inert for the default memory="null").
+          pip install "$AGENT_AGI_REF"
 
       - name: Guard — the adapter must actually import (a fallback run trains nothing)
         run: |
@@ -209,6 +225,35 @@ jobs:
                        "hashes (see docs/GROUNDING.md) — measuring with it silently "
                        "invalidates any grounding result. Update llm_model_agi_ref "
                        "to a ref that includes the fix and re-dispatch.")
+          PY
+
+      - name: Guard — if memory is requested, the organ must actually import
+        # AgentAgiEpisodicMemory imports agent_agi lazily inside decide(), so a
+        # missing organ surfaces only as a silent heuristic fallback at episode 1
+        # (run #22). Fail fast and loud here instead, but ONLY when the run
+        # actually asks for episodic memory (default null needs nothing).
+        env:
+          HPARAMS: ${{ inputs.hparams }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          raw = os.environ.get("HPARAMS", "") or "{}"
+          try:
+              hp = json.loads(raw)
+          except Exception:
+              hp = {}
+          if hp.get("memory", "null") == "episodic":
+              try:
+                  from agent.memory import AgentAgiEpisodicMemory
+                  AgentAgiEpisodicMemory()   # forces the agent_agi import
+              except Exception as exc:
+                  sys.exit(f"[fatal] hparams request memory='episodic' but the "
+                           f"memory organ did not import: {exc!r}. Install "
+                           "agent_agi (agent_agi_ref) — otherwise training "
+                           "silently falls back to the heuristic at episode 1.")
+              print("memory organ importable — episodic memory for real.")
+          else:
+              print("memory='null' — no organ needed.")
           PY
 
       - name: Train in the real engine, then run the acceptance battery

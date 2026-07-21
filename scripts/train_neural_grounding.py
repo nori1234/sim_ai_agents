@@ -313,6 +313,21 @@ def main(argv=None) -> int:
                          "self_attempt_base/bc_weight). Unset means their defaults.")
     args = ap.parse_args(argv)
 
+    # Reproducibility: the developmental brain builds and samples from the GLOBAL
+    # torch + stdlib-random RNGs (weight init, torch.multinomial in policy.act),
+    # which this driver never seeded — so two runs of the same config took
+    # different training trajectories, and whether the run hit the training
+    # instability (and at which episode) was luck. Seed both up front, derived
+    # from --seed, so a run is a deterministic function of its config. The engine
+    # keeps its own per-sim rng; this only pins the brain-side global RNGs.
+    import random as _random
+    _random.seed(args.seed)
+    try:
+        import torch as _torch
+        _torch.manual_seed(args.seed)
+    except Exception:
+        pass
+
     hparams = json.loads(args.hparams) if args.hparams else None
 
     train_pool = [args.seed + i for i in range(args.pool_size)]
@@ -479,9 +494,14 @@ def main(argv=None) -> int:
 
         first = brains[measured_id]
         if first._broken or first._dev is None:
+            cause = getattr(first, "_last_error", None)
+            detail = ("\n[fatal] underlying cause (from the brain's swallowed "
+                      f"exception):\n{cause}" if cause else "")
             sys.exit("[fatal] the neural backend is not live (fell back to the "
-                     "heuristic). Install torch + llm_model_agi and retry — a "
-                     "heuristic-only run would train nothing.")
+                     "heuristic) at episode "
+                     f"{ep + 1}. Install torch + llm_model_agi (+ agent_agi for "
+                     "memory='episodic') and retry — a heuristic-only run would "
+                     "train nothing." + detail)
 
         # Surface the brain side's optional per-step diagnostics (grad_steps, lr,
         # ...) if learn() returns them — the calibration signal for hparams like
