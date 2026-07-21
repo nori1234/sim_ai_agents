@@ -1,0 +1,256 @@
+{
+  "persona": "guardian",
+  "sole_banker": true,
+  "n_worlds": 20,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61
+  ],
+  "control_pull": {
+    "mean": 10.3485,
+    "std": 2.377503470029014,
+    "effect_size": 4.3526750351593435,
+    "worlds_positive": 20,
+    "n": 20
+  },
+  "control_pull_survivors": {
+    "mean": 10.808823529411764,
+    "std": 1.6316281379722644,
+    "effect_size": 6.6245630838682565,
+    "worlds_positive": 17,
+    "n": 17
+  },
+  "cf_advantage": {
+    "mean": 0.2075,
+    "std": 1.013054169331532,
+    "effect_size": 0.20482616456425,
+    "worlds_positive": 12,
+    "n": 20
+  },
+  "cf_advantage_survivors": {
+    "mean": 0.2288235294117647,
+    "std": 1.0603100675964399,
+    "effect_size": 0.21580812670247723,
+    "worlds_positive": 10,
+    "n": 17
+  },
+  "return_grounded": {
+    "mean": 5.9725,
+    "std": 2.5319950138181553,
+    "effect_size": 2.3588119121110314,
+    "worlds_positive": 19,
+    "n": 20
+  },
+  "return_never_deposit": {
+    "mean": -4.376,
+    "std": 2.2080090579524354,
+    "effect_size": -1.9818759276549434,
+    "worlds_positive": 1,
+    "n": 20
+  },
+  "return_always_deposit": {
+    "mean": 5.765,
+    "std": 2.175655073765141,
+    "effect_size": 2.6497766440629844,
+    "worlds_positive": 19,
+    "n": 20
+  },
+  "contingency_margin": {
+    "mean": 0.20750000000000013,
+    "std": 1.0130541693315318,
+    "effect_size": 0.2048261645642502,
+    "worlds_positive": 12,
+    "n": 20
+  },
+  "per_world": [
+    {
+      "seed": 42,
+      "blind_control": 9.05,
+      "never_control": -3.2800000000000002,
+      "blind_cf": -2.5,
+      "never_cf": -3.2800000000000002,
+      "all_alive": true
+    },
+    {
+      "seed": 43,
+      "blind_control": 7.2299999999999995,
+      "never_control": 1.5100000000000002,
+      "blind_cf": -2.14,
+      "never_cf": 1.5100000000000002,
+      "all_alive": true
+    },
+    {
+      "seed": 44,
+      "blind_control": 8.21,
+      "never_control": -1.18,
+      "blind_cf": -2.1,
+      "never_cf": -1.18,
+      "all_alive": false
+    },
+    {
+      "seed": 45,
+      "blind_control": 8.07,
+      "never_control": -2.31,
+      "blind_cf": -2.9299999999999997,
+      "never_cf": -2.31,
+      "all_alive": true
+    },
+    {
+      "seed": 46,
+      "blind_control": 7.950000000000001,
+      "never_control": -2.74,
+      "blind_cf": -2.87,
+      "never_cf": -2.74,
+      "all_alive": true
+    },
+    {
+      "seed": 47,
+      "blind_control": 9.55,
+      "never_control": -1.82,
+      "blind_cf": -1.8900000000000001,
+      "never_cf": -1.82,
+      "all_alive": false
+    },
+    {
+      "seed": 48,
+      "blind_control": 10.06,
+      "never_control": -1.8400000000000003,
+      "blind_cf": -2.5,
+      "never_cf": -1.8400000000000003,
+      "all_alive": true
+    },
+    {
+      "seed": 49,
+      "blind_control": 7.9399999999999995,
+      "never_control": -3.19,
+      "blind_cf": -2.17,
+      "never_cf": -3.19,
+      "all_alive": true
+    },
+    {
+      "seed": 50,
+      "blind_control": 9.14,
+      "never_control": -3.33,
+      "blind_cf": -2.58,
+      "never_cf": -3.33,
+      "all_alive": true
+    },
+    {
+      "seed": 51,
+      "blind_control": 8.69,
+      "never_control": -3.01,
+      "blind_cf": -2.22,
+      "never_cf": -3.01,
+      "all_alive": true
+    },
+    {
+      "seed": 52,
+      "blind_control": 7.7700000000000005,
+      "never_control": -3.22,
+      "blind_cf": -2.48,
+      "never_cf": -3.22,
+      "all_alive": true
+    },
+    {
+      "seed": 53,
+      "blind_control": 8.19,
+      "never_control": -2.06,
+      "blind_cf": -2.5200000000000005,
+      "never_cf": -2.06,
+      "all_alive": true
+    },
+    {
+      "seed": 54,
+      "blind_control": 8.89,
+      "never_control": -2.2700000000000005,
+      "blind_cf": -2.22,
+      "never_cf": -2.2700000000000005,
+      "all_alive": true
+    },
+    {
+      "seed": 55,
+      "blind_control": 10.040000000000001,
+      "never_control": -1.43,
+      "blind_cf": -1.7200000000000002,
+      "never_cf": -1.43,
+      "all_alive": true
+    },
+    {
+      "seed": 56,
+      "blind_control": 10.25,
+      "never_control": -2.2800000000000002,
+      "blind_cf": -2.8,
+      "never_cf": -2.2800000000000002,
+      "all_alive": true
+    },
+    {
+      "seed": 57,
+      "blind_control": 6.59,
+      "never_control": -1.6700000000000002,
+      "blind_cf": -2.3200000000000003,
+      "never_cf": -1.6700000000000002,
+      "all_alive": true
+    },
+    {
+      "seed": 58,
+      "blind_control": -0.18999999999999995,
+      "never_control": -2.6500000000000004,
+      "blind_cf": -1.9200000000000002,
+      "never_cf": -2.6500000000000004,
+      "all_alive": false
+    },
+    {
+      "seed": 59,
+      "blind_control": 7.15,
+      "never_control": -2.7600000000000002,
+      "blind_cf": -2.97,
+      "never_cf": -2.7600000000000002,
+      "all_alive": true
+    },
+    {
+      "seed": 60,
+      "blind_control": 8.04,
+      "never_control": -3.22,
+      "blind_cf": -2.9000000000000004,
+      "never_cf": -3.22,
+      "all_alive": true
+    },
+    {
+      "seed": 61,
+      "blind_control": 10.59,
+      "never_control": -1.01,
+      "blind_cf": -2.16,
+      "never_cf": -1.01,
+      "all_alive": true
+    }
+  ]
+}
+
+[control-margin] persona=guardian sole_banker=True worlds=20
+CONTROL pull (deposit in control)  +10.3485  (std 2.3775, +4.35 sigma, 20/20 worlds +)
+  survivors-only                   +10.8088  (std 1.6316, +6.62 sigma, 17/17 worlds +)
+CF advantage (hold cash in cf)      +0.2075  (std 1.0131, +0.20 sigma, 12/20 worlds +)
+  survivors-only                    +0.2288  (std 1.0603, +0.22 sigma, 10/17 worlds +)
+CONTINGENCY margin (grnd-always)    +0.2075  (std 1.0131, +0.20 sigma, 12/20 worlds +)
+  --- policy returns ---
+grounded (dep C / hold CF)          +5.9725  (std 2.5320, +2.36 sigma, 19/20 worlds +)
+never-deposit (run #14 collapse)    -4.3760  (std 2.2080, -1.98 sigma, 1/20 worlds +)
+always-deposit (regime-blind)       +5.7650  (std 2.1757, +2.65 sigma, 19/20 worlds +)

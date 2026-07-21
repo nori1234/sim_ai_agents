@@ -165,7 +165,8 @@ MIN_CONCLUSIVE_FOR_POWER = 6
 
 def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
                     sandbox: bool, complexity_level: int = 0,
-                    sole_banker: bool = False) -> bool:
+                    sole_banker: bool = False,
+                    demurrage_per_day: float = 0.15) -> bool:
     """Estimate each rule's conclusive yield against BATTERY_SEEDS using the
     heuristic only (no trained brain, no torch) and print it. Returns True iff
     every rule looks likely to power floor_regression. Purely advisory — it
@@ -178,7 +179,8 @@ def print_preflight(persona: str, rules: tuple, *, days: int, n_agents: int,
     yields = estimate_conclusive_yield(persona, rules=rules, seeds=BATTERY_SEEDS,
                                        days=days, n_agents=n_agents, sandbox=sandbox,
                                        complexity_level=complexity_level,
-                                       sole_banker=sole_banker)
+                                       sole_banker=sole_banker,
+                                       demurrage_per_day=demurrage_per_day)
     print(f"[preflight] estimated conclusive yield vs {len(BATTERY_SEEDS)} held-out "
           f"worlds (heuristic proxy, need >= {MIN_CONCLUSIVE_FOR_POWER} per rule for "
           "floor_regression to be powered):")
@@ -238,6 +240,15 @@ def main(argv=None) -> int:
                          "where grounding actually pays. Train/eval-MATCHED, same "
                          "as --complexity-level (see docs/runs/deposit-oracle-"
                          "redesign-1/).")
+    ap.add_argument("--demurrage-per-day", type=float, default=0.15,
+                    help="run #15 contingency-margin dial (cf world only; 0.15 = "
+                         "canonical, byte-identical). Widens the cf-side "
+                         "contingency margin (== advantage_cf) that a learner is "
+                         "paid for regime-contingency; the control-side pull is "
+                         "structurally untouched. Train/eval-MATCHED like "
+                         "--sole-banker. Calibrated via contingency-calib-1, "
+                         "never tuned against training outcomes (see docs/"
+                         "proposals/run15-contingency-margin.md).")
     ap.add_argument("--complexity-level", type=int, default=0,
                     help="step up the sandbox's complexity ladder (0..%d; only applies "
                          "with --sandbox). 0 is the original minimal sandbox; each "
@@ -313,7 +324,8 @@ def main(argv=None) -> int:
 
     print_preflight(args.persona, rules, days=args.days, n_agents=args.agents,
                     sandbox=args.sandbox, complexity_level=args.complexity_level,
-                    sole_banker=args.sole_banker)
+                    sole_banker=args.sole_banker,
+                    demurrage_per_day=args.demurrage_per_day)
     if args.preflight_only:
         return 0
 
@@ -355,7 +367,8 @@ def main(argv=None) -> int:
                             n_agents=args.agents, seed=train_pool[0],
                             threshold=args.threshold, sandbox=args.sandbox,
                             complexity_level=args.complexity_level,
-                            sole_banker=args.sole_banker)
+                            sole_banker=args.sole_banker,
+                            demurrage_per_day=args.demurrage_per_day)
         for r in rules
     }
 
@@ -377,7 +390,8 @@ def main(argv=None) -> int:
                 seed=seed, days=args.days,
                 cf_enabled=cf_enabled, brain_factory=training_factory,
                 complexity_level=args.complexity_level, status=status_enabled,
-                sole_banker=args.sole_banker)
+                sole_banker=args.sole_banker,
+                demurrage_per_day=args.demurrage_per_day)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
@@ -385,25 +399,48 @@ def main(argv=None) -> int:
             config=SimulationConfig(seed=seed, days=args.days),
             counterfactual=CounterfactualConfig(
                 enabled=rule is not None, rule=rule or "demurrage",
-                hide_rate=True, instrument=True),
+                hide_rate=True, instrument=True,
+                demurrage_per_day=args.demurrage_per_day),
             brain_factory=training_factory,
         )
 
     where = "sandbox" if args.sandbox else "full town"
     level_str = (f", complexity_level={args.complexity_level}, "
                 f"regime_block_size={args.regime_block_size}, "
-                f"sole_banker={args.sole_banker}") if args.sandbox else ""
+                f"sole_banker={args.sole_banker}, "
+                f"demurrage_per_day={args.demurrage_per_day}") if args.sandbox else ""
     print(f"[train] up to {args.episodes} episodes x {args.days} days, "
           f"{args.agents} agents, persona={args.persona}, {where}{level_str}, "
           f"status={status_enabled}, rules={','.join(rules)}, hparams={hparams}, "
           f"train_pool={train_pool} (battery held-out: {list(BATTERY_SEEDS)})",
           flush=True)
     stable = False
+    measured_id = None   # whose brain gets logged AND checkpointed (see below)
     for ep in range(args.episodes):
         sim = build_episode(ep)
+
+        # Which agent's brain is THE subject of this run? Every agent trains
+        # its own brain, but only one is logged, checkpointed, and battery-
+        # evaluated — and that choice is load-bearing. In the sole-banker
+        # sandbox, agents[0] IS the sole deposit receiver: _banker_near
+        # excludes self, so the banker structurally cannot deposit, and its
+        # teacher never once demonstrates the scored behaviour (run #16's S4
+        # probe measured exactly that: probe_teacher_n=0 across every batch,
+        # deposit propensity flat at the uniform floor). Checkpointing "the
+        # first brain created" therefore evaluated an agent that never faced
+        # the deposit decision — invalidating runs #14/#15 as fair-task tests.
+        # Fix: in sandbox mode the measured agent is agents[1], the same
+        # convention the oracle and battery instruments already use
+        # (emergence/grounding.py: "agents[0] is the banker").
+        if measured_id is None:
+            measured_id = (sim.agents[1].id if args.sandbox else sim.agents[0].id)
+            print(f"[train] measured brain: agent {measured_id} "
+                  f"({'sandbox saver — agents[0] is the banker' if args.sandbox else 'agents[0]'})",
+                  flush=True)
+
         sim.run()
 
-        first = brains[next(iter(brains))]
+        first = brains[measured_id]
         if first._broken or first._dev is None:
             sys.exit("[fatal] the neural backend is not live (fell back to the "
                      "heuristic). Install torch + llm_model_agi and retry — a "
@@ -433,8 +470,12 @@ def main(argv=None) -> int:
             break
 
     # -- final checkpoint + the acceptance battery ----------------------------
-    first = brains[next(iter(brains))]
+    # Checkpoint the MEASURED brain (see the selection note in the training
+    # loop) — not "the first brain created", which in the sole-banker sandbox
+    # is the banker: the one agent that cannot perform the scored behaviour.
+    first = brains[measured_id]
     first._dev.save_checkpoint(ckpt)
+    print(f"[checkpoint] saved agent {measured_id}'s brain -> {ckpt}", flush=True)
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
@@ -453,12 +494,14 @@ def main(argv=None) -> int:
                                     sandbox=args.sandbox,
                                     complexity_level=args.complexity_level,
                                     sole_banker=args.sole_banker,
+                                    demurrage_per_day=args.demurrage_per_day,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, "sandbox": args.sandbox,
               "complexity_level": args.complexity_level, "status": status_enabled,
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
+              "demurrage_per_day": args.demurrage_per_day,
               **battery.as_dict()}
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)

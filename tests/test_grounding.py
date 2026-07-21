@@ -1302,6 +1302,60 @@ class TestDepositOracle(unittest.TestCase):
             self.assertGreater(deposits, 5,
                                f"deposit decision went sparse (cf={cf})")
 
+    def test_demurrage_dial_defaults_are_byte_identical(self):
+        # The run #15 contingency-margin dial defaults to the canonical 0.15
+        # and, at the default, must reproduce the original numbers exactly.
+        from emergence.grounding import measure_deposit_oracle
+        default = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
+                                         n_agents=4, sole_banker=True)
+        explicit = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,
+                                          n_agents=4, sole_banker=True,
+                                          demurrage_per_day=0.15)
+        self.assertEqual(default.demurrage_per_day, 0.15)
+        self.assertEqual(default.as_dict()["demurrage_per_day"], 0.15)
+        self.assertEqual(default.per_world, explicit.per_world)
+
+    def test_demurrage_dial_widens_the_contingency_margin(self):
+        # Steepening demurrage widens advantage_cf (== the contingency margin)
+        # monotonically, and -- because the rule exists only in the cf world --
+        # the control cells are IDENTICAL at every rate (the structural
+        # invariance the pre-registration leans on; drift here = bug).
+        from emergence.grounding import measure_deposit_oracle
+        lo = measure_deposit_oracle("guardian", seeds=(42, 43, 44), days=10,
+                                    n_agents=4, sole_banker=True,
+                                    demurrage_per_day=0.15)
+        hi = measure_deposit_oracle("guardian", seeds=(42, 43, 44), days=10,
+                                    n_agents=4, sole_banker=True,
+                                    demurrage_per_day=0.30)
+        self.assertGreater(hi.advantage_counterfactual,
+                           lo.advantage_counterfactual)
+        self.assertEqual(hi.advantage_control, 0.0)
+        for wl, wh in zip(lo.per_world, hi.per_world):
+            self.assertEqual(wl["blind_control"], wh["blind_control"])
+            self.assertEqual(wl["oracle_control"], wh["oracle_control"])
+
+    def test_probe_monitor_and_battery_accept_demurrage_per_day(self):
+        # The training/eval chain (probe -> sweep -> battery, plus the
+        # monitor) forwards the dial to the sandbox, so run #15's driver can
+        # train AND measure at the calibrated rate. Heuristic floor: excess
+        # is 0 by construction; this asserts plumbing, not a verdict.
+        from emergence.grounding import run_grounding_probe, run_grounding_battery
+        from emergence.grounding_monitor import GroundingMonitor
+        result = run_grounding_probe("guardian", sandbox=True, sole_banker=True,
+                                     demurrage_per_day=0.25,
+                                     days=8, n_agents=4, seed=1)
+        self.assertEqual(result.excess, 0.0)
+        battery = run_grounding_battery("guardian", rules=("demurrage",),
+                                        seeds=(1, 2), days=8, n_agents=4,
+                                        sandbox=True, sole_banker=True,
+                                        demurrage_per_day=0.25)
+        self.assertIn("demurrage", battery.as_dict()["rules"])
+        mon = GroundingMonitor("guardian", sandbox=True, sole_banker=True,
+                               demurrage_per_day=0.25,
+                               days=8, n_agents=4, seed=1)
+        mon.probe(0, None)
+        self.assertEqual(len(mon.history), 1)
+
     def test_as_dict_carries_per_world_and_variance(self):
         from emergence.grounding import measure_deposit_oracle
         result = measure_deposit_oracle("guardian", seeds=(42, 43), days=10,

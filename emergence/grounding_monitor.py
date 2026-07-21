@@ -52,6 +52,7 @@ class GroundingMonitor:
         sandbox: bool = False,
         complexity_level: int = 0,
         sole_banker: bool = False,
+        demurrage_per_day: float = 0.15,
         floor_rollouts: int = 1,
         on_result: Optional[Callable[[dict], None]] = None,
         probe: Callable[..., GroundingResult] = run_grounding_probe,
@@ -68,6 +69,7 @@ class GroundingMonitor:
         self.sandbox = sandbox
         self.complexity_level = complexity_level
         self.sole_banker = sole_banker
+        self.demurrage_per_day = demurrage_per_day
         self.floor_rollouts = floor_rollouts
         self._on_result = on_result
         self._probe = probe
@@ -95,6 +97,7 @@ class GroundingMonitor:
             seed=self.seed, threshold=self.threshold, sandbox=self.sandbox,
             complexity_level=self.complexity_level,
             sole_banker=self.sole_banker,
+            demurrage_per_day=self.demurrage_per_day,
             floor_rollouts=self.floor_rollouts, brain_factory=brain_factory)
         entry = {"epoch": epoch, **result.as_dict()}
         self.history.append(entry)

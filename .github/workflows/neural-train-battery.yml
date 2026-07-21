@@ -15,7 +15,7 @@ on:
       llm_model_agi_ref:
         description: pip spec for the brain package (agent.adapters.emergence)
         required: true
-        default: "git+https://github.com/nori1234/llm_model_agi@claude/custom-llm-model-qhtfxd"
+        default: "git+https://github.com/nori1234/llm_model_agi@main"
       torch_spec:
         description: pip spec for torch (CPU wheel is fine)
         required: false
@@ -81,6 +81,17 @@ on:
           MATCHED, like complexity_level. "true" or "false".
         required: false
         default: "false"
+      demurrage_per_day:
+        description: >-
+          Run #15 contingency-margin dial (cf world only; 0.15 = canonical,
+          byte-identical). Widens the cf-side contingency margin
+          (== advantage_cf) a learner is paid for regime-contingency; the
+          control-side pull is structurally untouched. Train/eval-MATCHED.
+          Calibrated via contingency-calib-1 against the pre-registered band
+          (docs/proposals/run15-contingency-margin.md) — never tuned against
+          training outcomes.
+        required: false
+        default: "0.15"
       status_layer:
         description: >-
           Enable the status/esteem layer during TRAINING episodes (a
@@ -210,6 +221,7 @@ jobs:
           PROBE_EVERY: ${{ inputs.probe_every }}
           WINDOW: ${{ inputs.window }}
           COMPLEXITY_LEVEL: ${{ inputs.complexity_level }}
+          DEMURRAGE_PER_DAY: ${{ inputs.demurrage_per_day }}
           REGIME_BLOCK_SIZE: ${{ inputs.regime_block_size }}
           FLOOR_ROLLOUTS: ${{ inputs.floor_rollouts }}
           HPARAMS: ${{ inputs.hparams }}
@@ -225,6 +237,7 @@ jobs:
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             ${{ inputs.sole_banker == 'true' && '--sole-banker' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
+            --demurrage-per-day "$DEMURRAGE_PER_DAY" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
             --regime-block-size "$REGIME_BLOCK_SIZE" \

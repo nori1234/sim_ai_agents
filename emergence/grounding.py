@@ -275,6 +275,7 @@ def make_grounding_sandbox(
     status: bool = False,
     brain_factory=None,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -299,6 +300,14 @@ def make_grounding_sandbox(
     reward re-weighting or minting levers. With the chain cut, the honest
     economics reappear: depositing earns interest in control, loses to
     demurrage in the counterfactual, and the deposit decision stays dense.
+
+    ``demurrage_per_day`` (default 0.15, byte-identical) is the run #15
+    pre-registration's **contingency-margin dial** (see
+    ``docs/proposals/run15-contingency-margin.md``): it exists only in the
+    counterfactual world, so steepening it widens the cf-side contingency
+    margin (== ``advantage_cf``) while the control-side pull is structurally
+    untouched. Calibrated via ``measure_deposit_oracle`` /
+    ``scripts/control_margin.py``, never tuned against training outcomes.
     """
     from .scenario import make_simulation
     from .simulation import SimulationConfig
@@ -312,7 +321,8 @@ def make_grounding_sandbox(
         persona, n_agents=n_savers + 1, world=_sandbox_world(complexity_level),
         config=SimulationConfig(seed=seed, days=days), economy=True,
         counterfactual=CounterfactualConfig(enabled=cf_enabled, rule=rule,
-                                            hide_rate=True, instrument=True),
+                                            hide_rate=True, instrument=True,
+                                            demurrage_per_day=demurrage_per_day),
         brain_factory=brain_factory,
         **extra_kwargs,
     )
@@ -333,6 +343,7 @@ def run_grounding_probe(
     sandbox: bool = False,
     complexity_level: int = 0,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -402,7 +413,8 @@ def run_grounding_probe(
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
-                    complexity_level=complexity_level, sole_banker=sole_banker)
+                    complexity_level=complexity_level, sole_banker=sole_banker,
+                    demurrage_per_day=demurrage_per_day)
             else:
                 sim = make_simulation(
                     persona,
@@ -411,7 +423,8 @@ def run_grounding_probe(
                     economy=True,
                     counterfactual=CounterfactualConfig(
                         enabled=cf_enabled, rule=rule, hide_rate=True,
-                        instrument=True),
+                        instrument=True,
+                        demurrage_per_day=demurrage_per_day),
                     brain_factory=factory,
                     **extra_kwargs,
                 )
@@ -480,6 +493,7 @@ def estimate_conclusive_yield(
     sandbox: bool = False,
     complexity_level: int = 0,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
 ) -> dict:
     """Cheap preflight: how many of ``seeds`` would be conclusive per rule,
     estimated from the non-learning heuristic's own occurrence rate — no
@@ -510,6 +524,7 @@ def estimate_conclusive_yield(
                                    seed=seed, sandbox=sandbox,
                                    complexity_level=complexity_level,
                                    sole_banker=sole_banker,
+                                   demurrage_per_day=demurrage_per_day,
                                    brain_factory=None).conclusive)
         out[rule] = {"n_conclusive": n_conclusive, "n_seeds": len(seeds)}
     return out
@@ -711,6 +726,7 @@ def run_grounding_sweep(
     sandbox: bool = False,
     complexity_level: int = 0,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -740,6 +756,7 @@ def run_grounding_sweep(
                      seed=s, threshold=threshold, sandbox=sandbox,
                      complexity_level=complexity_level,
                      sole_banker=sole_banker,
+                     demurrage_per_day=demurrage_per_day,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -832,6 +849,7 @@ def run_grounding_battery(
     sandbox: bool = False,
     complexity_level: int = 0,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -859,6 +877,7 @@ def run_grounding_battery(
                        n_agents=n_agents, threshold=threshold, sandbox=sandbox,
                        complexity_level=complexity_level,
                        sole_banker=sole_banker,
+                       demurrage_per_day=demurrage_per_day,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)
@@ -1197,6 +1216,8 @@ class DepositOracleResult:
     #   1.0 == the canonical reward (the value every earlier S6 result carries).
     sole_banker: bool = False  # the S6 task redesign this run used; False == the
     #   original sandbox (agent-to-agent deposit chains allowed).
+    demurrage_per_day: float = 0.15  # the contingency-margin dial this run used;
+    #   0.15 == the canonical rate (every result before run #15 carries it).
 
     @property
     def n_worlds(self) -> int:
@@ -1273,6 +1294,7 @@ class DepositOracleResult:
             "rule": self.rule, "n_worlds": self.n_worlds,
             "deposit_wealth_weight": self.deposit_wealth_weight,
             "sole_banker": self.sole_banker,
+            "demurrage_per_day": self.demurrage_per_day,
             "blind_return_control": round(self.blind_return_control, 4),
             "blind_return_counterfactual": round(self.blind_return_counterfactual, 4),
             "oracle_return_control": round(self.oracle_return_control, 4),
@@ -1302,6 +1324,7 @@ def measure_deposit_oracle(
     complexity_level: int = 0,
     deposit_wealth_weight: float = 1.0,
     sole_banker: bool = False,
+    demurrage_per_day: float = 0.15,
 ) -> DepositOracleResult:
     """Run the S6 deposit-only oracle (see the section comment above) against
     the blind heuristic on the same worlds. Cheap and deterministic -- no
@@ -1355,7 +1378,8 @@ def measure_deposit_oracle(
                 sim = make_grounding_sandbox(
                     persona, rule=rule, n_savers=n_agents - 1, seed=seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
-                    complexity_level=complexity_level, sole_banker=sole_banker)
+                    complexity_level=complexity_level, sole_banker=sole_banker,
+                    demurrage_per_day=demurrage_per_day)
                 agent = sim.agents[1]  # agents[0] is the banker -- see _prepare_sandbox
                 ret, alive, died = _episode_outcome(sim, agent, reward_weights)
                 row[f"{kind}_{regime}"] = ret
@@ -1367,7 +1391,8 @@ def measure_deposit_oracle(
 
     return DepositOracleResult(rule=rule, seeds=tuple(seeds), per_world=per_world,
                                deposit_wealth_weight=deposit_wealth_weight,
-                               sole_banker=sole_banker)
+                               sole_banker=sole_banker,
+                               demurrage_per_day=demurrage_per_day)
 
 
 # -- Teacher agreement: an external, engine-side proxy for how BC-anchored --
