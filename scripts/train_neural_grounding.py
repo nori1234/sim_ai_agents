@@ -466,10 +466,20 @@ def main(argv=None) -> int:
         # "deposit in control / hold under demurrage". No-op unless
         # --grounded-teacher. Set after build_episode (brains/teachers created)
         # and before sim.run() (when demonstrate() is called).
-        if grounded_teachers:
+        if args.sandbox:
             cf_this_ep = (ep // args.regime_block_size) % 2 == 1
             for t in grounded_teachers.values():
                 t._avoid_deposit = cf_this_ep
+            # Privileged-critic training channel (llm_model_agi
+            # docs/PRIVILEGED_CRITIC.md): tell every training brain this episode's
+            # ground-truth regime, so a brain built with privileged_critic can
+            # denoise its VALUE baseline. Inert (ignored by the brain) unless
+            # privileged_critic is on, so it needs no separate flag — activate via
+            # hparams {"privileged_critic": true}. Deploy/eval brains are never
+            # given this (no leak to the acting policy). 1 = counterfactual
+            # (demurrage), 0 = control — matches the priv one-hot.
+            for b in brains.values():
+                b._priv_regime = 1 if cf_this_ep else 0
 
         # Which agent's brain is THE subject of this run? Every agent trains
         # its own brain, but only one is logged, checkpointed, and battery-

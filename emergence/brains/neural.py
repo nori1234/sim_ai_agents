@@ -61,6 +61,11 @@ class NeuralDevelopmentalBrain(AgentBrain):
         self._dev = None                 # the DevelopmentalAgent; lazy-built
         self._broken = False             # latched once deps/build fail → straight to fallback
         self._last_error = None          # the exception that latched _broken (else None)
+        # Privileged-critic training channel (llm_model_agi docs/PRIVILEGED_CRITIC.md):
+        # the driver sets the ground-truth regime here per episode; decide() forwards
+        # it to the brain's VALUE-only privileged input. None = ordinary baseline
+        # (deploy/eval never sets it, so no leak to the acting policy).
+        self._priv_regime = None
         self._prev_obs = None            # last observation, for the reward delta
         # The brain side's learn() may optionally return a diagnostics dict (e.g.
         # {"grad_steps": int, "lr": float}) for hparam tuning (the lr-decay
@@ -88,6 +93,12 @@ class NeuralDevelopmentalBrain(AgentBrain):
             return self._fallback.decide(agent, observation)
         try:
             self._ensure()
+            # Forward the privileged regime (training-only) to the VALUE head. Safe
+            # no-op unless the brain was built with privileged_critic; the acting
+            # policy never reads it (set on the brain's _priv, consumed only in the
+            # value-path of learn()/_update_batch).
+            if self._priv_regime is not None and hasattr(self._dev, "_priv"):
+                self._dev._priv = self._priv_regime
             # 1) Learn from what the *previous* action did to the world. When
             #    frozen (learn=False), still ACCUMULATE episodic memory via
             #    observe() — remembering is perception, not learning — so a
