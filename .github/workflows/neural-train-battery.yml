@@ -185,19 +185,37 @@ jobs:
           fi
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install torch + the developmental-brain package + the memory organ
+      - name: Install torch + the developmental-brain package (+ memory organ if needed)
         env:
           TORCH_SPEC: ${{ inputs.torch_spec }}
           LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
           AGENT_AGI_REF: ${{ inputs.agent_agi_ref }}
+          HPARAMS: ${{ inputs.hparams }}
         run: |
           pip install "$TORCH_SPEC"
           pip install "$LLM_MODEL_AGI_REF"
-          # The memory organ. memory="episodic" imports agent_agi lazily inside
-          # decide(), so without this a memory run silently falls back to the
-          # heuristic at episode 1 with no traceback (run #22). Installed always
-          # (inert for the default memory="null").
-          pip install "$AGENT_AGI_REF"
+          # The memory organ (agent_agi) is ONLY needed when hparams request
+          # episodic memory — it is imported lazily inside decide(), so a
+          # memory="null" run (e.g. A1) never touches it. It also lives in a
+          # separate private repo that LLM_MODEL_AGI_TOKEN may not be scoped to
+          # (a 403 clone here took down BOTH runs at install, run #23/#24), so
+          # only install it when the run actually uses it. When it IS needed, the
+          # next step's guard fails fast and loud if the install didn't work.
+          NEED_MEM=$(python - <<'PY'
+          import json, os
+          try:
+              hp = json.loads(os.environ.get("HPARAMS", "") or "{}")
+          except Exception:
+              hp = {}
+          print("yes" if hp.get("memory", "null") == "episodic" else "no")
+          PY
+          )
+          if [ "$NEED_MEM" = "yes" ]; then
+            echo "hparams request episodic memory — installing the memory organ."
+            pip install "$AGENT_AGI_REF"
+          else
+            echo "memory='null' — skipping the agent_agi install (not needed)."
+          fi
 
       - name: Guard — the adapter must actually import (a fallback run trains nothing)
         run: |
