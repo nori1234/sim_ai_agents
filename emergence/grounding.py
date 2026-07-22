@@ -150,6 +150,20 @@ class GroundingResult:
     # hand (e.g. in tests) that don't set them.
     control_count: Optional[int] = None
     counterfactual_count: Optional[int] = None
+    # Density-controlled contingency (engine runs #28-30). `excess` is an ABSOLUTE
+    # rate difference, so it conflates DENSITY with CONTINGENCY: the blind floor
+    # deposits densely and demurrage mechanically slashes that, giving a large
+    # floor_divergence a LOW-density policy cannot clear even if perfectly
+    # regime-contingent (run #29/v2a moved the right DIRECTION yet excess stayed
+    # negative). norm_contingency = (control_rate - cf_rate)/(control_rate +
+    # cf_rate) ∈ [-1,1] is density-INVARIANT — the proportional regime asymmetry.
+    # floor_norm_contingency is the same for the world-matched blind floor;
+    # norm_excess = norm_contingency - floor_norm_contingency reads "is the policy
+    # MORE regime-asymmetric than blind mechanics, proportionally", independent of
+    # how much it deposits. Reported ALONGSIDE (never replacing) excess/verdict.
+    norm_contingency: float = 0.0
+    floor_norm_contingency: float = 0.0
+    norm_excess: float = 0.0
 
     @property
     def conclusive(self) -> bool:
@@ -184,6 +198,9 @@ class GroundingResult:
                                if self.ensemble_excess is not None else None),
             "control_count": self.control_count,
             "counterfactual_count": self.counterfactual_count,
+            "norm_contingency": round(self.norm_contingency, 4),
+            "floor_norm_contingency": round(self.floor_norm_contingency, 4),
+            "norm_excess": round(self.norm_excess, 4),
         }
 
 
@@ -446,11 +463,13 @@ def run_grounding_probe(
         # no-op here regardless of what was requested.
         floor = divergence
         counterfactual_rate = control - divergence
+        floor_control = control        # floor IS the tested run here
     else:
         # Recover the tested brain's counterfactual rate for reporting.
         counterfactual_rate = control - divergence
-        # The canonical floor: world-matched, exact, no averaging.
-        _, floor, _, _ = _divergence(None, seed)
+        # The canonical floor: world-matched, exact, no averaging. Keep the
+        # floor's control rate too (was discarded) for the normalized metric.
+        floor_control, floor, _, _ = _divergence(None, seed)
         if floor_rollouts > 1:
             extra_seeds = [seed + (i + 1) * floor_seed_stride
                           for i in range(floor_rollouts - 1)]
@@ -462,6 +481,17 @@ def run_grounding_probe(
             n_floor_rollouts = floor_rollouts
 
     excess = divergence - floor
+
+    # Density-controlled contingency (see GroundingResult): proportional regime
+    # asymmetry, so a sparse-but-contingent policy is scored on DIRECTION/shape,
+    # not out-competed on absolute density by the dense mechanical floor.
+    def _norm_asym(cr: float, cfr: float) -> float:
+        denom = cr + cfr
+        return (cr - cfr) / denom if denom > 1e-12 else 0.0
+    norm_contingency = _norm_asym(control, counterfactual_rate)
+    floor_norm_contingency = _norm_asym(floor_control, floor_control - floor)
+    norm_excess = norm_contingency - floor_norm_contingency
+
     tested_did_behaviour = (control > 0.0) or (counterfactual_rate > 0.0)
     if not tested_did_behaviour:
         # The brain never performed the scored behaviour in either world, so the
@@ -480,7 +510,9 @@ def run_grounding_probe(
         days=days, n_agents=n_agents,
         floor_rollouts=n_floor_rollouts, floor_divergence_std=floor_std,
         ensemble_floor_divergence=ensemble_floor, ensemble_excess=ensemble_excess,
-        control_count=control_n, counterfactual_count=cf_n)
+        control_count=control_n, counterfactual_count=cf_n,
+        norm_contingency=norm_contingency,
+        floor_norm_contingency=floor_norm_contingency, norm_excess=norm_excess)
 
 
 def estimate_conclusive_yield(

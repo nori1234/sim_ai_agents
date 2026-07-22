@@ -43,46 +43,56 @@ Artifacts: `grounding-battery-28/29/30`. Runs
    critic path ran and *caused* the regression. Why it hurt is unknown and needs
    the probe fields (deposit used-advantage under the critic) — do NOT re-run the
    critic before diagnosing.
-4. **⚠ Metric-fairness finding (the important one).** `excess = policy_divergence
-   − floor_divergence`, both **absolute** rate differences. The floor is the
-   regime-BLIND heuristic, whose divergence is **~0.5** — not because it "knows"
-   the regime, but mechanically: under demurrage, savings shrink, its
-   `money≥12 → deposit` rule fires far less, so it deposits far less. The learned
-   policy deposits at ~10× LOWER density, so its *maximum possible* absolute
-   divergence is bounded well below 0.5 **regardless of how contingent it is**.
-   ⇒ A sparse-deposit policy is **structurally unable** to clear excess>0, even if
-   perfectly regime-contingent. This means POWERED-NO here reflects the metric's
-   density-dependence as much as the brain: v2a's gain came largely from raising
-   density *toward* the floor, and its correct *direction* (ratio 1.20) is
-   invisible to an absolute-divergence excess. The contingency signal is real
-   (ratio), but the current excess can't credit it without matching density.
+4. **Metric-fairness concern — RAISED, then REFUTED by direct measurement.**
+   The worry: `excess` is an ABSOLUTE rate difference, so a low-density policy
+   might be unable to clear the dense mechanical floor even if perfectly
+   contingent. To test it we added a **density-INVARIANT** metric,
+   `norm_contingency = (control_rate − cf_rate)/(control_rate + cf_rate)` ∈ [−1,1]
+   (`emergence/grounding.py`), and measured the blind floor's value directly
+   (torch-free, seeds 42–47): **floor norm_contingency = +0.518** (it deposits
+   control≈0.87 / cf≈0.28 — a huge *mechanical* swing as demurrage drains money
+   below the deposit threshold). The policies' normalized asymmetry:
+   **#28 −0.034, #29 (v2a) +0.091, #30 −0.076.** So even normalized for density,
+   v2a (+0.091) is ~5× **below** the floor (+0.518); `norm_excess ≈ −0.43`.
+   ⇒ **The metric is fair** — normalization does NOT rescue v2a. The learned
+   policy is genuinely far less regime-contingent than a blind mechanical rule;
+   it has merely *started* moving the right way. POWERED-NO is the brain, not the
+   metric. (`norm_contingency` is kept as a fair, density-invariant diagnostic
+   that cleanly ranks the levers — v2a is the only positive — but it does not
+   change the verdict.)
 
-## Next verification strategy (organised)
+## Next verification strategy (organised, post-audit)
 
-Cheap-first, each falsifiable:
+The audit resolved the metric question: **the metric is fair** (item 4). The real
+gap is that the policy's regime asymmetry (v2a +0.091) is ~5× short of the blind
+mechanical floor (+0.518). So the task is not "credit v2a with a fairer metric"
+but **make the policy far more strongly regime-contingent** — and understand why
+the one mechanism built to do that (the critic) backfired. Cheap-first:
 
-1. **Metric side — density-controlled contingency (no new training).** Re-analyse
-   the existing battery.json per-world with a density-normalised measure: the
-   deposit-rate **ratio** control/cf, and/or a logistic `deposit ~ regime` odds
-   ratio, and/or a **density-matched floor** (throttle the heuristic to the
-   policy's deposit rate before differencing). Question: is v2a *already* more
-   grounded than absolute excess shows? This checks whether the wall is the brain
-   or the metric. Do this **first** — it may reframe #29 as a partial pass.
-2. **Memory side — push density while keeping contingency (training).** v2a is the
-   one lever that worked; the path to absolute excess is more deposit density in
-   control without smearing. Levers: finer LSH (16–24 bit, less regime smearing) +
-   higher `entropy_weight`/novelty on deposit (raise control-side density). Pre-reg:
-   control−cf both up, ratio stays >1, excess climbs toward 0.
-3. **Critic side — diagnose before re-use.** Read #30's probe log (deposit
-   used-advantage, per-segment) to see how the critic collapsed density (likely it
-   over-denoised the baseline and killed the advantage that drove deposits). Fix
-   (e.g. mixed privileged/non-privileged baseline; critic on value-loss only) or
-   shelve. Do NOT re-run the critic until understood.
-4. **Task side (if 1 shows the metric is fair and 2 stalls).** The ~0.5 mechanical
-   floor may make this task structurally require heuristic-level density; revisit
-   whether the sandbox rewards a *sparse* grounded policy (deposit-oracle redesign
-   lineage), rather than tuning the brain against an unbeatable floor.
+1. **Critic diagnosis (cheap, decisive) — do first.** The critic was the mechanism
+   meant to inject strong regime-contingent credit, and it *reduced* contingency
+   (norm −0.076) and collapsed density. Read #30's per-episode probe log
+   (`probe_adv_used_mean` on deposit, per segment) vs #29's to see what the
+   privileged baseline did to the advantage — most likely it over-denoised
+   (V_priv absorbed the regime signal, leaving A≈0 on deposit, so the policy lost
+   its push). Candidate fixes: a **mixed** baseline (blend privileged and
+   non-privileged V so advantage keeps a regime-contingent component), or feed the
+   privileged signal as a **shaped reward** term rather than only the baseline.
+   Don't re-run the critic before this.
+2. **Memory density-push (training).** v2a is the only positive lever. Raise its
+   contingency toward the floor: finer LSH (16–24 bit → less regime smearing, so
+   recall separates regimes better) + more control-side deposit density
+   (entropy/novelty on deposit). Pre-reg: `norm_contingency` climbs from +0.091
+   toward +0.5; `excess`/`norm_excess` climb toward 0.
+3. **Task side (if 1–2 stall).** The blind floor's +0.52 asymmetry is a very high
+   bar — a grounded policy must out-modulate a rule that already halves its
+   deposits under demurrage mechanically. Revisit whether the sandbox can reward a
+   *sparse* grounded policy, or whether the deposit-oracle-redesign lineage needs
+   another turn so grounding pays without requiring heuristic-level density.
 
-Priority: **1 (metric re-analysis) → 3 (critic diagnosis) → 2 (v2a density push)**.
-1 and 3 are cheap and decide whether v2a already won on a fair metric and why the
-critic failed, before spending more training compute.
+`norm_contingency`/`norm_excess` are now reported by every probe
+(`emergence/grounding.py`) as a fair, density-invariant companion to `excess` —
+they rank levers cleanly (v2a is the only positive) and will track whether (2)
+actually raises contingency, not just density.
+
+Priority: **1 (critic diagnosis) → 2 (v2a density push) → 3 (task)**.
