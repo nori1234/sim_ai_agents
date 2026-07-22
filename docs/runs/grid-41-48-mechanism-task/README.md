@@ -5,21 +5,25 @@ demurrage 0.25, scored on **G2** (money-matched, reflex-proof) and, for the B2
 arms fired after the D1 wiring, **D1** (belief-decode accuracy). All 8 completed
 successfully (backend live, guards passed — genuine trained runs, not fallbacks).
 
-| # | mechanism | task | bw | days | G1 (counts) | G2 | D1 belief-acc | verdict |
+Read/verified directly from job logs: **#41, #44, #45, #46, #48 (5 of 8).**
+#42/#43/#47 (non-belief arms) not yet read — not claimed here.
+
+| # | mechanism | task | bw | days | G1 (counts) | D1 belief-acc | mean belief ctl/cf | verdict |
 |---|---|---|---|---|---|---|---|---|
-| 41 | v2a | base | — | 20 | 1310/1241 (+0.03) | **+0.007** | — | UNDET / not grounded |
-| 44 | v2a+B2 | C1 | 0.5 | 20 | 186/218 (−0.079) | ≲0 (anti) | — | UNDET / not grounded |
-| 45 | v2a+B2 | C1 | 1.0 | 20 | 103/100 (+0.015) | ~0 | **0.501 (chance)** | UNDET / not grounded |
+| 41 | v2a | base | — | 20 | 1310/1241 (+0.03) | — (no head) | — | UNDET / not grounded (G2 +0.007, rates .665/.660) |
+| 44 | v2a+B2 | C1 | 0.5 | 20 | 186/218 (−0.079) | — (pre-D1 build) | — | UNDET / not grounded (density collapsed) |
+| 45 | v2a+B2 | C1 | 1.0 | 20 | 103/100 (+0.015) | **0.501** | 0.500 / 0.501 | UNDET / not grounded |
+| 46 | v2a+B2 | C1 | 0.5 | **40** | 186/201 (−0.038) | **0.523** | 0.521 / 0.523 | UNDET / not grounded |
+| 48 | v2a+B2 | base | 1.0 | 20 | 392/422 (−0.036) | **0.473** | 0.511 / 0.504 | **POWERED-NO** / not grounded |
 
-*(42/43/46/47/48 pulled to the same picture — G2 ≈ 0, UNDETERMINED; full numbers
-recoverable from the `grounding-battery-NN` artifacts / job logs.)*
+## The finding — the wall is (3) INFERENCE, not (4) actuation (all 3 belief arms)
 
-## The decisive finding — the wall is (3) INFERENCE, not (4) actuation
-
-D1 (#45) is the clincher: with the belief head **directly supervised** by the
-ground-truth regime (BCE, belief_weight 1.0), its eval decode accuracy is **0.501
-— pure chance — and mean belief is ~0.50 in *both* regimes** (control 0.5004, cf
-0.5009). The belief never separated the regimes at all.
+The three D1 arms are the clincher, and they **agree**: with the belief head
+**directly supervised** by the ground-truth regime (BCE), eval decode accuracy is
+**0.501 / 0.523 / 0.473 — all ≈ chance — and mean belief is essentially identical
+across regimes in every case** (e.g. #45 control 0.500 vs cf 0.501). The belief
+never separated the regimes, across both tasks, both belief weights, and days 20
+vs 40 (more within-episode evidence moved it only +0.02).
 
 So the memory-recall features (`mean_reward_deposit` etc., the v2a substrate) **do
 not carry within-episode regime evidence in a form the head can read** — even when
