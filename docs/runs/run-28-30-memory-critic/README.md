@@ -69,16 +69,24 @@ mechanical floor (+0.518). So the task is not "credit v2a with a fairer metric"
 but **make the policy far more strongly regime-contingent** — and understand why
 the one mechanism built to do that (the critic) backfired. Cheap-first:
 
-1. **Critic diagnosis (cheap, decisive) — do first.** The critic was the mechanism
-   meant to inject strong regime-contingent credit, and it *reduced* contingency
-   (norm −0.076) and collapsed density. Read #30's per-episode probe log
-   (`probe_adv_used_mean` on deposit, per segment) vs #29's to see what the
-   privileged baseline did to the advantage — most likely it over-denoised
-   (V_priv absorbed the regime signal, leaving A≈0 on deposit, so the policy lost
-   its push). Candidate fixes: a **mixed** baseline (blend privileged and
-   non-privileged V so advantage keeps a regime-contingent component), or feed the
-   privileged signal as a **shaped reward** term rather than only the baseline.
-   Don't re-run the critic before this.
+1. **Critic diagnosis — DONE (mechanism identified).** The critic *reduced*
+   contingency (norm −0.076) **and collapsed deposit density 66%** (v2a 1880 →
+   v2a+critic 634 total attempts). That density collapse is the tell: a
+   privileged baseline `V_priv(s, regime)` that fits the regime-conditioned return
+   *too well* drives the advantage `A = G − V_priv` toward ~0 **everywhere**, so
+   the policy-gradient magnitude that was carving deposit density vanishes and the
+   policy relaxes back to its sparse prior. Classic "baseline too good → no
+   learning signal", made worse here because it's the SAME signal (advantage
+   magnitude) that was driving both density (axis 1) and contingency (axis 2): the
+   critic bought purity by killing the drive. Confidence: high from the density
+   collapse + mechanism; a short local v2a-vs-v2a+critic run inspecting
+   `probe_adv_used_mean` would confirm the A→0 directly (deferred).
+   **Concrete fix for a v2 critic** (do before any re-run): keep the advantage
+   *magnitude* while gaining regime-purity — a **mixed baseline** `V = (1−λ)·V(s)
+   + λ·V_priv(s,regime)` with small λ, or use the privileged signal as an additive
+   **shaped advantage** `A += β·(Q̂(a|s,regime) − mean_a)` rather than replacing
+   the baseline, or clip how much variance the critic may remove. Do NOT re-run
+   the plain privileged critic — it's a confirmed density-killer.
 2. **Memory density-push (training).** v2a is the only positive lever. Raise its
    contingency toward the floor: finer LSH (16–24 bit → less regime smearing, so
    recall separates regimes better) + more control-side deposit density
