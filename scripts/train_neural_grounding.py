@@ -615,10 +615,20 @@ def main(argv=None) -> int:
         if g2.belief_decode_accuracy is not None:
             # D1: does the belief head INFER the regime (3), separate from whether
             # behaviour then changes (4 = G2)? high acc + g2~0 => pure actuation gap.
+            _e = g2.belief_decode_accuracy_early
+            _l = g2.belief_decode_accuracy_late
             print(f"[D1] belief probe: decode_acc={g2.belief_decode_accuracy:.3f} "
                   f"(mean P(cf): control={g2.mean_belief_control:.3f} / "
                   f"cf={g2.mean_belief_counterfactual:.3f}; n={g2.n_belief}). "
                   f"high acc + low G2 = inference OK, actuation gap", flush=True)
+            # AGI-honest inference test: does the belief SHARPEN with lived
+            # consequence? late>>early & late>0.5 = learned within a lifetime;
+            # early~=late = memorised/leaked label (not the AGI capability).
+            print(f"[D1-time] belief decode_acc early(1st third)="
+                  f"{_e if _e is None else round(_e,3)} -> late(3rd third)="
+                  f"{_l if _l is None else round(_l,3)}  "
+                  f"(rise = genuine inference from consequence; flat = memorised)",
+                  flush=True)
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 

@@ -1695,6 +1695,15 @@ class MoneyMatchedContingencyResult:
     n_belief: int = 0
     mean_belief_control: Optional[float] = None
     mean_belief_counterfactual: Optional[float] = None
+    # AGI-honest inference test: belief-decode accuracy split by WITHIN-EPISODE
+    # position (first third vs last third of the episode's decisions). Genuine
+    # learning-from-lived-consequence means the belief SHARPENS with accumulated
+    # experience: late >> early, and late > 0.5. If early ~= late (accurate from
+    # the start, before any consequence), the belief is memorised/leaked, not
+    # inferred -- not the AGI capability. This is the discriminator between
+    # "learned within a lifetime" and "replayed a label".
+    belief_decode_accuracy_early: Optional[float] = None
+    belief_decode_accuracy_late: Optional[float] = None
 
     def as_dict(self) -> dict:
         d = {
@@ -1714,6 +1723,10 @@ class MoneyMatchedContingencyResult:
                                         if self.mean_belief_control is not None else None)
             d["mean_belief_counterfactual"] = (round(self.mean_belief_counterfactual, 4)
                                                if self.mean_belief_counterfactual is not None else None)
+            d["belief_decode_accuracy_early"] = (round(self.belief_decode_accuracy_early, 4)
+                                                 if self.belief_decode_accuracy_early is not None else None)
+            d["belief_decode_accuracy_late"] = (round(self.belief_decode_accuracy_late, 4)
+                                                if self.belief_decode_accuracy_late is not None else None)
         return d
 
 
@@ -1866,20 +1879,36 @@ def measure_money_matched_contingency(
                 if aid == banker_id:
                     continue
                 sink.extend(getattr(b, "decisions", []))
-                bsink.extend(x for x in getattr(b, "beliefs", []) if x is not None)
+                # Each brain is one held-out EPISODE; its beliefs are in temporal
+                # order, so the index gives the within-episode position (0=start,
+                # 1=end) — the axis the AGI-honest inference test needs.
+                bel = [x for x in getattr(b, "beliefs", []) if x is not None]
+                m = len(bel)
+                for j, x in enumerate(bel):
+                    bsink.append((j / m if m > 1 else 0.0, x))
 
     res = money_matched_contingency(
         control_decisions, cf_decisions,
         rule=rule, n_worlds=len(seeds), bins=bins)
 
-    # D1 belief probe: does the belief head's P(cf) separate the regime? (control
-    # beliefs should be low, cf high). Accuracy of the belief>=0.5 rule against the
-    # true regime, over all decisions where a belief was produced.
+    # D1 belief probe: does the belief's P(cf) separate the regime? (control low,
+    # cf high). Overall accuracy, plus the AGI-honest split by within-episode
+    # position: does the belief SHARPEN as lived consequence accumulates?
     if ctl_beliefs or cf_beliefs:
-        correct = sum(1 for x in ctl_beliefs if x < 0.5) + sum(1 for x in cf_beliefs if x >= 0.5)
-        n = len(ctl_beliefs) + len(cf_beliefs)
-        res.belief_decode_accuracy = correct / n if n else None
-        res.n_belief = n
-        res.mean_belief_control = (sum(ctl_beliefs) / len(ctl_beliefs)) if ctl_beliefs else None
-        res.mean_belief_counterfactual = (sum(cf_beliefs) / len(cf_beliefs)) if cf_beliefs else None
+        def _acc(ctl, cf):
+            n = len(ctl) + len(cf)
+            if not n:
+                return None
+            correct = sum(1 for _, x in ctl if x < 0.5) + sum(1 for _, x in cf if x >= 0.5)
+            return correct / n
+        res.belief_decode_accuracy = _acc(ctl_beliefs, cf_beliefs)
+        res.n_belief = len(ctl_beliefs) + len(cf_beliefs)
+        res.mean_belief_control = (sum(x for _, x in ctl_beliefs) / len(ctl_beliefs)
+                                   if ctl_beliefs else None)
+        res.mean_belief_counterfactual = (sum(x for _, x in cf_beliefs) / len(cf_beliefs)
+                                          if cf_beliefs else None)
+        res.belief_decode_accuracy_early = _acc([b for b in ctl_beliefs if b[0] < 1 / 3],
+                                                [b for b in cf_beliefs if b[0] < 1 / 3])
+        res.belief_decode_accuracy_late = _acc([b for b in ctl_beliefs if b[0] > 2 / 3],
+                                               [b for b in cf_beliefs if b[0] > 2 / 3])
     return res
