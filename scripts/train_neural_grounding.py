@@ -140,6 +140,7 @@ from emergence.grounding import (                              # noqa: E402
     _grounded_heuristic_brain_class,
     estimate_conclusive_yield,
     make_grounding_sandbox,
+    measure_money_matched_contingency,
     run_grounding_battery,
 )
 from emergence.grounding_monitor import GroundingMonitor       # noqa: E402
@@ -571,6 +572,24 @@ def main(argv=None) -> int:
               "demurrage_per_day": args.demurrage_per_day,
               "grounded_teacher": args.grounded_teacher,
               **battery.as_dict()}
+
+    # G2 -- money-matched contingency, the reflex-proof grounding metric
+    # (docs/runs/metric-trajectory-confound-1). The battery's excess/norm_contingency
+    # (G1) is a raw regime rate difference a memoryless wealth reflex already beats;
+    # G2 scores the within-wealth-bin deposit-rate gap, which is <=0 for any
+    # memoryless policy and >0 only when within-episode history suppresses
+    # matched-wealth deposits under demurrage -- genuine grounding. Sandbox+demurrage
+    # only (the decision G2 is defined on); harmless to skip elsewhere.
+    if args.sandbox:
+        g2 = measure_money_matched_contingency(
+            args.persona, rule="demurrage", seeds=BATTERY_SEEDS, days=args.days,
+            n_agents=args.agents, sole_banker=args.sole_banker,
+            demurrage_per_day=args.demurrage_per_day, brain_factory=probe_factory)
+        result["money_matched_contingency"] = g2.as_dict()
+        print(f"[G2] money-matched contingency (grounding, reflex-proof): "
+              f"g2={g2.g2:+.4f}  (ctl {g2.n_decisions_control} / cf "
+              f"{g2.n_decisions_counterfactual} eligible decisions; "
+              f"floor is <=0 -- positive = genuine grounding)", flush=True)
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 
