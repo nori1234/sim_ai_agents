@@ -56,27 +56,45 @@ shifting poorward in cf (control has 645 decision points spread across wealth;
 cf has 199 crushed into the low bins) — because demurrage drained the cf agents,
 not because the rule knows the regime.
 
-This generalises: **any memoryless policy acts identically at identical
-observations, so its money-matched gap (call it G2) is ≡ 0 by construction.**
-`norm_contingency`/`excess` measure the *rate* difference (call it G1), which a
-reflex produces mechanically via divergent wealth trajectories. G1 certifies
-nothing about grounding.
+This generalises: **a policy that is a pure function of *money* fires at the
+identical rate within a money bin regardless of regime, so its money-matched gap
+(call it G2) is ≡ 0 by construction.** `norm_contingency`/`excess` measure the
+*rate* difference (call it G1), which a reflex produces mechanically via divergent
+wealth trajectories. G1 certifies nothing about grounding.
+
+*Caveat, measured after implementation:* the canonical floor is
+`HeuristicBrain`, whose `decide()` gates banking behind survival/energy
+priorities that vary with the (regime-divergent) trajectory — so its real G2 is a
+small **residual** (≈ −0.05 to −0.09 on seeds 42–47), not a clean 0. It is an
+order of magnitude below its G1 (+0.52) and, crucially, **never positive**. The
+load-bearing property is the *discriminator* below, not an exact zero.
 
 ## Consequence — the right target is G2 (money-matched contingency)
 
 - **G1** = raw regime rate difference (`norm_contingency`, `excess`). Reflex-
   achievable; a higher hard threshold beats the floor. **Not** grounding.
 - **G2** = within-wealth-bin deposit-rate gap (control − cf at matched money).
-  **≡ 0 for every memoryless policy** (proven above); `> 0` *only* if the agent
+  **≤ ~0 for a memoryless policy** (≡0 for a pure-money rule; a small negative
+  residual for the real `decide()`-gated floor); `> 0` *only* if the agent
   conditions on within-episode history — i.e. it inferred the punishing regime
   from experienced demurrage and suppressed deposits at wealth it would have
   banked in control. That is exactly "an agent grounded in irreversible
   consequence, not replaying training" — the program's north star.
 
-The floor's G2 is **0 by construction**, so G2 is a *fair, honestly floor-
-beating* target: any positive G2 is grounding a reflex cannot fake. The memory
-family (v2a) is the right tool — it was just being scored on G1, where a blind
-reflex already wins, instead of on G2, which needs exactly what memory provides.
+**The discriminator (measured, `emergence/grounding.py`, seeds 42–47):**
+
+| policy | G1 (norm_contingency) | G2 (money-matched) |
+|---|---|---|
+| pure-money threshold T=12 | +0.523 | −0.092 |
+| pure-money threshold T=20 | +0.639 | −0.005 |
+
+Raising the threshold **inflates G1 (+0.52→+0.64) but does not raise G2** (stays
+≤0). So the reflex exploit that games G1 leaves G2 flat: **positive G2 is not
+reflex-reachable.** That is what makes it a fair, honestly floor-beating grounding
+target. The memory family (v2a) is the right tool — it was just being scored on
+G1, where a blind reflex already wins, instead of on G2, which needs exactly what
+memory provides. G2 is now implemented (`measure_money_matched_contingency`,
+tested in `tests/test_money_matched_contingency.py`).
 
 Why the learned policy sits at G1 +0.09 (below the reflex): per-tick, money does
 **not** disambiguate the hidden regime — depositing at money=30 gains in control
@@ -87,12 +105,15 @@ diverges for free.
 
 ## Next verification strategy
 
-1. **Add G2 as the primary grounding metric** (money-matched within-bin rate
-   gap), reported alongside G1 by every probe; floor G2 ≡ 0 is the built-in
-   fairness proof. Additive, determinism-safe (off the baseline path).
-2. **Re-score the target on G2, not G1.** Measure the v2a memory policy's G2 in
-   one battery run — the first honest grounding number. Positive G2 = genuine
-   grounding; G1 becomes a diagnostic, not the verdict.
+1. **G2 metric — DONE.** `money_matched_contingency` (pure scorer) +
+   `measure_money_matched_contingency` (sandbox probe) in
+   `emergence/grounding.py`, tested in `tests/test_money_matched_contingency.py`
+   (pure-function invariants, floor-not-positive, threshold-immunity). Additive,
+   determinism-safe (baseline suite still byte-identical, 99 passed).
+2. **Re-score the target on G2, not G1.** Wire G2 into the neural probe/battery
+   and measure the v2a memory policy's G2 in one run — the first honest grounding
+   number. Positive G2 (with CI) = genuine grounding; G1 becomes a diagnostic,
+   not the verdict.
 3. **If G2 is stuck at 0**, the lever is within-episode regime *evidence*
    (memory of demurrage hits → suppress matched-wealth deposits), not more G1
    density. This is where memory/inference is load-bearing and a reflex is not.

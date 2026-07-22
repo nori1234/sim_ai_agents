@@ -1616,3 +1616,205 @@ def measure_teacher_agreement(
         n_total_ticks_counterfactual=totals[True]["ticks"],
         agreement_control=_rate(False),
         agreement_counterfactual=_rate(True))
+
+
+# -- G2: money-matched contingency (the reflex-proof grounding signal) --------
+#
+# norm_contingency / excess (call them G1) score the raw regime rate difference.
+# docs/runs/metric-trajectory-confound-1 proved G1 is REFLEX-achievable: the blind
+# floor (deposit iff money>=12) scores +0.518 with zero regime knowledge, and a
+# higher memoryless threshold (T=20) scores +0.716, BEATING the floor -- so
+# "excess>0" does not certify grounding. The floor's whole asymmetry is trajectory
+# divergence: its deposit rate WITHIN each wealth bin is identical across regimes
+# (measured gap == 0 in every bin); only the bin populations shift, because
+# demurrage drains cf agents poorward.
+#
+# G2 is that within-bin gap made into a metric: at MATCHED money, how much LESS
+# does the policy deposit in the punished regime? Any policy that is a pure
+# function of the current observation acts identically at identical money, so its
+# G2 is ==0 by construction (proven for the floor). G2>0 REQUIRES within-episode
+# history -- the agent inferred the punishing regime from experienced demurrage
+# and suppressed deposits at wealth it would have banked in control. That is
+# exactly "grounded in irreversible consequence, not replaying training". Floor
+# G2==0 makes G2 a fair, honestly floor-beating grounding target.
+DEFAULT_MONEY_BINS: tuple = (
+    (12, 16), (16, 20), (20, 28), (28, 40), (40, 10**9),
+)
+
+
+@dataclass
+class MoneyMatchedContingencyResult:
+    """G2: the population-weighted within-wealth-bin deposit-rate gap
+    (control - counterfactual) at MATCHED money. ==0 for any memoryless policy
+    (the reflex floor included), >0 only when within-episode history suppresses
+    matched-wealth deposits under the punished regime. Reported ALONGSIDE
+    G1 (norm_contingency/excess), never replacing it: G1 stays the density/
+    behaviour diagnostic, G2 is the grounding verdict."""
+
+    rule: str
+    n_worlds: int
+    g2: float                       # weighted mean within-bin (ctl-cf) rate gap
+    n_decisions_control: int
+    n_decisions_counterfactual: int
+    overall_rate_control: float
+    overall_rate_counterfactual: float
+    # bin -> (ctl_n, ctl_fire, cf_n, cf_fire); only bins with samples both sides
+    # contribute to g2.
+    per_bin: dict
+
+    def as_dict(self) -> dict:
+        return {
+            "rule": self.rule, "n_worlds": self.n_worlds,
+            "g2": round(self.g2, 4),
+            "n_decisions_control": self.n_decisions_control,
+            "n_decisions_counterfactual": self.n_decisions_counterfactual,
+            "overall_rate_control": round(self.overall_rate_control, 4),
+            "overall_rate_counterfactual": round(self.overall_rate_counterfactual, 4),
+            "per_bin": {f"[{lo},{hi})": [cn, cf, xn, xf]
+                        for (lo, hi), (cn, cf, xn, xf) in self.per_bin.items()},
+        }
+
+
+def money_matched_contingency(
+    control_decisions,
+    counterfactual_decisions,
+    *,
+    rule: str = "demurrage",
+    n_worlds: int = 1,
+    bins: tuple = DEFAULT_MONEY_BINS,
+) -> MoneyMatchedContingencyResult:
+    """Score G2 from per-decision ``(money, fired)`` logs for each regime.
+
+    ``*_decisions`` are iterables of ``(money: float, fired: bool)`` at every
+    eligible deposit decision point (at a bank, bankable surplus). ``fired`` is
+    whether the policy actually deposited. Bins with samples on BOTH sides
+    contribute their signed rate gap ``ctl_rate - cf_rate``, weighted by the
+    pooled sample count; bins seen in only one regime carry no matched signal and
+    are excluded (that asymmetry is G1's job, not G2's). The result is
+    ``g2 in [-1, 1]`` -- ==0 for any policy whose fire-rate is a pure function of
+    money (memoryless), >0 for genuine matched-wealth regime suppression."""
+    def _binof(m):
+        for lo, hi in bins:
+            if lo <= m < hi:
+                return (lo, hi)
+        return None
+
+    ctl = {b: [0, 0] for b in bins}   # bin -> [n, fired]
+    cf = {b: [0, 0] for b in bins}
+    ctl_total = [0, 0]
+    cf_total = [0, 0]
+    for m, fired in control_decisions:
+        b = _binof(m)
+        ctl_total[0] += 1; ctl_total[1] += int(fired)
+        if b is not None:
+            ctl[b][0] += 1; ctl[b][1] += int(fired)
+    for m, fired in counterfactual_decisions:
+        b = _binof(m)
+        cf_total[0] += 1; cf_total[1] += int(fired)
+        if b is not None:
+            cf[b][0] += 1; cf[b][1] += int(fired)
+
+    num = 0.0
+    wsum = 0.0
+    per_bin: dict = {}
+    for b in bins:
+        cn, cff = ctl[b]
+        xn, xff = cf[b]
+        per_bin[b] = (cn, cff, xn, xff)
+        if cn > 0 and xn > 0:
+            gap = cff / cn - xff / xn
+            w = cn + xn
+            num += w * gap
+            wsum += w
+    g2 = num / wsum if wsum > 0 else 0.0
+    return MoneyMatchedContingencyResult(
+        rule=rule, n_worlds=n_worlds, g2=g2,
+        n_decisions_control=ctl_total[0],
+        n_decisions_counterfactual=cf_total[0],
+        overall_rate_control=(ctl_total[1] / ctl_total[0]) if ctl_total[0] else 0.0,
+        overall_rate_counterfactual=(cf_total[1] / cf_total[0]) if cf_total[0] else 0.0,
+        per_bin=per_bin)
+
+
+def _g2_logging_brain_class():
+    """Lazily builds ``_G2LoggingBrain``: wraps a tested brain and records
+    ``(money, fired)`` at every eligible deposit decision point (agent at a bank
+    with a bankable surplus). Pure observation of the REAL action the inner brain
+    returns -- no shadow query, nothing applied to the sim, so it cannot perturb
+    determinism (weaker than the teacher-agreement shadow, which does run a second
+    brain; here we only read the action already chosen)."""
+    from .actions import ActionType
+
+    class _G2LoggingBrain:
+        def __init__(self, inner, persona, rng=None):
+            self._inner = inner
+            self.rng = getattr(inner, "rng", rng)  # expose for anything introspecting
+            self.decisions = []   # list of (money, fired)
+
+        def decide(self, agent, obs):
+            action = self._inner.decide(agent, obs)
+            econ = getattr(obs, "economy", None) or {}
+            bank_here = econ.get("bank_here") if isinstance(econ, dict) else None
+            # Eligible = standing at a bank with a bankable surplus (>=12, the
+            # sandbox's surplus gate). This is the decision set the floor's G2 is
+            # measured on, so the comparison is apples-to-apples.
+            if bank_here and agent.money >= 12:
+                fired = action.type is ActionType.DEPOSIT
+                self.decisions.append((float(agent.money), fired))
+            return action
+
+    return _G2LoggingBrain
+
+
+def measure_money_matched_contingency(
+    persona: str = "claude",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    brain_factory,
+    bins: tuple = DEFAULT_MONEY_BINS,
+) -> MoneyMatchedContingencyResult:
+    """Run ``brain_factory``'s policy in the sandbox across ``seeds``, control and
+    counterfactual, logging every eligible deposit decision, and score G2 (see
+    :func:`money_matched_contingency`). Passing the blind heuristic itself must
+    read ``g2 ~= 0`` (the reflex floor cannot produce matched-wealth suppression)
+    -- that is the built-in fairness check. A trained memory policy that scores
+    ``g2 > 0`` is showing the program's first reflex-proof grounding signal."""
+    if rule != "demurrage":
+        raise ValueError("measure_money_matched_contingency currently only supports demurrage")
+
+    G2Brain = _g2_logging_brain_class()
+
+    def _wrapped_factory():
+        def factory(agent, persona, rng):
+            inner = brain_factory(agent, persona, rng)
+            return G2Brain(inner, persona, rng)
+        return factory
+
+    control_decisions: list = []
+    cf_decisions: list = []
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            sim = make_grounding_sandbox(
+                persona, rule=rule, n_savers=n_agents - 1, seed=seed, days=days,
+                cf_enabled=cf_enabled, brain_factory=_wrapped_factory(),
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day)
+            sim.run()
+            sink = cf_decisions if cf_enabled else control_decisions
+            # The sole banker's "eligible" ticks are lending decisions, not saver
+            # deposit decisions, and depend on regime-varying state (open offers,
+            # neighbours) rather than money -- they'd inject non-money asymmetry
+            # into G2. Score only the savers' decisions.
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                sink.extend(getattr(b, "decisions", []))
+
+    return money_matched_contingency(
+        control_decisions, cf_decisions,
+        rule=rule, n_worlds=len(seeds), bins=bins)
