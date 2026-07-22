@@ -54,6 +54,7 @@ class GroundingMonitor:
         sole_banker: bool = False,
         demurrage_per_day: float = 0.15,
         stable_income: int = 0,
+        felt_delta: bool = False,
         floor_rollouts: int = 1,
         on_result: Optional[Callable[[dict], None]] = None,
         probe: Callable[..., GroundingResult] = run_grounding_probe,
@@ -72,6 +73,7 @@ class GroundingMonitor:
         self.sole_banker = sole_banker
         self.demurrage_per_day = demurrage_per_day
         self.stable_income = stable_income
+        self.felt_delta = felt_delta
         self.floor_rollouts = floor_rollouts
         self._on_result = on_result
         self._probe = probe
@@ -101,6 +103,7 @@ class GroundingMonitor:
             sole_banker=self.sole_banker,
             demurrage_per_day=self.demurrage_per_day,
             stable_income=self.stable_income,
+            felt_delta=self.felt_delta,
             floor_rollouts=self.floor_rollouts, brain_factory=brain_factory)
         entry = {"epoch": epoch, **result.as_dict()}
         self.history.append(entry)

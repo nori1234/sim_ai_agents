@@ -294,6 +294,7 @@ def make_grounding_sandbox(
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
     stable_income: int = 0,
+    felt_delta: bool = False,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -352,6 +353,12 @@ def make_grounding_sandbox(
         # _end_of_day). Applied by the engine, so it works through sim.run() and
         # step_day identically. Default 0 -> off -> byte-identical.
         sim._stable_income = stable_income
+    if felt_delta:
+        # M2: surface the felt exogenous deposit yield (demurrage/interest) in the
+        # observation so the policy can REACT to the consequence rather than infer
+        # the regime from recall (docs/runs/grid-41-48). Default off -> the key is
+        # absent -> byte-identical tokenisation.
+        sim._felt_delta = True
     _prepare_sandbox(sim)
     return sim
 
@@ -369,6 +376,7 @@ def run_grounding_probe(
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
     stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -439,7 +447,8 @@ def run_grounding_probe(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
                     complexity_level=complexity_level, sole_banker=sole_banker,
-                    demurrage_per_day=demurrage_per_day, stable_income=stable_income)
+                    demurrage_per_day=demurrage_per_day, stable_income=stable_income,
+                    felt_delta=felt_delta)
             else:
                 sim = make_simulation(
                     persona,
@@ -768,6 +777,7 @@ def run_grounding_sweep(
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
     stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -799,6 +809,7 @@ def run_grounding_sweep(
                      sole_banker=sole_banker,
                      demurrage_per_day=demurrage_per_day,
                      stable_income=stable_income,
+                     felt_delta=felt_delta,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -893,6 +904,7 @@ def run_grounding_battery(
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
     stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -922,6 +934,7 @@ def run_grounding_battery(
                        sole_banker=sole_banker,
                        demurrage_per_day=demurrage_per_day,
                        stable_income=stable_income,
+                       felt_delta=felt_delta,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)
@@ -1809,6 +1822,7 @@ def measure_money_matched_contingency(
     sole_banker: bool = True,
     demurrage_per_day: float = 0.25,
     stable_income: int = 0,
+    felt_delta: bool = False,
     brain_factory,
     bins: tuple = DEFAULT_MONEY_BINS,
 ) -> MoneyMatchedContingencyResult:
@@ -1839,7 +1853,7 @@ def measure_money_matched_contingency(
                 persona, rule=rule, n_savers=n_agents - 1, seed=seed, days=days,
                 cf_enabled=cf_enabled, brain_factory=_wrapped_factory(),
                 sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
-                stable_income=stable_income)
+                stable_income=stable_income, felt_delta=felt_delta)
             sim.run()
             sink = cf_decisions if cf_enabled else control_decisions
             bsink = cf_beliefs if cf_enabled else ctl_beliefs

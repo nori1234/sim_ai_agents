@@ -113,6 +113,15 @@ on:
           Train/eval-MATCHED. See docs/runs/metric-trajectory-confound-1.
         required: false
         default: "0"
+      felt_delta:
+        description: >-
+          M2 (sandbox): surface the felt exogenous deposit yield (the
+          demurrage/interest applied to my savings last day) in the observation,
+          so the policy can REACT to the consequence instead of inferring the
+          hidden regime from recall (docs/runs/grid-41-48). "true" or "false".
+          Off by default. Train/eval-MATCHED.
+        required: false
+        default: "false"
       grounded_teacher:
         description: >-
           issue #10(c) diagnostic (only applies with sandbox=true): use the
@@ -322,6 +331,7 @@ jobs:
             --window "$WINDOW" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             ${{ inputs.sole_banker == 'true' && '--sole-banker' || '' }} \
+            ${{ inputs.felt_delta == 'true' && '--felt-delta' || '' }} \
             ${{ inputs.grounded_teacher == 'true' && '--grounded-teacher' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \

@@ -408,7 +408,17 @@ class Simulation:
                       "deposit_rate": (None if self.counterfactual.hide_rate
                                        else MK.DEPOSIT_INTEREST_PER_DAY),
                       "my_deposits": [d.as_dict() for d in self.deposits
-                                      if d.holder == agent.id and d.amount > 0]}
+                                      if d.holder == agent.id and d.amount > 0],
+                      # M2 felt-delta (grounding, sandbox opt-in): last day's
+                      # EXOGENOUS change to my banked savings — negative under
+                      # demurrage, positive under interest. The felt consequence
+                      # of the hidden law made PRESENT in the observation, so a
+                      # policy can react to it (肌感覚 / feedback control) rather
+                      # than having to infer the regime from recall. Only present
+                      # when the sandbox enabled it (else the key is absent ->
+                      # byte-identical tokenisation).
+                      **({"deposit_yield": getattr(self, "_felt_yield", {}).get(agent.id, 0)}
+                         if getattr(self, "_felt_delta", False) else {})}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -2030,6 +2040,13 @@ class Simulation:
 
         Under the counterfactual `demurrage` rule (the grounding probe) the law is
         inverted: savings shrink instead of growing — handled separately below."""
+        # M2 felt-delta: reset each depositor's per-day EXOGENOUS yield so
+        # obs.economy.deposit_yield reflects only this day's interest/demurrage
+        # (the felt consequence of the hidden law), not the agent's own
+        # deposit/withdraw actions. Inert unless the sandbox set _felt_delta;
+        # gated so the off path is byte-identical.
+        if getattr(self, "_felt_delta", False):
+            self._felt_yield = {}
         if self.counterfactual.enabled and self.counterfactual.rule == "demurrage":
             self._apply_demurrage()
             return
@@ -2045,6 +2062,8 @@ class Simulation:
                 continue
             bank.take("money", paid)
             holder.add("money", paid)
+            if getattr(self, "_felt_delta", False):
+                self._felt_yield[holder.id] = self._felt_yield.get(holder.id, 0) + paid
             self.world.log("interest", bank=bank.id, holder=holder.id, amount=paid)
 
     def _apply_demurrage(self) -> None:
@@ -2062,6 +2081,8 @@ class Simulation:
             if lost <= 0:
                 continue
             dep.amount -= lost
+            if getattr(self, "_felt_delta", False):
+                self._felt_yield[dep.holder] = self._felt_yield.get(dep.holder, 0) - lost
             self.world.log("demurrage", bank=dep.bank, holder=dep.holder, amount=lost)
             holder = self._by_id.get(dep.holder)
             if holder is not None and holder.alive:
