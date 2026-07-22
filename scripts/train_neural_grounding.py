@@ -255,6 +255,14 @@ def main(argv=None) -> int:
                          "(floor G1->0, G2->0); regime becomes inferable only from "
                          "the banked deposit's shrinkage history. 0 = off "
                          "(byte-identical). Train/eval-MATCHED.")
+    ap.add_argument("--eval-demurrage-per-day", type=float, default=None,
+                    help="TRANSFER test: evaluate the trained brain at a DIFFERENT "
+                         "demurrage severity than it trained at (default = same as "
+                         "--demurrage-per-day). A mechanism that MEMORISED the "
+                         "0.25-magnitude consequence transfers poorly to a much "
+                         "gentler/harsher one; a mechanism that genuinely INFERS "
+                         "'deposits are net-losing' adapts. AGI-relevant: does the "
+                         "capability generalise, or only fit this toy severity?")
     ap.add_argument("--demurrage-per-day", type=float, default=0.15,
                     help="run #15 contingency-margin dial (cf world only; 0.15 = "
                          "canonical, byte-identical). Widens the cf-side "
@@ -563,6 +571,12 @@ def main(argv=None) -> int:
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
+    eval_dem = (args.eval_demurrage_per_day if args.eval_demurrage_per_day is not None
+                else args.demurrage_per_day)
+    if eval_dem != args.demurrage_per_day:
+        print(f"[transfer] eval demurrage={eval_dem} != train demurrage="
+              f"{args.demurrage_per_day} -- held-out severity, tests generalisation",
+              flush=True)
     print(f"[battery] running the acceptance battery ({','.join(rules)} x "
           f"held-out worlds {list(BATTERY_SEEDS)}, {where}{level_str}, "
           f"floor_rollouts={args.floor_rollouts})...", flush=True)
@@ -578,7 +592,7 @@ def main(argv=None) -> int:
                                     sandbox=args.sandbox,
                                     complexity_level=args.complexity_level,
                                     sole_banker=args.sole_banker,
-                                    demurrage_per_day=args.demurrage_per_day,
+                                    demurrage_per_day=eval_dem,
                                     stable_income=args.stable_income,
                                     felt_delta=args.felt_delta,
                                     floor_rollouts=args.floor_rollouts,
@@ -588,6 +602,7 @@ def main(argv=None) -> int:
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
               "demurrage_per_day": args.demurrage_per_day,
+              "eval_demurrage_per_day": eval_dem,
               "stable_income": args.stable_income,
               "felt_delta": args.felt_delta,
               "grounded_teacher": args.grounded_teacher,
@@ -604,7 +619,7 @@ def main(argv=None) -> int:
         g2 = measure_money_matched_contingency(
             args.persona, rule="demurrage", seeds=BATTERY_SEEDS, days=args.days,
             n_agents=args.agents, sole_banker=args.sole_banker,
-            demurrage_per_day=args.demurrage_per_day,
+            demurrage_per_day=eval_dem,
             stable_income=args.stable_income, felt_delta=args.felt_delta,
             brain_factory=probe_factory)
         result["money_matched_contingency"] = g2.as_dict()

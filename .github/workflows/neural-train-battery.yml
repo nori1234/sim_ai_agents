@@ -113,6 +113,14 @@ on:
           Train/eval-MATCHED. See docs/runs/metric-trajectory-confound-1.
         required: false
         default: "0"
+      eval_demurrage_per_day:
+        description: >-
+          TRANSFER test: evaluate the trained brain at a DIFFERENT demurrage
+          severity than training (empty = same as demurrage_per_day). A memorised
+          mechanism transfers poorly to an unseen severity; a genuinely inferring
+          one adapts. AGI-relevant generalisation probe.
+        required: false
+        default: ""
       felt_delta:
         description: >-
           M2 (sandbox): surface the felt exogenous deposit yield (the
@@ -335,6 +343,7 @@ jobs:
             ${{ inputs.grounded_teacher == 'true' && '--grounded-teacher' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \
+            ${{ inputs.eval_demurrage_per_day != '' && format('--eval-demurrage-per-day {0}', inputs.eval_demurrage_per_day) || '' }} \
             --stable-income "$STABLE_INCOME" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
