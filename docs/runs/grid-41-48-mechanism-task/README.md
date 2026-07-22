@@ -5,16 +5,24 @@ demurrage 0.25, scored on **G2** (money-matched, reflex-proof) and, for the B2
 arms fired after the D1 wiring, **D1** (belief-decode accuracy). All 8 completed
 successfully (backend live, guards passed — genuine trained runs, not fallbacks).
 
-Read/verified directly from job logs: **#41, #44, #45, #46, #48 (5 of 8).**
-#42/#43/#47 (non-belief arms) not yet read — not claimed here.
+Read/verified directly from job logs: **all 8 (#41–#48).**
 
-| # | mechanism | task | bw | days | G1 (counts) | D1 belief-acc | mean belief ctl/cf | verdict |
-|---|---|---|---|---|---|---|---|---|
-| 41 | v2a | base | — | 20 | 1310/1241 (+0.03) | — (no head) | — | UNDET / not grounded (G2 +0.007, rates .665/.660) |
-| 44 | v2a+B2 | C1 | 0.5 | 20 | 186/218 (−0.079) | — (pre-D1 build) | — | UNDET / not grounded (density collapsed) |
-| 45 | v2a+B2 | C1 | 1.0 | 20 | 103/100 (+0.015) | **0.501** | 0.500 / 0.501 | UNDET / not grounded |
-| 46 | v2a+B2 | C1 | 0.5 | **40** | 186/201 (−0.038) | **0.523** | 0.521 / 0.523 | UNDET / not grounded |
-| 48 | v2a+B2 | base | 1.0 | 20 | 392/422 (−0.036) | **0.473** | 0.511 / 0.504 | **POWERED-NO** / not grounded |
+| # | mechanism | task | bw | days | rate ctl/cf | G1 (counts) | G2 (matched) | D1 belief-acc (ctl/cf) | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| 41 | v2a | base | — | 20 | .665/.660 | 1310/1241 (+.027) | **+0.007** | — | UNDET |
+| 42 | v2a+B2 | base | 0.5 | 20 | .258/.218 | 606/517 (+.079) | **~+0.040** (best) | — (pre-D1) | **POWERED-NO** |
+| 43 | v2a | C1 | — | 20 | .085/.083 | 212/210 (+.005) | ~0 | — | UNDET |
+| 44 | v2a+B2 | C1 | 0.5 | 20 | low | 186/218 (−.079) | ≲0 | — (pre-D1) | UNDET |
+| 45 | v2a+B2 | C1 | 1.0 | 20 | low | 103/100 (+.015) | ~0 | 0.501 (.500/.501) | UNDET |
+| 46 | v2a+B2 | C1 | 0.5 | **40** | low | 186/201 (−.038) | ~0 | 0.523 (.521/.523) | UNDET |
+| 47 | v2a | C1 | — | **40** | .163/.164 | 411/439 (−.033) | ~0 | — | UNDET |
+| 48 | v2a+B2 | base | 1.0 | 20 | .258/.218 | 392/422 (−.036) | ~0 | 0.473 (.511/.504) | **POWERED-NO** |
+
+**No arm grounds.** Best is #42's G2 ≈ +0.04 — still ~13× below the floor (+0.52),
+POWERED-NO. Baseline arms deposit densely at ~equal rates both regimes (replay);
+C1 arms collapse density (2–16%) because the reflex is removed and nothing
+regime-aware replaces it. belief_weight (0.5→1.0), days (20→40), and task did not
+move grounding.
 
 ## The finding — the wall is (3) INFERENCE, not (4) actuation (all 3 belief arms)
 
@@ -49,16 +57,41 @@ Corollary reads:
   did not move it — consistent with an inference *substrate* failure, not a
   tuning failure.
 
-## Next (design now confirmed by D1)
+## ROOT CAUSE (from analysing all 8) — state-keyed recall is regime-BLIND by construction
 
-The agent needs a **direct running signal of experienced consequence** — "did the
-deposits I made *this episode* shrink?" — not a recall of similar past states.
-That is **A1**: a recurrent belief state updated online from the (obs, action,
-reward / wealth-delta) stream and fed to the policy (and, cheaply, still
-supervised by `_priv` as B2 does, but now over an input that actually carries the
-regime). D1 will re-measure whether A1's belief crosses chance — the direct test
-that (3) is finally solved before touching (4).
+Why is the belief at chance even under direct supervision? Because its input is
+`_memory_feature` = a summary of **recall keyed on the state-LSH bucket**. The
+regime is *hidden* and, by design, **not in the state** — so states from control
+and counterfactual hash to the **same bucket**, and recall returns a **mixture of
+both regimes'** deposit outcomes. `mean_reward_deposit` is therefore
+regime-*averaged* → it carries ~zero regime signal → the belief head has nothing
+to separate on (D1 = chance, confirmed on all 3 arms).
 
-Priority: **A1 (recurrent consequence belief) → re-check D1 belief-acc > 0.5 →
-only then actuation.** Do not re-run B2/critic variants on the recall substrate —
-D1 shows the signal isn't there to read.
+**This is structural, not a tuning miss.** Any belief built on state-similarity
+recall is doomed: the very thing that makes recall generalise (state-similarity,
+regime-agnostic) erases the regime. Grounding here cannot come from "what happened
+in similar states" — it needs "what happened to **me, this episode**", a *temporal*
+signal recall does not provide. It also explains the density collapse on C1: with
+the wealth reflex removed and no regime signal available, the policy has no basis
+to deposit and mostly abstains.
+
+## Means to pursue (ranked; the goal is a belief that separates the regime, D1>0.5)
+
+- **M1 — A1 recurrent belief (direct fix).** An online state updated each tick
+  from the *(obs, action, reward/wealth-delta)* stream, fed to the policy,
+  supervised by `_priv`. Carries this-episode consequence history that recall
+  can't. Cost: hot-path brain surgery (BPTT), highest value. **Primary.**
+- **M2 — expose the felt delta in the observation (engine-side, cheap).** The
+  demurrage loss currently reaches the agent *only* as a memory text line
+  (`remember(...)`), not as a structured obs field the tokenizer surfaces. Add
+  "my deposit balance changed by X since last tick" to the observation. Then even
+  a memoryless policy can *react to the felt consequence* (肌感覚 / feedback
+  control) — which may be sufficient for G2>0 without hidden-regime inference.
+  Tests whether grounding here is "react to felt loss" (simpler) vs "infer hidden
+  regime" (harder). Cheapest discriminator; do **first**, before M1.
+- **M3 — regime-tagged memory is NOT allowed** (it would leak the hidden regime
+  into recall = cheating). Explicitly ruled out.
+
+Priority: **M2 (expose felt delta — cheap, may suffice) → M1 (A1 recurrent) →
+re-check D1>0.5 → only then actuation (4).** Do not re-run B2/critic variants on
+the recall substrate — the signal is provably not there to read.
