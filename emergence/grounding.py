@@ -1673,9 +1673,18 @@ class MoneyMatchedContingencyResult:
     # bin -> (ctl_n, ctl_fire, cf_n, cf_fire); only bins with samples both sides
     # contribute to g2.
     per_bin: dict
+    # D1 belief probe: how well the B2 belief head's P(cf) separates the true
+    # regime at eval (accuracy of belief>=0.5 vs cf), and the mean belief in each
+    # regime. None when the brain has no belief head. This splits (3) inference
+    # (belief tracks regime) from (4) actuation (does behaviour then change) --
+    # a high belief_decode_accuracy with g2~0 is a pure actuation gap.
+    belief_decode_accuracy: Optional[float] = None
+    n_belief: int = 0
+    mean_belief_control: Optional[float] = None
+    mean_belief_counterfactual: Optional[float] = None
 
     def as_dict(self) -> dict:
-        return {
+        d = {
             "rule": self.rule, "n_worlds": self.n_worlds,
             "g2": round(self.g2, 4),
             "n_decisions_control": self.n_decisions_control,
@@ -1685,6 +1694,14 @@ class MoneyMatchedContingencyResult:
             "per_bin": {f"[{lo},{hi})": [cn, cf, xn, xf]
                         for (lo, hi), (cn, cf, xn, xf) in self.per_bin.items()},
         }
+        if self.belief_decode_accuracy is not None:
+            d["belief_decode_accuracy"] = round(self.belief_decode_accuracy, 4)
+            d["n_belief"] = self.n_belief
+            d["mean_belief_control"] = (round(self.mean_belief_control, 4)
+                                        if self.mean_belief_control is not None else None)
+            d["mean_belief_counterfactual"] = (round(self.mean_belief_counterfactual, 4)
+                                               if self.mean_belief_counterfactual is not None else None)
+        return d
 
 
 def money_matched_contingency(
@@ -1762,6 +1779,7 @@ def _g2_logging_brain_class():
             self._inner = inner
             self.rng = getattr(inner, "rng", rng)  # expose for anything introspecting
             self.decisions = []   # list of (money, fired)
+            self.beliefs = []     # D1: inner brain's inferred P(cf) at each decision
 
         def decide(self, agent, obs):
             action = self._inner.decide(agent, obs)
@@ -1773,6 +1791,9 @@ def _g2_logging_brain_class():
             if bank_here and agent.money >= 12:
                 fired = action.type is ActionType.DEPOSIT
                 self.decisions.append((float(agent.money), fired))
+                # D1: the B2 belief head's P(cf) at this decision (None for brains
+                # without one). Read AFTER decide() so it reflects this obs.
+                self.beliefs.append(getattr(self._inner, "last_belief", None))
             return action
 
     return _G2LoggingBrain
@@ -1810,6 +1831,8 @@ def measure_money_matched_contingency(
 
     control_decisions: list = []
     cf_decisions: list = []
+    ctl_beliefs: list = []
+    cf_beliefs: list = []
     for seed in seeds:
         for cf_enabled in (False, True):
             sim = make_grounding_sandbox(
@@ -1819,6 +1842,7 @@ def measure_money_matched_contingency(
                 stable_income=stable_income)
             sim.run()
             sink = cf_decisions if cf_enabled else control_decisions
+            bsink = cf_beliefs if cf_enabled else ctl_beliefs
             # The sole banker's "eligible" ticks are lending decisions, not saver
             # deposit decisions, and depend on regime-varying state (open offers,
             # neighbours) rather than money -- they'd inject non-money asymmetry
@@ -1828,7 +1852,20 @@ def measure_money_matched_contingency(
                 if aid == banker_id:
                     continue
                 sink.extend(getattr(b, "decisions", []))
+                bsink.extend(x for x in getattr(b, "beliefs", []) if x is not None)
 
-    return money_matched_contingency(
+    res = money_matched_contingency(
         control_decisions, cf_decisions,
         rule=rule, n_worlds=len(seeds), bins=bins)
+
+    # D1 belief probe: does the belief head's P(cf) separate the regime? (control
+    # beliefs should be low, cf high). Accuracy of the belief>=0.5 rule against the
+    # true regime, over all decisions where a belief was produced.
+    if ctl_beliefs or cf_beliefs:
+        correct = sum(1 for x in ctl_beliefs if x < 0.5) + sum(1 for x in cf_beliefs if x >= 0.5)
+        n = len(ctl_beliefs) + len(cf_beliefs)
+        res.belief_decode_accuracy = correct / n if n else None
+        res.n_belief = n
+        res.mean_belief_control = (sum(ctl_beliefs) / len(ctl_beliefs)) if ctl_beliefs else None
+        res.mean_belief_counterfactual = (sum(cf_beliefs) / len(cf_beliefs)) if cf_beliefs else None
+    return res

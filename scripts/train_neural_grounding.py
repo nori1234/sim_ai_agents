@@ -602,6 +602,13 @@ def main(argv=None) -> int:
               f"g2={g2.g2:+.4f}  (ctl {g2.n_decisions_control} / cf "
               f"{g2.n_decisions_counterfactual} eligible decisions; "
               f"floor is <=0 -- positive = genuine grounding)", flush=True)
+        if g2.belief_decode_accuracy is not None:
+            # D1: does the belief head INFER the regime (3), separate from whether
+            # behaviour then changes (4 = G2)? high acc + g2~0 => pure actuation gap.
+            print(f"[D1] belief probe: decode_acc={g2.belief_decode_accuracy:.3f} "
+                  f"(mean P(cf): control={g2.mean_belief_control:.3f} / "
+                  f"cf={g2.mean_belief_counterfactual:.3f}; n={g2.n_belief}). "
+                  f"high acc + low G2 = inference OK, actuation gap", flush=True)
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 

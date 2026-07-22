@@ -66,6 +66,7 @@ class NeuralDevelopmentalBrain(AgentBrain):
         # it to the brain's VALUE-only privileged input. None = ordinary baseline
         # (deploy/eval never sets it, so no leak to the acting policy).
         self._priv_regime = None
+        self.last_belief = None          # D1: B2 belief head's last inferred P(cf)
         self._prev_obs = None            # last observation, for the reward delta
         # The brain side's learn() may optionally return a diagnostics dict (e.g.
         # {"grad_steps": int, "lr": float}) for hparam tuning (the lr-decay
@@ -118,6 +119,9 @@ class NeuralDevelopmentalBrain(AgentBrain):
             #    `agent` is passed so the brain's EngineTeacher can call
             #    teacher.decide(agent, obs) for imitation (contract decision (a)).
             spec = self._dev.act(observation, agent)
+            # D1: surface the B2 belief head's inferred P(counterfactual) for the
+            # belief probe (None unless the brain has a belief_head).
+            self.last_belief = getattr(self._dev, "_last_belief", None)
             self._prev_obs = observation
             # 3) Map the policy's output spec onto a concrete engine Action.
             from agent.adapters.emergence import to_engine_action  # type: ignore
