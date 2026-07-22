@@ -1,0 +1,23 @@
+seeds=42..47  threshold=12  demurrage=0.25
+
+Deposit-decision fire-rate binned by current money, per regime.
+G1 (trajectory) shows as different bin *populations*; G2 (detection) shows as
+different fire-*rates* within the same money bin.
+
+   money bin | control n ctl fire% |   cf n  cf fire% | rate gap
+------------------------------------------------------------------------
+       [0,8) |         0     nan% |      0     nan% |    +nan%
+      [8,12) |         0     nan% |      0     nan% |    +nan%
+     [12,16) |       244   100.0% |    135   100.0% |    +0.0%
+     [16,20) |       179   100.0% |     25   100.0% |    +0.0%
+     [20,28) |       147   100.0% |      6   100.0% |    +0.0%
+     [28,40) |         3   100.0% |      3   100.0% |    +0.0%
+      [40,+) |        72   100.0% |     30   100.0% |    +0.0%
+------------------------------------------------------------------------
+overall deposit fire-rate: control=100.0%  cf=100.0%
+decision points: control=645  cf=199
+
+READ: if within-bin fire-rates (rate gap) are ~0 while the bin POPULATIONS shift
+poorward in cf, the floor grounds by G1 (trajectory) alone -- zero regime detection.
+That means norm_contingency measures mechanical divergence, and genuine grounding (G2)
+needs a money-matched metric the program hasn't been scoring.
