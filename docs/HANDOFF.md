@@ -10,14 +10,32 @@
   (control 1026 > cf 854, norm_contingency **+0.091**)。だが POWERED-NO（被覆は必要・不十分）。
 - **特権critic（run #30）＝逆効果と確定**：密度66%崩壊（advantage→0）。診断済み、`priv_mix`ノブで
   修正可能に。
-- **メトリクスは公平と実証**（自説を反証）：盲目floorの norm_contingency **+0.518**、v2aは+0.091＝
-  ~1/5。密度正規化でも救われない＝脳が本当に随伴不足。`norm_contingency` を計器に常設。
+- **【最新・最重要】メトリクスが反射を報奨していた＝壁の再定義**（`docs/runs/metric-trajectory-confound-1/`）。
+  盲目floorの norm_contingency(G1) +0.518 の正体を torch-free 2診断で解剖：
+  - **floor＝記憶なしの富しきい値** `money≥12→預金`。しきい値を**上げる**だけ(T=20)で
+    G1=**+0.716**＝floorを**超える**（norm_excess +0.19>0）。⇒ 事業の合格判定「excess>0」は
+    **随伴性ゼロの反射で通過可能**。ソフト境界(任意のτ)でも+0.45＝鋭さも壁でない。
+  - floorの随伴性は**軌道乖離100%・レジーム検出0%**：同じ富ビン内の預金率は両レジーム同一
+    (gap≡0)、cf側は demurrage で貧しくなり決定点が低ビンに寄るだけ。
+  - **⇒ G1/excess は接地を証明しない。真の標的＝G2**（富マッチ随伴性＝同一富での預金率差
+    control−cf）。記憶なし方策は G2≤~0（純富規則で≡0、実floorは decide 優先度×レジームの
+    小残差で≈−0.05〜−0.09、**決して正にならない**）。**G2>0 はエピソード内履歴＝記憶が必須**
+    ＝「不可逆な帰結に接地した、訓練の再生でない」北極星そのもの。
+  - **判別子（実測）**：しきい値12→20で G1 +0.52→+0.64 と膨らむが G2 は≤0のまま。
+    **正のG2は反射で到達不能**＝公平でフェアに floor を超える標的。
+  - **実装済み**：`money_matched_contingency`/`measure_money_matched_contingency`
+    (`emergence/grounding.py`)＋`tests/test_money_matched_contingency.py`。baseline byte一致(99 pass)。
+- **記憶+credit+最適化 族は G1≈+0.09 で頭打ち**（`docs/runs/run-31-40-sweep/`、9セル）：LSH増bitは
+  0へ smear、軟化criticは密度↔ノイズ、GAE平坦。v2a(#29 +0.091)が族の天井。**族は正しい問題を
+  解いていなかった**（floorは履歴推論せず反射で+0.52）。
 - インフラ：数値発散根治(seed込・A1でCI実証)・recall O(n²)→O(tag)・agent_agi条件付install。
-- 一次資料：`docs/runs/run-28-30-memory-critic/`（3本入れ子＋監査＋次戦略）、`GROUNDING.md`冒頭、
-  `agent_agi/docs/10`（記憶v2）、`llm_model_agi/docs/PRIVILEGED_CRITIC.md`。
-- **次の実験（実装済・未実行）**：(1)v2a＋`priv_mix≈0.3`（軟化critic）、(2)v2a＋LSH 16bit＋探索↑
-  （随伴性押し上げ）。各~3hのCI。目標＝norm_contingency +0.091→+0.5。**ローカル短時間で
-  hparam当たりを付けてから1本CI**が予算的に妥当（recall高速化済でローカルも実用的）。
+- 一次資料：**`docs/runs/metric-trajectory-confound-1/`（最新frontier）**、`docs/runs/run-31-40-sweep/`、
+  `docs/runs/run-28-30-memory-critic/`、`GROUNDING.md`冒頭、`agent_agi/docs/10`、
+  `llm_model_agi/docs/PRIVILEGED_CRITIC.md`。
+- **次の実験（1本）**：G2 を neural probe/battery に配線し、**v2a方策のG2を実測**＝事業初の誠実な
+  接地数値。CI予算節約のためローカルで G2 計器は検証済（floor≤0確認）。正のG2(CI付)＝真の接地、
+  G1は診断に降格。G2が0で膠着なら、レバーは「エピソード内のレジーム証拠(demurrage被弾の記憶→
+  富マッチ預金の抑制)」＝記憶が効く場所。
 古くなっていたら、この日付以降の `main` の履歴・issue #99/#130 のコメントが正。
 
 ## 体制と役割
