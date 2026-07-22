@@ -3,9 +3,21 @@
 > **系の全体像（3リポジトリ＝1つの系・器官マップ・ロードマップ）は [`docs/SYSTEM.md`](SYSTEM.md) が真実の単一ソース。**
 > この HANDOFF は sim(世界)側の運用引き継ぎ、SYSTEM.md は3リポ横断の背骨。
 
-次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #25(A1)=POWERED-NO・
-訓練不安定の根本修正済み・decodability 94%・**記憶 v2a 実装/実測(ヒット8.6%→66%)**・
-recall 性能修正・run #27(v1b)訓練中)。要約と深掘りは `GROUNDING.md` 冒頭。
+次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-22**。要約と深掘りは
+`GROUNDING.md` 冒頭。**接地は未達だが壁を数値で確定**：
+- **知覚は解決／壁は"帰結の行動化"**（②密度×③純度、`GROUNDING.md`）。
+- **記憶 v2a（類似バケットキー）＝唯一効いたレバー**：run #29 で**初の正しい向きの行動分離**
+  (control 1026 > cf 854, norm_contingency **+0.091**)。だが POWERED-NO（被覆は必要・不十分）。
+- **特権critic（run #30）＝逆効果と確定**：密度66%崩壊（advantage→0）。診断済み、`priv_mix`ノブで
+  修正可能に。
+- **メトリクスは公平と実証**（自説を反証）：盲目floorの norm_contingency **+0.518**、v2aは+0.091＝
+  ~1/5。密度正規化でも救われない＝脳が本当に随伴不足。`norm_contingency` を計器に常設。
+- インフラ：数値発散根治(seed込・A1でCI実証)・recall O(n²)→O(tag)・agent_agi条件付install。
+- 一次資料：`docs/runs/run-28-30-memory-critic/`（3本入れ子＋監査＋次戦略）、`GROUNDING.md`冒頭、
+  `agent_agi/docs/10`（記憶v2）、`llm_model_agi/docs/PRIVILEGED_CRITIC.md`。
+- **次の実験（実装済・未実行）**：(1)v2a＋`priv_mix≈0.3`（軟化critic）、(2)v2a＋LSH 16bit＋探索↑
+  （随伴性押し上げ）。各~3hのCI。目標＝norm_contingency +0.091→+0.5。**ローカル短時間で
+  hparam当たりを付けてから1本CI**が予算的に妥当（recall高速化済でローカルも実用的）。
 古くなっていたら、この日付以降の `main` の履歴・issue #99/#130 のコメントが正。
 
 ## 体制と役割
