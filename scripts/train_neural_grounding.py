@@ -242,6 +242,13 @@ def main(argv=None) -> int:
                          "where grounding actually pays. Train/eval-MATCHED, same "
                          "as --complexity-level (see docs/runs/deposit-oracle-"
                          "redesign-1/).")
+    ap.add_argument("--stable-income", type=int, default=0,
+                    help="C1 reflex-impossible task (sandbox only): reset each "
+                         "saver's spendable money to this fixed target each day so "
+                         "the blind wealth-threshold reflex loses its regime handle "
+                         "(floor G1->0, G2->0); regime becomes inferable only from "
+                         "the banked deposit's shrinkage history. 0 = off "
+                         "(byte-identical). Train/eval-MATCHED.")
     ap.add_argument("--demurrage-per-day", type=float, default=0.15,
                     help="run #15 contingency-margin dial (cf world only; 0.15 = "
                          "canonical, byte-identical). Widens the cf-side "
@@ -410,7 +417,8 @@ def main(argv=None) -> int:
                             threshold=args.threshold, sandbox=args.sandbox,
                             complexity_level=args.complexity_level,
                             sole_banker=args.sole_banker,
-                            demurrage_per_day=args.demurrage_per_day)
+                            demurrage_per_day=args.demurrage_per_day,
+                            stable_income=args.stable_income)
         for r in rules
     }
 
@@ -433,7 +441,8 @@ def main(argv=None) -> int:
                 cf_enabled=cf_enabled, brain_factory=training_factory,
                 complexity_level=args.complexity_level, status=status_enabled,
                 sole_banker=args.sole_banker,
-                demurrage_per_day=args.demurrage_per_day)
+                demurrage_per_day=args.demurrage_per_day,
+                stable_income=args.stable_income)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
@@ -563,6 +572,7 @@ def main(argv=None) -> int:
                                     complexity_level=args.complexity_level,
                                     sole_banker=args.sole_banker,
                                     demurrage_per_day=args.demurrage_per_day,
+                                    stable_income=args.stable_income,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, "sandbox": args.sandbox,
@@ -570,6 +580,7 @@ def main(argv=None) -> int:
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
               "demurrage_per_day": args.demurrage_per_day,
+              "stable_income": args.stable_income,
               "grounded_teacher": args.grounded_teacher,
               **battery.as_dict()}
 
@@ -584,7 +595,8 @@ def main(argv=None) -> int:
         g2 = measure_money_matched_contingency(
             args.persona, rule="demurrage", seeds=BATTERY_SEEDS, days=args.days,
             n_agents=args.agents, sole_banker=args.sole_banker,
-            demurrage_per_day=args.demurrage_per_day, brain_factory=probe_factory)
+            demurrage_per_day=args.demurrage_per_day,
+            stable_income=args.stable_income, brain_factory=probe_factory)
         result["money_matched_contingency"] = g2.as_dict()
         print(f"[G2] money-matched contingency (grounding, reflex-proof): "
               f"g2={g2.g2:+.4f}  (ctl {g2.n_decisions_control} / cf "

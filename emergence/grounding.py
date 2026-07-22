@@ -293,6 +293,7 @@ def make_grounding_sandbox(
     brain_factory=None,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -345,6 +346,12 @@ def make_grounding_sandbox(
     )
     if sole_banker:
         sim.sole_deposit_banker = sim.agents[0].id  # agents[0] is the staffed banker
+    if stable_income > 0:
+        # C1 reflex-impossible task: fix savers' spendable money each day so the
+        # blind wealth-threshold reflex loses its regime handle (see Simulation.
+        # _end_of_day). Applied by the engine, so it works through sim.run() and
+        # step_day identically. Default 0 -> off -> byte-identical.
+        sim._stable_income = stable_income
     _prepare_sandbox(sim)
     return sim
 
@@ -361,6 +368,7 @@ def run_grounding_probe(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -431,7 +439,7 @@ def run_grounding_probe(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
                     complexity_level=complexity_level, sole_banker=sole_banker,
-                    demurrage_per_day=demurrage_per_day)
+                    demurrage_per_day=demurrage_per_day, stable_income=stable_income)
             else:
                 sim = make_simulation(
                     persona,
@@ -759,6 +767,7 @@ def run_grounding_sweep(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -789,6 +798,7 @@ def run_grounding_sweep(
                      complexity_level=complexity_level,
                      sole_banker=sole_banker,
                      demurrage_per_day=demurrage_per_day,
+                     stable_income=stable_income,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -882,6 +892,7 @@ def run_grounding_battery(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -910,6 +921,7 @@ def run_grounding_battery(
                        complexity_level=complexity_level,
                        sole_banker=sole_banker,
                        demurrage_per_day=demurrage_per_day,
+                       stable_income=stable_income,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)
@@ -1775,6 +1787,7 @@ def measure_money_matched_contingency(
     n_agents: int = 6,
     sole_banker: bool = True,
     demurrage_per_day: float = 0.25,
+    stable_income: int = 0,
     brain_factory,
     bins: tuple = DEFAULT_MONEY_BINS,
 ) -> MoneyMatchedContingencyResult:
@@ -1802,7 +1815,8 @@ def measure_money_matched_contingency(
             sim = make_grounding_sandbox(
                 persona, rule=rule, n_savers=n_agents - 1, seed=seed, days=days,
                 cf_enabled=cf_enabled, brain_factory=_wrapped_factory(),
-                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day)
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                stable_income=stable_income)
             sim.run()
             sink = cf_decisions if cf_enabled else control_decisions
             # The sole banker's "eligible" ticks are lending decisions, not saver

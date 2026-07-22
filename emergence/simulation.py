@@ -2562,6 +2562,23 @@ class Simulation:
                                debtor=loan.debtor, creditor=loan.creditor)
             self.loans = [l for l in self.loans if not (l.settled or l.defaulted)]
             self._pay_deposit_interest()
+            # C1 "stable income" (grounding sandbox only): after the day's
+            # interest/demurrage, reset each saver's spendable money to a fixed
+            # target so the deposit decision is faced at a regime-INVARIANT money
+            # level. This removes the blind wealth-threshold reflex's only handle
+            # (money>=12 tracks the regime ONLY because demurrage drains cf agents
+            # poorward — docs/runs/metric-trajectory-confound-1); with money fixed,
+            # the regime is inferable solely from the banked deposit's shrinkage
+            # history, so ANY regime asymmetry is genuine grounding. Deliberately
+            # NOT coin-conserving (a curriculum artifact of the sandbox, not the
+            # conserved baseline). Off unless the sandbox builder set it
+            # (getattr default 0 -> byte-identical).
+            income = getattr(self, "_stable_income", 0)
+            if income > 0:
+                banker_id = getattr(self, "sole_deposit_banker", None)
+                for a in self.agents:
+                    if a.alive and a.id != banker_id and a.money != income:
+                        a.money = income
         if self.public_works:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:

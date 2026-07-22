@@ -108,5 +108,33 @@ class TestG2Floor(unittest.TestCase):
         self.assertLess(measure(20).g2, 0.05)
 
 
+class TestC1StableIncome(unittest.TestCase):
+    def test_stable_income_kills_the_floors_handle(self):
+        # C1: with spendable money fixed each day, the blind wealth-threshold
+        # reflex loses its regime handle -> its money-matched G2 (already ~0) and,
+        # more tellingly, its G1 collapse toward 0. Here we check G2 stays ~0 and
+        # that the decision population is no longer regime-skewed (the baseline
+        # task crushes cf decisions low; C1 balances them).
+        from emergence.brains.heuristic import HeuristicBrain
+
+        def factory(agent, persona, rng):
+            return HeuristicBrain(persona, rng)
+
+        base = measure_money_matched_contingency(
+            "claude", seeds=tuple(range(42, 45)), days=16, n_agents=5,
+            demurrage_per_day=0.25, stable_income=0, brain_factory=factory)
+        c1 = measure_money_matched_contingency(
+            "claude", seeds=tuple(range(42, 45)), days=16, n_agents=5,
+            demurrage_per_day=0.25, stable_income=20, brain_factory=factory)
+        # both memoryless -> G2 not positive either way
+        self.assertLess(c1.g2, 0.05)
+        # the tell: baseline crushes cf decisions far below control; C1 balances
+        # them (regime no longer skews the decision population).
+        base_skew = base.n_decisions_control / max(1, base.n_decisions_counterfactual)
+        c1_skew = c1.n_decisions_control / max(1, c1.n_decisions_counterfactual)
+        self.assertGreater(base_skew, 1.5)      # baseline: control >> cf decisions
+        self.assertLess(c1_skew, 1.3)           # C1: roughly balanced
+
+
 if __name__ == "__main__":
     unittest.main()

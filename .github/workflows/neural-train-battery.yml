@@ -102,6 +102,17 @@ on:
           training outcomes.
         required: false
         default: "0.15"
+      stable_income:
+        description: >-
+          C1 reflex-impossible task (sandbox only): reset each saver's spendable
+          money to this fixed target each day, so the deposit decision is faced at
+          a regime-INVARIANT money level and the blind wealth-threshold reflex
+          loses its handle (floor G1->0, G2->0 — verified torch-free). The regime
+          becomes inferable ONLY from the banked deposit's shrinkage history, so
+          ANY positive G2 is genuine grounding. 0 = off (byte-identical).
+          Train/eval-MATCHED. See docs/runs/metric-trajectory-confound-1.
+        required: false
+        default: "0"
       grounded_teacher:
         description: >-
           issue #10(c) diagnostic (only applies with sandbox=true): use the
@@ -296,6 +307,7 @@ jobs:
           WINDOW: ${{ inputs.window }}
           COMPLEXITY_LEVEL: ${{ inputs.complexity_level }}
           DEMURRAGE_PER_DAY: ${{ inputs.demurrage_per_day }}
+          STABLE_INCOME: ${{ inputs.stable_income }}
           REGIME_BLOCK_SIZE: ${{ inputs.regime_block_size }}
           FLOOR_ROLLOUTS: ${{ inputs.floor_rollouts }}
           HPARAMS: ${{ inputs.hparams }}
@@ -313,6 +325,7 @@ jobs:
             ${{ inputs.grounded_teacher == 'true' && '--grounded-teacher' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \
+            --stable-income "$STABLE_INCOME" \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
             --regime-block-size "$REGIME_BLOCK_SIZE" \
