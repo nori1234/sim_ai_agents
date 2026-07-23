@@ -1718,6 +1718,12 @@ class MoneyMatchedContingencyResult:
     rate_control_late: Optional[float] = None
     rate_cf_early: Optional[float] = None
     rate_cf_late: Optional[float] = None
+    # (4) adaptation SPEED: deposit fire-rate by within-episode quartile (Q1..Q4),
+    # per regime — the adaptation CURVE, not just 2 points. A fast (few-shot)
+    # learner's cf curve drops within the first quartile or two; a slow one drifts.
+    # Read "how many quartiles until cf suppresses" as the speed.
+    rate_cf_by_quartile: Optional[list] = None
+    rate_control_by_quartile: Optional[list] = None
 
     def as_dict(self) -> dict:
         d = {
@@ -1746,6 +1752,11 @@ class MoneyMatchedContingencyResult:
             d["rate_control_late"] = round(self.rate_control_late, 4)
             d["rate_cf_early"] = round(self.rate_cf_early, 4)
             d["rate_cf_late"] = round(self.rate_cf_late, 4)
+        if self.rate_cf_by_quartile is not None:
+            d["rate_cf_by_quartile"] = [None if v is None else round(v, 4)
+                                        for v in self.rate_cf_by_quartile]
+            d["rate_control_by_quartile"] = [None if v is None else round(v, 4)
+                                             for v in self.rate_control_by_quartile]
         return d
 
 
@@ -1949,6 +1960,10 @@ def measure_money_matched_contingency(
         res.rate_control_late = _rate(ctl_pos_fired, 2 / 3, 1.01)
         res.rate_cf_early = _rate(cf_pos_fired, 0.0, 1 / 3)
         res.rate_cf_late = _rate(cf_pos_fired, 2 / 3, 1.01)
+        # (4) adaptation speed curve: fire-rate by within-episode quartile.
+        q = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01)]
+        res.rate_cf_by_quartile = [_rate(cf_pos_fired, lo, hi) for lo, hi in q]
+        res.rate_control_by_quartile = [_rate(ctl_pos_fired, lo, hi) for lo, hi in q]
     return res
 
 
@@ -2039,3 +2054,43 @@ def measure_reversal_adaptation(
     cf_b, cf_a = _run(True)     # demurrage -> interest: rate should RISE
     ctl_b, ctl_a = _run(False)  # interest -> demurrage: rate should DROP
     return ReversalResult(rev, days, cf_b, cf_a, ctl_b, ctl_a)
+
+
+def measure_grounding_ceiling(
+    persona: str = "claude",
+    *,
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    stable_income: int = 0,
+    felt_delta: bool = False,
+) -> MoneyMatchedContingencyResult:
+    """(5) The regime-AWARE oracle's G2 = the achievable ceiling for this task: it
+    is TOLD the regime and deposits in control / holds under demurrage (perfect
+    within-episode adaptation). The learned policy's ``g2 / ceiling.g2`` is its
+    fraction-of-optimal -- upgrading every grounding read from binary to graded.
+    Torch-free (the oracle is a HeuristicBrain subclass)."""
+    GH = _grounded_heuristic_brain_class()
+    G2Brain = _g2_logging_brain_class()
+    control_decisions: list = []
+    cf_decisions: list = []
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            def factory(agent, persona, rng, _cf=cf_enabled):
+                return G2Brain(GH(persona, rng, avoid_deposit=_cf), persona, rng)
+            sim = make_grounding_sandbox(
+                persona, rule="demurrage", n_savers=n_agents - 1, seed=seed,
+                days=days, cf_enabled=cf_enabled, brain_factory=factory,
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                stable_income=stable_income, felt_delta=felt_delta)
+            sim.run()
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            sink = cf_decisions if cf_enabled else control_decisions
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                sink.extend(getattr(b, "decisions", []))
+    return money_matched_contingency(control_decisions, cf_decisions,
+                                     rule="demurrage", n_worlds=len(seeds))

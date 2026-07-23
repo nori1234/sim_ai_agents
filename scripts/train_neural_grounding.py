@@ -140,6 +140,7 @@ from emergence.grounding import (                              # noqa: E402
     _grounded_heuristic_brain_class,
     estimate_conclusive_yield,
     make_grounding_sandbox,
+    measure_grounding_ceiling,
     measure_money_matched_contingency,
     measure_reversal_adaptation,
     run_grounding_battery,
@@ -631,10 +632,22 @@ def main(argv=None) -> int:
             stable_income=args.stable_income, felt_delta=args.felt_delta,
             brain_factory=probe_factory)
         result["money_matched_contingency"] = g2.as_dict()
+        # (5) gap-to-optimal: the regime-aware oracle's G2 is the achievable ceiling.
+        ceil = measure_grounding_ceiling(
+            args.persona, seeds=BATTERY_SEEDS, days=args.days, n_agents=args.agents,
+            sole_banker=args.sole_banker, demurrage_per_day=eval_dem,
+            stable_income=args.stable_income, felt_delta=args.felt_delta)
+        result["grounding_ceiling_g2"] = round(ceil.g2, 4)
+        frac = (g2.g2 / ceil.g2) if ceil.g2 and ceil.g2 > 1e-9 else None
+        result["fraction_of_optimal_g2"] = (round(frac, 4) if frac is not None else None)
         print(f"[G2] money-matched contingency (grounding, reflex-proof): "
               f"g2={g2.g2:+.4f}  (ctl {g2.n_decisions_control} / cf "
               f"{g2.n_decisions_counterfactual} eligible decisions; "
               f"floor is <=0 -- positive = genuine grounding)", flush=True)
+        print(f"[G2-opt] gap-to-optimal: g2={g2.g2:+.4f} vs oracle ceiling "
+              f"{ceil.g2:+.4f} = {result['fraction_of_optimal_g2']} of optimal "
+              f"(1.0 = matches the regime-aware oracle; graded, not binary)",
+              flush=True)
         if g2.belief_decode_accuracy is not None:
             # D1: does the belief head INFER the regime (3), separate from whether
             # behaviour then changes (4 = G2)? high acc + g2~0 => pure actuation gap.
