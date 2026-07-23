@@ -89,7 +89,7 @@ jobs:
           PY
 
       - name: Download the checkpoint
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.checkpoint_artifact_name }}
           run-id: ${{ inputs.checkpoint_run_id }}
