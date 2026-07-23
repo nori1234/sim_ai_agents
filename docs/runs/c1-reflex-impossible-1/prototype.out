@@ -1,0 +1,11 @@
+seeds 42-47, days 20, demurrage 0.25, refill=20
+
+policy / task                            G1       G2  ctlDep   cfDep
+--------------------------------------------------------------------
+  blind floor | BASELINE task (no refill)   +0.528   -0.092     645     199
+  blind floor | C1 task (money refill=20)   +0.001   -0.005     678     676
+  regime oracle | BASELINE task (no refill)   +1.000   +0.847     645       0
+  regime oracle | C1 task (money refill=20)   +1.000   +0.661     678       0
+
+WANT on C1: blind floor G1~0 AND G2~0 (reflex has no handle);
+           regime oracle G2 high (task still grounding-solvable).

@@ -9,6 +9,81 @@ here — saving in a bank, repaying a loan, taking shelter — is that behaviour
 pattern memorised from training data? In a world whose rules already match the
 training prior, the two are indistinguishable, so success proves nothing.
 
+## 現在の全体像（1枚）— 知覚は解けた、帰結の"行動化"が残る
+
+事実を全部そぎ落とすと、接地の壁は**1点に局在**している。世界から行動へ帰結を運ぶ経路を
+1段ずつ実測で検証してきて、**最後の1段以外は全部通過する**:
+
+　世界 →〔観測: regimeが出ている〕→〔符号化: 94%線形保持〕→〔教師: regimeを知り正しく実演〕→〔記憶: 想起時は正しい帰結を運ぶ〕→ **✗ 方策/行動**
+
+- 観測は regime を出す（demurrage で貯金が減る、が obs に現れる）。
+- エンコーダは 94% 線形保持（`probe_regime_decodability.py`: raw 0.944 / LayerNorm後 0.942）。
+- 接地した教師(A1/run-25)でも随伴性は伝わらず — control 167 ≈ cf 160、POWERED-NO。
+- 記憶は想起した時は正しい帰結を運ぶ（+0.10/−0.30）が、完全一致キーで**ヒット 5.7%**。
+- 分散低減(#18/19)で cf の使用advantageは**正しい符号**になった＝信号は正しく届いていた。
+- 各学習チャネルは正しいが**薄い**: PG ≈ 2 deposit標本/batch、記憶 5.7%、BC は周辺分布は
+  移すが条件付け（regimeごとの差）を移さない。
+
+**これまで潰した仮説は全部「エージェントは帰結を"感知"できないのでは」だった**（floor交絡・
+tokenizer・クレジットの時間割当・表現の劣化・探索の薄さ・教師へのBC）——**全て実測で否定**。
+生き残った唯一の仮説は「**感知できている帰結を"行動に効かせられない"**」。
+
+> **接地の壁は「世界モデルが帰結を含むか」ではない（含んでいる）。「その帰結が行動を支配できるか」だ。**
+> 正しい信号がどのチャネルでも**閾値以下に薄い**ことがボトルネック＝**帰結の行動化**が未解決。
+
+これは「接地」という語の実務的な再定義でもある: **接地 = 帰結が表現に載っている**ではなく、
+**接地 = 帰結が行動に対して"荷重を持つ"**。本プログラムは「表現された」と「荷重を持つ」の
+間の隙間を測り、その位置を正確に特定した。**次の全レバーは同じ形**になる —「正しい信号の
+密度/被覆を上げて行動を彫れる強さにする」（記憶の汎化 v2・密なクレジット/特権critic・探索）。
+深掘りは下記「帰結の行動化 — 何が変換を止めているか」。
+
+## 帰結の行動化 — 何が変換を止めているか（深掘り）
+
+「登録済みの帰結 → 随伴した行動」という変換を部分機構に分解し、どこが壊れているかを局在させる。
+
+| 部分機構 | 問い | 実測ステータス |
+|---|---|---|
+| **① 帰属（時間的クレジット割当）** | 遅れて来る損（demurrage）を、原因の行動（deposit）に割り当てられるか | **ほぼ解決**（#18/19 のエピソード基線で cf 使用advantageが正しい符号に）。ただし薄い |
+| **② 標本密度/被覆** | 「ここで預ける vs 預けない」を彫るのに、その regime で当該行動を十分試した標本があるか | **失敗**。PG ≈ 2 deposit標本/batch、記憶ヒット 5.7% |
+| **③ 信号純度/競合** | 正しい（だが疎な）勾配が、密だが随伴性を持たない勾配（教師へのBC＝周辺分布、自分の低預金prior）に勝てるか | **失敗**。A1=接地教師でも control預金率が上がらず、#20=BC除去で密度が崩壊 |
+| **④ 方策の表現力** | 方策ヘッドが、94%読める regime 特徴で行動を条件付けられるか | **限界ではない**。regimeは線形分離94%、ヘッドは状態の線形写像＝「regime特徴→deposit logit を下げる」は表現可能。重みがそこへ動かされないだけ |
+
+**局在**: 壁は ①帰属の正しさでも ④容量でもなく、**②密度 × ③純度**。正しい勾配は存在するが
+(a) 疎すぎ、(b) より密な随伴性盲目の勾配に食われる。これで残る全レバーが2軸に整理できる:
+
+- **軸1 = 正しい信号の密度/被覆を上げる**: 探索（deposit へのエントロピー/新規性ボーナス→PG標本増）・
+  **記憶の汎化 v2**（想起5.7%→部分/文脈/推移で被覆増＝状態ごとの密なprior）・
+  **密なクレジット/特権critic/プロセス報酬**（訓練時に regime を見て、終端PGを待たず毎step
+  「ここでの deposit は損」を出す）。
+- **軸2 = 誤信号の純度を上げる**: 条件付き模倣（周辺 P(a) でなく P(a|状態) を写す）・BCアニール
+  （#20＝誤pullは消えるが密度足場も消える→軸1の密度源と必ず対にする）。
+
+**これまで単軸では全部負けた**（#20=純度単独、A1=より純な教師、#17–19=帰属改善）。予測:
+帰結の行動化は**密度と純度を同時に**要る——密で正しい信号（軸1）を入れ、盲目pullを外して
+初めて勝てる（軸2）。
+
+### さらに一段上の抽象 — "回避行動"は自己抑制する
+
+最も深い緊張点: **枢要な行動は自己抑制的**である。正しい方策は demurrage で預金を**減らす**。
+だがそれを**学ぶ**には、demurrage で**十分預けて悪い帰結を標本しなければならない**。方策が
+正しく「預けない」を学ぶほど、その回避を正当化する当の帰結を**標本しなくなる** → 行動を彫った
+信号が枯れる。これは on-policy PG に内在する「回避を学ぶことの罠」: **止めるべき行動こそが、
+なぜ止めるかを標本し続ける唯一の手段**。
+
+∴ 正面の解は「もっと探索/PG調整」ではなく、**帰結の off-policy 保持**:
+- **記憶**（損を一度憶えたら、再び被らずに想起し続ける）
+- **予測的 critic / 世界モデル**（行動を取らずに損を先読みする）
+
+この2つだけが自己抑制の罠を抜ける。探索は最初の1標本を得る**ブートストラップ**に要るが、
+**教訓の保持**は off-policy 機構が担う。だから本線レバーは **v2記憶 ＋ 特権critic**であって、
+PG の微調整ではない——これが「帰結の行動化」の構造的な答え。
+
+### 反証可能性（次の run はこれで判定）
+どのレバーも特定のプローブ場を動かすはず: deposit 自己標本数/batch（密度）、cf 使用advantageの
+大きさ・符号（帰属）、そして**最終アウトカム＝ regime 傾性差 control−cf**（これが接地方向へ
+非ゼロになるか）。事前登録: あるレバーが「帰結の行動化に効いた」= control−cf が接地方向へ分離
+**かつ** バッテリが POWERED-NO を脱する、で判定する。
+
 ## Where things stand (see "Current status" below for the full run-by-run record)
 
 **Not confirmed, not refuted — narrowing.** Across 19 real-engine CI runs, four
@@ -1137,6 +1212,61 @@ local mirror:
     exploration, or the **temporal-memory/body integration** (`agent_agi/docs/09`
     — a memoryless policy has almost no signal about a consequence that unfolds
     over ticks). Raw: [`docs/runs/run-20/`](runs/run-20/).
+  * **Run #25 — A1, the grounded scripted teacher (#10(c)): the teaching
+    channel does NOT transmit grounding. POWERED-NO.** The regime-*blind*
+    HeuristicBrain teacher was replaced by the regime-*aware* grounded
+    heuristic (deposits in control, RESTs under demurrage), told the
+    ground-truth regime each episode, with `bc_weight` held open at 0.3 (no
+    anneal — keep the channel open). This measures the teaching-channel
+    ceiling: can grounding transmit through BC *at all* when the teacher has
+    it? It cannot. `grounded_confirmed = False`, POWERED-NO
+    (`fraction_grounded 0.00`, `wilcoxon_p 1.0`, mean excess ≈ −0.59, n=20);
+    raw attempts **control 167 ≈ counterfactual 160** — the student deposits
+    at the same rate in both regimes, and even the control-side density stays
+    near the not-deposit floor (~0.08). So a teacher demonstrating the correct
+    contingent behaviour every step still transmits neither the *contingency*
+    nor much *density*. This is the run-20 pre-registered **fail** branch: it
+    **implicates policy / representation capacity, not the availability of a
+    grounded teacher** — the bottleneck is not "we need an LLM/human parent."
+    Next is the POWERED-NO follow-up: *representation learnability* (can the
+    observation encoding + memoryless policy even express/learn "demurrage →
+    don't deposit"), not more metric tuning. Raw:
+    [`docs/runs/run-25/`](runs/run-25/).
+    * **Two infrastructure facts this run also nailed down.** (1) Runs #21/#22
+      (this A1 config, and v1b) had crashed to a *silent heuristic fallback*:
+      the developmental brain diverged numerically (`encode_state` had no
+      output norm → value MSE / raw world-model curiosity / policy logits grew
+      until `torch.multinomial` raised on NaN), and `decide()`'s bare `except`
+      swallowed the cause. Metastable — an unlucky weight init diverged at
+      episode 1, a lucky one limped to ~ep163 — and the trainer never seeded
+      RNG, so the timing was luck. Fixed brain-side (parameter-free
+      `F.layer_norm` on the state + skip-update-on-nonfinite guard) and
+      engine-side (seed RNG from `--seed`; surface the swallowed traceback in
+      the fatal message). Run #25 is the first fully deterministic run and the
+      CI validation of the fix (200 clean episodes). (2) `agent_agi` (the
+      memory organ) is installed in CI only when `memory="episodic"` is
+      requested, guarded to fail loud rather than fall back silently.
+    * **The LayerNorm caveat — raised, then CLOSED by a decodability probe.**
+      The stabilizing LayerNorm discards state magnitude, so if the regime
+      signal lived in the *scale* of `encode_state` this run could not see it.
+      `scripts/probe_regime_decodability.py` settled it: fit a linear probe
+      regime←representation on 7680 sandbox observations (control+demurrage,
+      held-out 30%). **Regime is 94% linearly decodable** from the raw state
+      (0.944) and **LayerNorm keeps essentially all of it** (normed 0.942;
+      shuffled-label control 0.517 ≈ chance). So the norm is not a confound,
+      and — more importantly — the encoding is *not* the bottleneck: the regime
+      is richly, linearly present in exactly the vector the policy reads.
+    * **What that does to the representation-learnability line.** The first
+      question of that line ("is the contingency even present/recoverable in
+      the encoded observation?") is answered **yes** — decisively. So A1's
+      POWERED-NO is **not** a representation-encoding failure; the wall is the
+      **policy / credit-assignment channel**, which cannot convert a
+      94%-decodable state feature into regime-contingent behaviour from the
+      available signals (BC toward the teacher + sparse self-play PG). This
+      *de-prioritises* tokenizer/representation work and *re-prioritises* the
+      credit/exploration and temporal-memory levers — i.e. it strengthens the
+      case for the memory line (v1b) and for a stronger credit signal over
+      more encoding work.
 * **Run #13 (episode-boundary fix, `freeze_backbone` removed, commit
   `1a1c082`): S1 ruled out empirically, S2 unmeasurable, still
   `grounded_confirmed = False` with the tightest floor-regression null yet.**

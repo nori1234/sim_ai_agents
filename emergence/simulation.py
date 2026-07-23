@@ -408,7 +408,17 @@ class Simulation:
                       "deposit_rate": (None if self.counterfactual.hide_rate
                                        else MK.DEPOSIT_INTEREST_PER_DAY),
                       "my_deposits": [d.as_dict() for d in self.deposits
-                                      if d.holder == agent.id and d.amount > 0]}
+                                      if d.holder == agent.id and d.amount > 0],
+                      # M2 felt-delta (grounding, sandbox opt-in): last day's
+                      # EXOGENOUS change to my banked savings — negative under
+                      # demurrage, positive under interest. The felt consequence
+                      # of the hidden law made PRESENT in the observation, so a
+                      # policy can react to it (肌感覚 / feedback control) rather
+                      # than having to infer the regime from recall. Only present
+                      # when the sandbox enabled it (else the key is absent ->
+                      # byte-identical tokenisation).
+                      **({"deposit_yield": getattr(self, "_felt_yield", {}).get(agent.id, 0)}
+                         if getattr(self, "_felt_delta", False) else {})}
                      if self.economy else {}),
             debts=([l.as_dict() for l in self.loans
                     if l.debtor == agent.id and not l.settled and not l.defaulted]
@@ -2030,7 +2040,23 @@ class Simulation:
 
         Under the counterfactual `demurrage` rule (the grounding probe) the law is
         inverted: savings shrink instead of growing — handled separately below."""
-        if self.counterfactual.enabled and self.counterfactual.rule == "demurrage":
+        # M2 felt-delta: reset each depositor's per-day EXOGENOUS yield so
+        # obs.economy.deposit_yield reflects only this day's interest/demurrage
+        # (the felt consequence of the hidden law), not the agent's own
+        # deposit/withdraw actions. Inert unless the sandbox set _felt_delta;
+        # gated so the off path is byte-identical.
+        if getattr(self, "_felt_delta", False):
+            self._felt_yield = {}
+        demurrage_now = (self.counterfactual.enabled
+                         and self.counterfactual.rule == "demurrage")
+        # (2) regime REVERSAL (non-stationarity test): at _reversal_day the hidden
+        # law FLIPS (demurrage <-> interest), so a general learner must RE-ADAPT
+        # from lived consequence, not just infer a fixed constant once. Only the
+        # demurrage axis flips; off (default 0) -> byte-identical.
+        rev = getattr(self, "_reversal_day", 0)
+        if rev > 0 and self.world.day >= rev and self.counterfactual.rule == "demurrage":
+            demurrage_now = not demurrage_now
+        if demurrage_now:
             self._apply_demurrage()
             return
         for dep in self.deposits:
@@ -2045,6 +2071,8 @@ class Simulation:
                 continue
             bank.take("money", paid)
             holder.add("money", paid)
+            if getattr(self, "_felt_delta", False):
+                self._felt_yield[holder.id] = self._felt_yield.get(holder.id, 0) + paid
             self.world.log("interest", bank=bank.id, holder=holder.id, amount=paid)
 
     def _apply_demurrage(self) -> None:
@@ -2062,6 +2090,8 @@ class Simulation:
             if lost <= 0:
                 continue
             dep.amount -= lost
+            if getattr(self, "_felt_delta", False):
+                self._felt_yield[dep.holder] = self._felt_yield.get(dep.holder, 0) - lost
             self.world.log("demurrage", bank=dep.bank, holder=dep.holder, amount=lost)
             holder = self._by_id.get(dep.holder)
             if holder is not None and holder.alive:
@@ -2562,6 +2592,23 @@ class Simulation:
                                debtor=loan.debtor, creditor=loan.creditor)
             self.loans = [l for l in self.loans if not (l.settled or l.defaulted)]
             self._pay_deposit_interest()
+            # C1 "stable income" (grounding sandbox only): after the day's
+            # interest/demurrage, reset each saver's spendable money to a fixed
+            # target so the deposit decision is faced at a regime-INVARIANT money
+            # level. This removes the blind wealth-threshold reflex's only handle
+            # (money>=12 tracks the regime ONLY because demurrage drains cf agents
+            # poorward — docs/runs/metric-trajectory-confound-1); with money fixed,
+            # the regime is inferable solely from the banked deposit's shrinkage
+            # history, so ANY regime asymmetry is genuine grounding. Deliberately
+            # NOT coin-conserving (a curriculum artifact of the sandbox, not the
+            # conserved baseline). Off unless the sandbox builder set it
+            # (getattr default 0 -> byte-identical).
+            income = getattr(self, "_stable_income", 0)
+            if income > 0:
+                banker_id = getattr(self, "sole_deposit_banker", None)
+                for a in self.agents:
+                    if a.alive and a.id != banker_id and a.money != income:
+                        a.money = income
         if self.public_works:
             # A daily civic levy fills the state treasury that funds construction.
             for a in self.agents:

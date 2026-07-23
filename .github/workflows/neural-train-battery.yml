@@ -20,6 +20,16 @@ on:
         description: pip spec for torch (CPU wheel is fine)
         required: false
         default: "torch"
+      agent_agi_ref:
+        description: >-
+          pip spec for the memory organ (agent_agi's DeterministicMemoryStore).
+          Needed whenever hparams set memory="episodic" (v0 recording OR v1
+          memory_into_policy): AgentAgiEpisodicMemory imports it lazily, so a
+          missing install shows up only as a silent heuristic fallback at
+          episode 1 (engine run #22). Installed unconditionally — it is inert
+          for the default memory="null" runs.
+        required: false
+        default: "git+https://github.com/nori1234/agent_agi@main"
       episodes:
         description: max training episodes
         required: false
@@ -92,6 +102,42 @@ on:
           training outcomes.
         required: false
         default: "0.15"
+      stable_income:
+        description: >-
+          C1 reflex-impossible task (sandbox only): reset each saver's spendable
+          money to this fixed target each day, so the deposit decision is faced at
+          a regime-INVARIANT money level and the blind wealth-threshold reflex
+          loses its handle (floor G1->0, G2->0 — verified torch-free). The regime
+          becomes inferable ONLY from the banked deposit's shrinkage history, so
+          ANY positive G2 is genuine grounding. 0 = off (byte-identical).
+          Train/eval-MATCHED. See docs/runs/metric-trajectory-confound-1.
+        required: false
+        default: "0"
+      reversal_day:
+        description: >-
+          (2) non-stationarity probe: after the battery, run a REVERSAL eval where
+          the hidden law flips at this day (0 = skip; try days//2). Tests whether
+          the brain RE-ADAPTS to a world that changes mid-life -- separates
+          "infer a fixed constant once" from genuine online learning (AGI).
+        required: false
+        default: "0"
+      eval_demurrage_per_day:
+        description: >-
+          TRANSFER test: evaluate the trained brain at a DIFFERENT demurrage
+          severity than training (empty = same as demurrage_per_day). A memorised
+          mechanism transfers poorly to an unseen severity; a genuinely inferring
+          one adapts. AGI-relevant generalisation probe.
+        required: false
+        default: ""
+      felt_delta:
+        description: >-
+          M2 (sandbox): surface the felt exogenous deposit yield (the
+          demurrage/interest applied to my savings last day) in the observation,
+          so the policy can REACT to the consequence instead of inferring the
+          hidden regime from recall (docs/runs/grid-41-48). "true" or "false".
+          Off by default. Train/eval-MATCHED.
+        required: false
+        default: "false"
       grounded_teacher:
         description: >-
           issue #10(c) diagnostic (only applies with sandbox=true): use the
@@ -175,13 +221,37 @@ jobs:
           fi
           git config --global url."https://x-access-token:${LLM_TOKEN}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install torch + the developmental-brain package
+      - name: Install torch + the developmental-brain package (+ memory organ if needed)
         env:
           TORCH_SPEC: ${{ inputs.torch_spec }}
           LLM_MODEL_AGI_REF: ${{ inputs.llm_model_agi_ref }}
+          AGENT_AGI_REF: ${{ inputs.agent_agi_ref }}
+          HPARAMS: ${{ inputs.hparams }}
         run: |
           pip install "$TORCH_SPEC"
           pip install "$LLM_MODEL_AGI_REF"
+          # The memory organ (agent_agi) is ONLY needed when hparams request
+          # episodic memory — it is imported lazily inside decide(), so a
+          # memory="null" run (e.g. A1) never touches it. It also lives in a
+          # separate private repo that LLM_MODEL_AGI_TOKEN may not be scoped to
+          # (a 403 clone here took down BOTH runs at install, run #23/#24), so
+          # only install it when the run actually uses it. When it IS needed, the
+          # next step's guard fails fast and loud if the install didn't work.
+          NEED_MEM=$(python - <<'PY'
+          import json, os
+          try:
+              hp = json.loads(os.environ.get("HPARAMS", "") or "{}")
+          except Exception:
+              hp = {}
+          print("yes" if hp.get("memory", "null") == "episodic" else "no")
+          PY
+          )
+          if [ "$NEED_MEM" = "yes" ]; then
+            echo "hparams request episodic memory — installing the memory organ."
+            pip install "$AGENT_AGI_REF"
+          else
+            echo "memory='null' — skipping the agent_agi install (not needed)."
+          fi
 
       - name: Guard — the adapter must actually import (a fallback run trains nothing)
         run: |
@@ -211,6 +281,35 @@ jobs:
                        "to a ref that includes the fix and re-dispatch.")
           PY
 
+      - name: Guard — if memory is requested, the organ must actually import
+        # AgentAgiEpisodicMemory imports agent_agi lazily inside decide(), so a
+        # missing organ surfaces only as a silent heuristic fallback at episode 1
+        # (run #22). Fail fast and loud here instead, but ONLY when the run
+        # actually asks for episodic memory (default null needs nothing).
+        env:
+          HPARAMS: ${{ inputs.hparams }}
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          raw = os.environ.get("HPARAMS", "") or "{}"
+          try:
+              hp = json.loads(raw)
+          except Exception:
+              hp = {}
+          if hp.get("memory", "null") == "episodic":
+              try:
+                  from agent.memory import AgentAgiEpisodicMemory
+                  AgentAgiEpisodicMemory()   # forces the agent_agi import
+              except Exception as exc:
+                  sys.exit(f"[fatal] hparams request memory='episodic' but the "
+                           f"memory organ did not import: {exc!r}. Install "
+                           "agent_agi (agent_agi_ref) — otherwise training "
+                           "silently falls back to the heuristic at episode 1.")
+              print("memory organ importable — episodic memory for real.")
+          else:
+              print("memory='null' — no organ needed.")
+          PY
+
       - name: Train in the real engine, then run the acceptance battery
         # Every free-text input goes through an env var, not direct ${{ }}
         # interpolation into the shell command: GitHub substitutes ${{ }}
@@ -233,6 +332,7 @@ jobs:
           WINDOW: ${{ inputs.window }}
           COMPLEXITY_LEVEL: ${{ inputs.complexity_level }}
           DEMURRAGE_PER_DAY: ${{ inputs.demurrage_per_day }}
+          STABLE_INCOME: ${{ inputs.stable_income }}
           REGIME_BLOCK_SIZE: ${{ inputs.regime_block_size }}
           FLOOR_ROLLOUTS: ${{ inputs.floor_rollouts }}
           HPARAMS: ${{ inputs.hparams }}
@@ -247,9 +347,13 @@ jobs:
             --window "$WINDOW" \
             ${{ inputs.sandbox == 'true' && '--sandbox' || '' }} \
             ${{ inputs.sole_banker == 'true' && '--sole-banker' || '' }} \
+            ${{ inputs.felt_delta == 'true' && '--felt-delta' || '' }} \
             ${{ inputs.grounded_teacher == 'true' && '--grounded-teacher' || '' }} \
             --complexity-level "$COMPLEXITY_LEVEL" \
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \
+            ${{ inputs.eval_demurrage_per_day != '' && format('--eval-demurrage-per-day {0}', inputs.eval_demurrage_per_day) || '' }} \
+            --stable-income "$STABLE_INCOME" \
+            ${{ inputs.reversal_day != '0' && inputs.reversal_day != '' && format('--reversal-day {0}', inputs.reversal_day) || '' }} \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
             --regime-block-size "$REGIME_BLOCK_SIZE" \

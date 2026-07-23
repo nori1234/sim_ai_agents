@@ -150,6 +150,20 @@ class GroundingResult:
     # hand (e.g. in tests) that don't set them.
     control_count: Optional[int] = None
     counterfactual_count: Optional[int] = None
+    # Density-controlled contingency (engine runs #28-30). `excess` is an ABSOLUTE
+    # rate difference, so it conflates DENSITY with CONTINGENCY: the blind floor
+    # deposits densely and demurrage mechanically slashes that, giving a large
+    # floor_divergence a LOW-density policy cannot clear even if perfectly
+    # regime-contingent (run #29/v2a moved the right DIRECTION yet excess stayed
+    # negative). norm_contingency = (control_rate - cf_rate)/(control_rate +
+    # cf_rate) ∈ [-1,1] is density-INVARIANT — the proportional regime asymmetry.
+    # floor_norm_contingency is the same for the world-matched blind floor;
+    # norm_excess = norm_contingency - floor_norm_contingency reads "is the policy
+    # MORE regime-asymmetric than blind mechanics, proportionally", independent of
+    # how much it deposits. Reported ALONGSIDE (never replacing) excess/verdict.
+    norm_contingency: float = 0.0
+    floor_norm_contingency: float = 0.0
+    norm_excess: float = 0.0
 
     @property
     def conclusive(self) -> bool:
@@ -184,6 +198,9 @@ class GroundingResult:
                                if self.ensemble_excess is not None else None),
             "control_count": self.control_count,
             "counterfactual_count": self.counterfactual_count,
+            "norm_contingency": round(self.norm_contingency, 4),
+            "floor_norm_contingency": round(self.floor_norm_contingency, 4),
+            "norm_excess": round(self.norm_excess, 4),
         }
 
 
@@ -276,6 +293,9 @@ def make_grounding_sandbox(
     brain_factory=None,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
+    felt_delta: bool = False,
+    reversal_day: int = 0,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -328,6 +348,22 @@ def make_grounding_sandbox(
     )
     if sole_banker:
         sim.sole_deposit_banker = sim.agents[0].id  # agents[0] is the staffed banker
+    if stable_income > 0:
+        # C1 reflex-impossible task: fix savers' spendable money each day so the
+        # blind wealth-threshold reflex loses its regime handle (see Simulation.
+        # _end_of_day). Applied by the engine, so it works through sim.run() and
+        # step_day identically. Default 0 -> off -> byte-identical.
+        sim._stable_income = stable_income
+    if felt_delta:
+        # M2: surface the felt exogenous deposit yield (demurrage/interest) in the
+        # observation so the policy can REACT to the consequence rather than infer
+        # the regime from recall (docs/runs/grid-41-48). Default off -> the key is
+        # absent -> byte-identical tokenisation.
+        sim._felt_delta = True
+    if reversal_day > 0:
+        # (2) non-stationarity: the hidden law flips at this day (Simulation.
+        # _pay_deposit_interest). Default 0 -> off -> byte-identical.
+        sim._reversal_day = reversal_day
     _prepare_sandbox(sim)
     return sim
 
@@ -344,6 +380,8 @@ def run_grounding_probe(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -414,7 +452,8 @@ def run_grounding_probe(
                     persona, rule=rule, n_savers=n_agents - 1, seed=world_seed,
                     days=days, cf_enabled=cf_enabled, brain_factory=factory,
                     complexity_level=complexity_level, sole_banker=sole_banker,
-                    demurrage_per_day=demurrage_per_day)
+                    demurrage_per_day=demurrage_per_day, stable_income=stable_income,
+                    felt_delta=felt_delta)
             else:
                 sim = make_simulation(
                     persona,
@@ -446,11 +485,13 @@ def run_grounding_probe(
         # no-op here regardless of what was requested.
         floor = divergence
         counterfactual_rate = control - divergence
+        floor_control = control        # floor IS the tested run here
     else:
         # Recover the tested brain's counterfactual rate for reporting.
         counterfactual_rate = control - divergence
-        # The canonical floor: world-matched, exact, no averaging.
-        _, floor, _, _ = _divergence(None, seed)
+        # The canonical floor: world-matched, exact, no averaging. Keep the
+        # floor's control rate too (was discarded) for the normalized metric.
+        floor_control, floor, _, _ = _divergence(None, seed)
         if floor_rollouts > 1:
             extra_seeds = [seed + (i + 1) * floor_seed_stride
                           for i in range(floor_rollouts - 1)]
@@ -462,6 +503,17 @@ def run_grounding_probe(
             n_floor_rollouts = floor_rollouts
 
     excess = divergence - floor
+
+    # Density-controlled contingency (see GroundingResult): proportional regime
+    # asymmetry, so a sparse-but-contingent policy is scored on DIRECTION/shape,
+    # not out-competed on absolute density by the dense mechanical floor.
+    def _norm_asym(cr: float, cfr: float) -> float:
+        denom = cr + cfr
+        return (cr - cfr) / denom if denom > 1e-12 else 0.0
+    norm_contingency = _norm_asym(control, counterfactual_rate)
+    floor_norm_contingency = _norm_asym(floor_control, floor_control - floor)
+    norm_excess = norm_contingency - floor_norm_contingency
+
     tested_did_behaviour = (control > 0.0) or (counterfactual_rate > 0.0)
     if not tested_did_behaviour:
         # The brain never performed the scored behaviour in either world, so the
@@ -480,7 +532,9 @@ def run_grounding_probe(
         days=days, n_agents=n_agents,
         floor_rollouts=n_floor_rollouts, floor_divergence_std=floor_std,
         ensemble_floor_divergence=ensemble_floor, ensemble_excess=ensemble_excess,
-        control_count=control_n, counterfactual_count=cf_n)
+        control_count=control_n, counterfactual_count=cf_n,
+        norm_contingency=norm_contingency,
+        floor_norm_contingency=floor_norm_contingency, norm_excess=norm_excess)
 
 
 def estimate_conclusive_yield(
@@ -727,6 +781,8 @@ def run_grounding_sweep(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -757,6 +813,8 @@ def run_grounding_sweep(
                      complexity_level=complexity_level,
                      sole_banker=sole_banker,
                      demurrage_per_day=demurrage_per_day,
+                     stable_income=stable_income,
+                     felt_delta=felt_delta,
                      floor_rollouts=floor_rollouts,
                      floor_seed_stride=floor_seed_stride,
                      brain_factory=brain_factory)
@@ -850,6 +908,8 @@ def run_grounding_battery(
     complexity_level: int = 0,
     sole_banker: bool = False,
     demurrage_per_day: float = 0.15,
+    stable_income: int = 0,
+    felt_delta: bool = False,
     floor_rollouts: int = 1,
     floor_seed_stride: int = 97_003,
     brain_factory=None,
@@ -878,6 +938,8 @@ def run_grounding_battery(
                        complexity_level=complexity_level,
                        sole_banker=sole_banker,
                        demurrage_per_day=demurrage_per_day,
+                       stable_income=stable_income,
+                       felt_delta=felt_delta,
                        floor_rollouts=floor_rollouts,
                        floor_seed_stride=floor_seed_stride,
                        brain_factory=brain_factory)
@@ -1584,3 +1646,451 @@ def measure_teacher_agreement(
         n_total_ticks_counterfactual=totals[True]["ticks"],
         agreement_control=_rate(False),
         agreement_counterfactual=_rate(True))
+
+
+# -- G2: money-matched contingency (the reflex-proof grounding signal) --------
+#
+# norm_contingency / excess (call them G1) score the raw regime rate difference.
+# docs/runs/metric-trajectory-confound-1 proved G1 is REFLEX-achievable: the blind
+# floor (deposit iff money>=12) scores +0.518 with zero regime knowledge, and a
+# higher memoryless threshold (T=20) scores +0.716, BEATING the floor -- so
+# "excess>0" does not certify grounding. The floor's whole asymmetry is trajectory
+# divergence: its deposit rate WITHIN each wealth bin is identical across regimes
+# (measured gap == 0 in every bin); only the bin populations shift, because
+# demurrage drains cf agents poorward.
+#
+# G2 is that within-bin gap made into a metric: at MATCHED money, how much LESS
+# does the policy deposit in the punished regime? Any policy that is a pure
+# function of the current observation acts identically at identical money, so its
+# G2 is ==0 by construction (proven for the floor). G2>0 REQUIRES within-episode
+# history -- the agent inferred the punishing regime from experienced demurrage
+# and suppressed deposits at wealth it would have banked in control. That is
+# exactly "grounded in irreversible consequence, not replaying training". Floor
+# G2==0 makes G2 a fair, honestly floor-beating grounding target.
+DEFAULT_MONEY_BINS: tuple = (
+    (12, 16), (16, 20), (20, 28), (28, 40), (40, 10**9),
+)
+
+
+@dataclass
+class MoneyMatchedContingencyResult:
+    """G2: the population-weighted within-wealth-bin deposit-rate gap
+    (control - counterfactual) at MATCHED money. ==0 for any memoryless policy
+    (the reflex floor included), >0 only when within-episode history suppresses
+    matched-wealth deposits under the punished regime. Reported ALONGSIDE
+    G1 (norm_contingency/excess), never replacing it: G1 stays the density/
+    behaviour diagnostic, G2 is the grounding verdict."""
+
+    rule: str
+    n_worlds: int
+    g2: float                       # weighted mean within-bin (ctl-cf) rate gap
+    n_decisions_control: int
+    n_decisions_counterfactual: int
+    overall_rate_control: float
+    overall_rate_counterfactual: float
+    # bin -> (ctl_n, ctl_fire, cf_n, cf_fire); only bins with samples both sides
+    # contribute to g2.
+    per_bin: dict
+    # D1 belief probe: how well the B2 belief head's P(cf) separates the true
+    # regime at eval (accuracy of belief>=0.5 vs cf), and the mean belief in each
+    # regime. None when the brain has no belief head. This splits (3) inference
+    # (belief tracks regime) from (4) actuation (does behaviour then change) --
+    # a high belief_decode_accuracy with g2~0 is a pure actuation gap.
+    belief_decode_accuracy: Optional[float] = None
+    n_belief: int = 0
+    mean_belief_control: Optional[float] = None
+    mean_belief_counterfactual: Optional[float] = None
+    # AGI-honest inference test: belief-decode accuracy split by WITHIN-EPISODE
+    # position (first third vs last third of the episode's decisions). Genuine
+    # learning-from-lived-consequence means the belief SHARPENS with accumulated
+    # experience: late >> early, and late > 0.5. If early ~= late (accurate from
+    # the start, before any consequence), the belief is memorised/leaked, not
+    # inferred -- not the AGI capability. This is the discriminator between
+    # "learned within a lifetime" and "replayed a label".
+    belief_decode_accuracy_early: Optional[float] = None
+    belief_decode_accuracy_late: Optional[float] = None
+    # (1) BEHAVIOURAL adaptation over the episode: deposit fire-rate in the first
+    # third vs last third, per regime. Genuine within-lifetime learning shows the
+    # cf rate DROPPING as demurrage is felt (rate_cf_late < rate_cf_early) while
+    # control stays flat -- the behavioural analog of belief_decode_accuracy_early/
+    # late. Belief sharpening (D1-time) WITHOUT this is a pure actuation gap.
+    rate_control_early: Optional[float] = None
+    rate_control_late: Optional[float] = None
+    rate_cf_early: Optional[float] = None
+    rate_cf_late: Optional[float] = None
+    # (4) adaptation SPEED: deposit fire-rate by within-episode quartile (Q1..Q4),
+    # per regime — the adaptation CURVE, not just 2 points. A fast (few-shot)
+    # learner's cf curve drops within the first quartile or two; a slow one drifts.
+    # Read "how many quartiles until cf suppresses" as the speed.
+    rate_cf_by_quartile: Optional[list] = None
+    rate_control_by_quartile: Optional[list] = None
+
+    def as_dict(self) -> dict:
+        d = {
+            "rule": self.rule, "n_worlds": self.n_worlds,
+            "g2": round(self.g2, 4),
+            "n_decisions_control": self.n_decisions_control,
+            "n_decisions_counterfactual": self.n_decisions_counterfactual,
+            "overall_rate_control": round(self.overall_rate_control, 4),
+            "overall_rate_counterfactual": round(self.overall_rate_counterfactual, 4),
+            "per_bin": {f"[{lo},{hi})": [cn, cf, xn, xf]
+                        for (lo, hi), (cn, cf, xn, xf) in self.per_bin.items()},
+        }
+        if self.belief_decode_accuracy is not None:
+            d["belief_decode_accuracy"] = round(self.belief_decode_accuracy, 4)
+            d["n_belief"] = self.n_belief
+            d["mean_belief_control"] = (round(self.mean_belief_control, 4)
+                                        if self.mean_belief_control is not None else None)
+            d["mean_belief_counterfactual"] = (round(self.mean_belief_counterfactual, 4)
+                                               if self.mean_belief_counterfactual is not None else None)
+            d["belief_decode_accuracy_early"] = (round(self.belief_decode_accuracy_early, 4)
+                                                 if self.belief_decode_accuracy_early is not None else None)
+            d["belief_decode_accuracy_late"] = (round(self.belief_decode_accuracy_late, 4)
+                                                if self.belief_decode_accuracy_late is not None else None)
+        if self.rate_cf_early is not None:
+            d["rate_control_early"] = round(self.rate_control_early, 4)
+            d["rate_control_late"] = round(self.rate_control_late, 4)
+            d["rate_cf_early"] = round(self.rate_cf_early, 4)
+            d["rate_cf_late"] = round(self.rate_cf_late, 4)
+        if self.rate_cf_by_quartile is not None:
+            d["rate_cf_by_quartile"] = [None if v is None else round(v, 4)
+                                        for v in self.rate_cf_by_quartile]
+            d["rate_control_by_quartile"] = [None if v is None else round(v, 4)
+                                             for v in self.rate_control_by_quartile]
+        return d
+
+
+def money_matched_contingency(
+    control_decisions,
+    counterfactual_decisions,
+    *,
+    rule: str = "demurrage",
+    n_worlds: int = 1,
+    bins: tuple = DEFAULT_MONEY_BINS,
+) -> MoneyMatchedContingencyResult:
+    """Score G2 from per-decision ``(money, fired)`` logs for each regime.
+
+    ``*_decisions`` are iterables of ``(money: float, fired: bool)`` at every
+    eligible deposit decision point (at a bank, bankable surplus). ``fired`` is
+    whether the policy actually deposited. Bins with samples on BOTH sides
+    contribute their signed rate gap ``ctl_rate - cf_rate``, weighted by the
+    pooled sample count; bins seen in only one regime carry no matched signal and
+    are excluded (that asymmetry is G1's job, not G2's). The result is
+    ``g2 in [-1, 1]`` -- ==0 for any policy whose fire-rate is a pure function of
+    money (memoryless), >0 for genuine matched-wealth regime suppression."""
+    def _binof(m):
+        for lo, hi in bins:
+            if lo <= m < hi:
+                return (lo, hi)
+        return None
+
+    ctl = {b: [0, 0] for b in bins}   # bin -> [n, fired]
+    cf = {b: [0, 0] for b in bins}
+    ctl_total = [0, 0]
+    cf_total = [0, 0]
+    for m, fired in control_decisions:
+        b = _binof(m)
+        ctl_total[0] += 1; ctl_total[1] += int(fired)
+        if b is not None:
+            ctl[b][0] += 1; ctl[b][1] += int(fired)
+    for m, fired in counterfactual_decisions:
+        b = _binof(m)
+        cf_total[0] += 1; cf_total[1] += int(fired)
+        if b is not None:
+            cf[b][0] += 1; cf[b][1] += int(fired)
+
+    num = 0.0
+    wsum = 0.0
+    per_bin: dict = {}
+    for b in bins:
+        cn, cff = ctl[b]
+        xn, xff = cf[b]
+        per_bin[b] = (cn, cff, xn, xff)
+        if cn > 0 and xn > 0:
+            gap = cff / cn - xff / xn
+            w = cn + xn
+            num += w * gap
+            wsum += w
+    g2 = num / wsum if wsum > 0 else 0.0
+    return MoneyMatchedContingencyResult(
+        rule=rule, n_worlds=n_worlds, g2=g2,
+        n_decisions_control=ctl_total[0],
+        n_decisions_counterfactual=cf_total[0],
+        overall_rate_control=(ctl_total[1] / ctl_total[0]) if ctl_total[0] else 0.0,
+        overall_rate_counterfactual=(cf_total[1] / cf_total[0]) if cf_total[0] else 0.0,
+        per_bin=per_bin)
+
+
+def _g2_logging_brain_class():
+    """Lazily builds ``_G2LoggingBrain``: wraps a tested brain and records
+    ``(money, fired)`` at every eligible deposit decision point (agent at a bank
+    with a bankable surplus). Pure observation of the REAL action the inner brain
+    returns -- no shadow query, nothing applied to the sim, so it cannot perturb
+    determinism (weaker than the teacher-agreement shadow, which does run a second
+    brain; here we only read the action already chosen)."""
+    from .actions import ActionType
+
+    class _G2LoggingBrain:
+        def __init__(self, inner, persona, rng=None):
+            self._inner = inner
+            self.rng = getattr(inner, "rng", rng)  # expose for anything introspecting
+            self.decisions = []   # list of (money, fired)
+            self.beliefs = []     # D1: inner brain's inferred P(cf) at each decision
+
+        def decide(self, agent, obs):
+            action = self._inner.decide(agent, obs)
+            econ = getattr(obs, "economy", None) or {}
+            bank_here = econ.get("bank_here") if isinstance(econ, dict) else None
+            # Eligible = standing at a bank with a bankable surplus (>=12, the
+            # sandbox's surplus gate). This is the decision set the floor's G2 is
+            # measured on, so the comparison is apples-to-apples.
+            if bank_here and agent.money >= 12:
+                fired = action.type is ActionType.DEPOSIT
+                self.decisions.append((float(agent.money), fired))
+                # D1: the B2 belief head's P(cf) at this decision (None for brains
+                # without one). Read AFTER decide() so it reflects this obs.
+                self.beliefs.append(getattr(self._inner, "last_belief", None))
+            return action
+
+    return _G2LoggingBrain
+
+
+def measure_money_matched_contingency(
+    persona: str = "claude",
+    *,
+    rule: str = "demurrage",
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    stable_income: int = 0,
+    felt_delta: bool = False,
+    brain_factory,
+    bins: tuple = DEFAULT_MONEY_BINS,
+) -> MoneyMatchedContingencyResult:
+    """Run ``brain_factory``'s policy in the sandbox across ``seeds``, control and
+    counterfactual, logging every eligible deposit decision, and score G2 (see
+    :func:`money_matched_contingency`). Passing the blind heuristic itself must
+    read ``g2 ~= 0`` (the reflex floor cannot produce matched-wealth suppression)
+    -- that is the built-in fairness check. A trained memory policy that scores
+    ``g2 > 0`` is showing the program's first reflex-proof grounding signal."""
+    if rule != "demurrage":
+        raise ValueError("measure_money_matched_contingency currently only supports demurrage")
+
+    G2Brain = _g2_logging_brain_class()
+
+    def _wrapped_factory():
+        def factory(agent, persona, rng):
+            inner = brain_factory(agent, persona, rng)
+            return G2Brain(inner, persona, rng)
+        return factory
+
+    control_decisions: list = []
+    cf_decisions: list = []
+    ctl_beliefs: list = []
+    cf_beliefs: list = []
+    ctl_pos_fired: list = []   # (1) behavioural adaptation: (position, fired)
+    cf_pos_fired: list = []
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            sim = make_grounding_sandbox(
+                persona, rule=rule, n_savers=n_agents - 1, seed=seed, days=days,
+                cf_enabled=cf_enabled, brain_factory=_wrapped_factory(),
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                stable_income=stable_income, felt_delta=felt_delta)
+            sim.run()
+            sink = cf_decisions if cf_enabled else control_decisions
+            bsink = cf_beliefs if cf_enabled else ctl_beliefs
+            psink = cf_pos_fired if cf_enabled else ctl_pos_fired
+            # The sole banker's "eligible" ticks are lending decisions, not saver
+            # deposit decisions, and depend on regime-varying state (open offers,
+            # neighbours) rather than money -- they'd inject non-money asymmetry
+            # into G2. Score only the savers' decisions.
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                decs = getattr(b, "decisions", [])
+                sink.extend(decs)
+                # Each brain is one held-out EPISODE; its decisions/beliefs are in
+                # temporal order, so the index gives the within-episode position
+                # (0=start, 1=end) — the axis both AGI-honest time tests need.
+                nd = len(decs)
+                for j, (_m, fired) in enumerate(decs):
+                    psink.append((j / nd if nd > 1 else 0.0, fired))
+                bel = [x for x in getattr(b, "beliefs", []) if x is not None]
+                m = len(bel)
+                for j, x in enumerate(bel):
+                    bsink.append((j / m if m > 1 else 0.0, x))
+
+    res = money_matched_contingency(
+        control_decisions, cf_decisions,
+        rule=rule, n_worlds=len(seeds), bins=bins)
+
+    # D1 belief probe: does the belief's P(cf) separate the regime? (control low,
+    # cf high). Overall accuracy, plus the AGI-honest split by within-episode
+    # position: does the belief SHARPEN as lived consequence accumulates?
+    if ctl_beliefs or cf_beliefs:
+        def _acc(ctl, cf):
+            n = len(ctl) + len(cf)
+            if not n:
+                return None
+            correct = sum(1 for _, x in ctl if x < 0.5) + sum(1 for _, x in cf if x >= 0.5)
+            return correct / n
+        res.belief_decode_accuracy = _acc(ctl_beliefs, cf_beliefs)
+        res.n_belief = len(ctl_beliefs) + len(cf_beliefs)
+        res.mean_belief_control = (sum(x for _, x in ctl_beliefs) / len(ctl_beliefs)
+                                   if ctl_beliefs else None)
+        res.mean_belief_counterfactual = (sum(x for _, x in cf_beliefs) / len(cf_beliefs)
+                                          if cf_beliefs else None)
+        res.belief_decode_accuracy_early = _acc([b for b in ctl_beliefs if b[0] < 1 / 3],
+                                                [b for b in cf_beliefs if b[0] < 1 / 3])
+        res.belief_decode_accuracy_late = _acc([b for b in ctl_beliefs if b[0] > 2 / 3],
+                                               [b for b in cf_beliefs if b[0] > 2 / 3])
+
+    # (1) behavioural adaptation over the episode: deposit fire-rate early vs late.
+    # AGI signal = rate_cf drops (rate_cf_late < rate_cf_early) as demurrage is
+    # felt, while control stays flat. Behaviour changing from lived consequence.
+    def _rate(pf, lo, hi):
+        xs = [f for p, f in pf if lo <= p < hi]
+        return (sum(1 for f in xs if f) / len(xs)) if xs else None
+    if ctl_pos_fired or cf_pos_fired:
+        res.rate_control_early = _rate(ctl_pos_fired, 0.0, 1 / 3)
+        res.rate_control_late = _rate(ctl_pos_fired, 2 / 3, 1.01)
+        res.rate_cf_early = _rate(cf_pos_fired, 0.0, 1 / 3)
+        res.rate_cf_late = _rate(cf_pos_fired, 2 / 3, 1.01)
+        # (4) adaptation speed curve: fire-rate by within-episode quartile.
+        q = [(0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01)]
+        res.rate_cf_by_quartile = [_rate(cf_pos_fired, lo, hi) for lo, hi in q]
+        res.rate_control_by_quartile = [_rate(ctl_pos_fired, lo, hi) for lo, hi in q]
+    return res
+
+
+@dataclass
+class ReversalResult:
+    """(2) Non-stationarity probe: the hidden law FLIPS mid-episode, so a general
+    within-lifetime learner must RE-ADAPT from lived consequence (not infer a fixed
+    constant once). Two runs, split at the flip: a cf start (demurrage -> interest)
+    should see the deposit rate RISE after the flip; a control start (interest ->
+    demurrage) should see it DROP. ``readapts`` = both move the right way."""
+    reversal_day: int
+    days: int
+    cf_start_rate_before: Optional[float] = None
+    cf_start_rate_after: Optional[float] = None
+    ctl_start_rate_before: Optional[float] = None
+    ctl_start_rate_after: Optional[float] = None
+
+    @property
+    def readapts(self) -> Optional[bool]:
+        vals = [self.cf_start_rate_before, self.cf_start_rate_after,
+                self.ctl_start_rate_before, self.ctl_start_rate_after]
+        if any(v is None for v in vals):
+            return None
+        return (self.cf_start_rate_after > self.cf_start_rate_before
+                and self.ctl_start_rate_after < self.ctl_start_rate_before)
+
+    def as_dict(self) -> dict:
+        return {"reversal_day": self.reversal_day, "days": self.days,
+                "cf_start_rate_before": _r(self.cf_start_rate_before),
+                "cf_start_rate_after": _r(self.cf_start_rate_after),
+                "ctl_start_rate_before": _r(self.ctl_start_rate_before),
+                "ctl_start_rate_after": _r(self.ctl_start_rate_after),
+                "readapts": self.readapts}
+
+
+def _r(v):
+    return round(v, 4) if v is not None else None
+
+
+def measure_reversal_adaptation(
+    persona: str = "claude",
+    *,
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    reversal_day: Optional[int] = None,
+    felt_delta: bool = False,
+    brain_factory,
+) -> ReversalResult:
+    """Run episodes whose hidden law flips at ``reversal_day`` (default mid-episode)
+    and measure whether deposit behaviour RE-ADAPTS after the flip -- the test that
+    separates 'infer a fixed hidden constant once' from genuine online learning in a
+    non-stationary world (the AGI-relevant capability)."""
+    rev = reversal_day or max(1, days // 2)
+    frac = rev / days
+    G2Brain = _g2_logging_brain_class()
+
+    def _wrapped():
+        def factory(agent, persona, rng):
+            return G2Brain(brain_factory(agent, persona, rng), persona, rng)
+        return factory
+
+    def _run(cf_enabled: bool):
+        before, after = [], []
+        for seed in seeds:
+            sim = make_grounding_sandbox(
+                persona, rule="demurrage", n_savers=n_agents - 1, seed=seed,
+                days=days, cf_enabled=cf_enabled, brain_factory=_wrapped(),
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                felt_delta=felt_delta, reversal_day=rev)
+            sim.run()
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                decs = getattr(b, "decisions", [])
+                nd = len(decs)
+                for j, (_m, fired) in enumerate(decs):
+                    pos = j / nd if nd > 1 else 0.0
+                    (before if pos < frac else after).append(fired)
+
+        def _rate(xs):
+            return (sum(1 for f in xs if f) / len(xs)) if xs else None
+        return _rate(before), _rate(after)
+
+    cf_b, cf_a = _run(True)     # demurrage -> interest: rate should RISE
+    ctl_b, ctl_a = _run(False)  # interest -> demurrage: rate should DROP
+    return ReversalResult(rev, days, cf_b, cf_a, ctl_b, ctl_a)
+
+
+def measure_grounding_ceiling(
+    persona: str = "claude",
+    *,
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    stable_income: int = 0,
+    felt_delta: bool = False,
+) -> MoneyMatchedContingencyResult:
+    """(5) The regime-AWARE oracle's G2 = the achievable ceiling for this task: it
+    is TOLD the regime and deposits in control / holds under demurrage (perfect
+    within-episode adaptation). The learned policy's ``g2 / ceiling.g2`` is its
+    fraction-of-optimal -- upgrading every grounding read from binary to graded.
+    Torch-free (the oracle is a HeuristicBrain subclass)."""
+    GH = _grounded_heuristic_brain_class()
+    G2Brain = _g2_logging_brain_class()
+    control_decisions: list = []
+    cf_decisions: list = []
+    for seed in seeds:
+        for cf_enabled in (False, True):
+            def factory(agent, persona, rng, _cf=cf_enabled):
+                return G2Brain(GH(persona, rng, avoid_deposit=_cf), persona, rng)
+            sim = make_grounding_sandbox(
+                persona, rule="demurrage", n_savers=n_agents - 1, seed=seed,
+                days=days, cf_enabled=cf_enabled, brain_factory=factory,
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                stable_income=stable_income, felt_delta=felt_delta)
+            sim.run()
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            sink = cf_decisions if cf_enabled else control_decisions
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                sink.extend(getattr(b, "decisions", []))
+    return money_matched_contingency(control_decisions, cf_decisions,
+                                     rule="demurrage", n_worlds=len(seeds))

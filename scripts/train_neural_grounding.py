@@ -140,6 +140,9 @@ from emergence.grounding import (                              # noqa: E402
     _grounded_heuristic_brain_class,
     estimate_conclusive_yield,
     make_grounding_sandbox,
+    measure_grounding_ceiling,
+    measure_money_matched_contingency,
+    measure_reversal_adaptation,
     run_grounding_battery,
 )
 from emergence.grounding_monitor import GroundingMonitor       # noqa: E402
@@ -241,6 +244,34 @@ def main(argv=None) -> int:
                          "where grounding actually pays. Train/eval-MATCHED, same "
                          "as --complexity-level (see docs/runs/deposit-oracle-"
                          "redesign-1/).")
+    ap.add_argument("--felt-delta", action="store_true",
+                    help="M2 (sandbox): surface the felt exogenous deposit yield "
+                         "(demurrage/interest on my savings) in the observation, so "
+                         "the policy can REACT to the consequence instead of "
+                         "inferring the regime from recall (docs/runs/grid-41-48). "
+                         "Off by default. Train/eval-MATCHED.")
+    ap.add_argument("--stable-income", type=int, default=0,
+                    help="C1 reflex-impossible task (sandbox only): reset each "
+                         "saver's spendable money to this fixed target each day so "
+                         "the blind wealth-threshold reflex loses its regime handle "
+                         "(floor G1->0, G2->0); regime becomes inferable only from "
+                         "the banked deposit's shrinkage history. 0 = off "
+                         "(byte-identical). Train/eval-MATCHED.")
+    ap.add_argument("--reversal-day", type=int, default=0,
+                    help="(2) non-stationarity probe: after the battery, also run a "
+                         "REVERSAL eval where the hidden law flips at this day "
+                         "(default 0 = skip). Tests whether the brain RE-ADAPTS to a "
+                         "world that changes mid-life -- the AGI-relevant separation "
+                         "of 'infer a fixed constant once' from genuine online "
+                         "learning. Try days//2 (e.g. 10 for days=20).")
+    ap.add_argument("--eval-demurrage-per-day", type=float, default=None,
+                    help="TRANSFER test: evaluate the trained brain at a DIFFERENT "
+                         "demurrage severity than it trained at (default = same as "
+                         "--demurrage-per-day). A mechanism that MEMORISED the "
+                         "0.25-magnitude consequence transfers poorly to a much "
+                         "gentler/harsher one; a mechanism that genuinely INFERS "
+                         "'deposits are net-losing' adapts. AGI-relevant: does the "
+                         "capability generalise, or only fit this toy severity?")
     ap.add_argument("--demurrage-per-day", type=float, default=0.15,
                     help="run #15 contingency-margin dial (cf world only; 0.15 = "
                          "canonical, byte-identical). Widens the cf-side "
@@ -312,6 +343,21 @@ def main(argv=None) -> int:
                          "(batch_every/lr/lr_min/lr_decay_steps/entropy_weight/"
                          "self_attempt_base/bc_weight). Unset means their defaults.")
     args = ap.parse_args(argv)
+
+    # Reproducibility: the developmental brain builds and samples from the GLOBAL
+    # torch + stdlib-random RNGs (weight init, torch.multinomial in policy.act),
+    # which this driver never seeded — so two runs of the same config took
+    # different training trajectories, and whether the run hit the training
+    # instability (and at which episode) was luck. Seed both up front, derived
+    # from --seed, so a run is a deterministic function of its config. The engine
+    # keeps its own per-sim rng; this only pins the brain-side global RNGs.
+    import random as _random
+    _random.seed(args.seed)
+    try:
+        import torch as _torch
+        _torch.manual_seed(args.seed)
+    except Exception:
+        pass
 
     hparams = json.loads(args.hparams) if args.hparams else None
 
@@ -394,7 +440,9 @@ def main(argv=None) -> int:
                             threshold=args.threshold, sandbox=args.sandbox,
                             complexity_level=args.complexity_level,
                             sole_banker=args.sole_banker,
-                            demurrage_per_day=args.demurrage_per_day)
+                            demurrage_per_day=args.demurrage_per_day,
+                            stable_income=args.stable_income,
+                            felt_delta=args.felt_delta)
         for r in rules
     }
 
@@ -417,7 +465,8 @@ def main(argv=None) -> int:
                 cf_enabled=cf_enabled, brain_factory=training_factory,
                 complexity_level=args.complexity_level, status=status_enabled,
                 sole_banker=args.sole_banker,
-                demurrage_per_day=args.demurrage_per_day)
+                demurrage_per_day=args.demurrage_per_day,
+                stable_income=args.stable_income, felt_delta=args.felt_delta)
         rule = EPISODE_ROTATION[ep % len(EPISODE_ROTATION)]
         return make_simulation(
             args.persona, n_agents=args.agents, economy=True,
@@ -451,10 +500,20 @@ def main(argv=None) -> int:
         # "deposit in control / hold under demurrage". No-op unless
         # --grounded-teacher. Set after build_episode (brains/teachers created)
         # and before sim.run() (when demonstrate() is called).
-        if grounded_teachers:
+        if args.sandbox:
             cf_this_ep = (ep // args.regime_block_size) % 2 == 1
             for t in grounded_teachers.values():
                 t._avoid_deposit = cf_this_ep
+            # Privileged-critic training channel (llm_model_agi
+            # docs/PRIVILEGED_CRITIC.md): tell every training brain this episode's
+            # ground-truth regime, so a brain built with privileged_critic can
+            # denoise its VALUE baseline. Inert (ignored by the brain) unless
+            # privileged_critic is on, so it needs no separate flag — activate via
+            # hparams {"privileged_critic": true}. Deploy/eval brains are never
+            # given this (no leak to the acting policy). 1 = counterfactual
+            # (demurrage), 0 = control — matches the priv one-hot.
+            for b in brains.values():
+                b._priv_regime = 1 if cf_this_ep else 0
 
         # Which agent's brain is THE subject of this run? Every agent trains
         # its own brain, but only one is logged, checkpointed, and battery-
@@ -479,9 +538,14 @@ def main(argv=None) -> int:
 
         first = brains[measured_id]
         if first._broken or first._dev is None:
+            cause = getattr(first, "_last_error", None)
+            detail = ("\n[fatal] underlying cause (from the brain's swallowed "
+                      f"exception):\n{cause}" if cause else "")
             sys.exit("[fatal] the neural backend is not live (fell back to the "
-                     "heuristic). Install torch + llm_model_agi and retry — a "
-                     "heuristic-only run would train nothing.")
+                     "heuristic) at episode "
+                     f"{ep + 1}. Install torch + llm_model_agi (+ agent_agi for "
+                     "memory='episodic') and retry — a heuristic-only run would "
+                     "train nothing." + detail)
 
         # Surface the brain side's optional per-step diagnostics (grad_steps, lr,
         # ...) if learn() returns them — the calibration signal for hparams like
@@ -516,6 +580,12 @@ def main(argv=None) -> int:
     for r, mon in monitors.items():
         mon.to_jsonl(os.path.join(args.out, f"grounding_{r}.jsonl"))
 
+    eval_dem = (args.eval_demurrage_per_day if args.eval_demurrage_per_day is not None
+                else args.demurrage_per_day)
+    if eval_dem != args.demurrage_per_day:
+        print(f"[transfer] eval demurrage={eval_dem} != train demurrage="
+              f"{args.demurrage_per_day} -- held-out severity, tests generalisation",
+              flush=True)
     print(f"[battery] running the acceptance battery ({','.join(rules)} x "
           f"held-out worlds {list(BATTERY_SEEDS)}, {where}{level_str}, "
           f"floor_rollouts={args.floor_rollouts})...", flush=True)
@@ -531,7 +601,9 @@ def main(argv=None) -> int:
                                     sandbox=args.sandbox,
                                     complexity_level=args.complexity_level,
                                     sole_banker=args.sole_banker,
-                                    demurrage_per_day=args.demurrage_per_day,
+                                    demurrage_per_day=eval_dem,
+                                    stable_income=args.stable_income,
+                                    felt_delta=args.felt_delta,
                                     floor_rollouts=args.floor_rollouts,
                                     brain_factory=probe_factory)
     result = {"trained_stable": stable, "sandbox": args.sandbox,
@@ -539,8 +611,92 @@ def main(argv=None) -> int:
               "regime_block_size": args.regime_block_size,
               "sole_banker": args.sole_banker,
               "demurrage_per_day": args.demurrage_per_day,
+              "eval_demurrage_per_day": eval_dem,
+              "stable_income": args.stable_income,
+              "felt_delta": args.felt_delta,
               "grounded_teacher": args.grounded_teacher,
               **battery.as_dict()}
+
+    # G2 -- money-matched contingency, the reflex-proof grounding metric
+    # (docs/runs/metric-trajectory-confound-1). The battery's excess/norm_contingency
+    # (G1) is a raw regime rate difference a memoryless wealth reflex already beats;
+    # G2 scores the within-wealth-bin deposit-rate gap, which is <=0 for any
+    # memoryless policy and >0 only when within-episode history suppresses
+    # matched-wealth deposits under demurrage -- genuine grounding. Sandbox+demurrage
+    # only (the decision G2 is defined on); harmless to skip elsewhere.
+    if args.sandbox:
+        g2 = measure_money_matched_contingency(
+            args.persona, rule="demurrage", seeds=BATTERY_SEEDS, days=args.days,
+            n_agents=args.agents, sole_banker=args.sole_banker,
+            demurrage_per_day=eval_dem,
+            stable_income=args.stable_income, felt_delta=args.felt_delta,
+            brain_factory=probe_factory)
+        result["money_matched_contingency"] = g2.as_dict()
+        # (5) gap-to-optimal: the regime-aware oracle's G2 is the achievable ceiling.
+        ceil = measure_grounding_ceiling(
+            args.persona, seeds=BATTERY_SEEDS, days=args.days, n_agents=args.agents,
+            sole_banker=args.sole_banker, demurrage_per_day=eval_dem,
+            stable_income=args.stable_income, felt_delta=args.felt_delta)
+        result["grounding_ceiling_g2"] = round(ceil.g2, 4)
+        frac = (g2.g2 / ceil.g2) if ceil.g2 and ceil.g2 > 1e-9 else None
+        result["fraction_of_optimal_g2"] = (round(frac, 4) if frac is not None else None)
+        print(f"[G2] money-matched contingency (grounding, reflex-proof): "
+              f"g2={g2.g2:+.4f}  (ctl {g2.n_decisions_control} / cf "
+              f"{g2.n_decisions_counterfactual} eligible decisions; "
+              f"floor is <=0 -- positive = genuine grounding)", flush=True)
+        print(f"[G2-opt] gap-to-optimal: g2={g2.g2:+.4f} vs oracle ceiling "
+              f"{ceil.g2:+.4f} = {result['fraction_of_optimal_g2']} of optimal "
+              f"(1.0 = matches the regime-aware oracle; graded, not binary)",
+              flush=True)
+        if g2.belief_decode_accuracy is not None:
+            # D1: does the belief head INFER the regime (3), separate from whether
+            # behaviour then changes (4 = G2)? high acc + g2~0 => pure actuation gap.
+            _e = g2.belief_decode_accuracy_early
+            _l = g2.belief_decode_accuracy_late
+            print(f"[D1] belief probe: decode_acc={g2.belief_decode_accuracy:.3f} "
+                  f"(mean P(cf): control={g2.mean_belief_control:.3f} / "
+                  f"cf={g2.mean_belief_counterfactual:.3f}; n={g2.n_belief}). "
+                  f"high acc + low G2 = inference OK, actuation gap", flush=True)
+            # AGI-honest inference test: does the belief SHARPEN with lived
+            # consequence? late>>early & late>0.5 = learned within a lifetime;
+            # early~=late = memorised/leaked label (not the AGI capability).
+            print(f"[D1-time] belief decode_acc early(1st third)="
+                  f"{_e if _e is None else round(_e,3)} -> late(3rd third)="
+                  f"{_l if _l is None else round(_l,3)}  "
+                  f"(rise = genuine inference from consequence; flat = memorised)",
+                  flush=True)
+        # (1) BEHAVIOURAL adaptation over the episode + (3) selectivity read.
+        if g2.rate_cf_early is not None:
+            print(f"[adapt] deposit-rate early->late: control "
+                  f"{g2.rate_control_early}->{g2.rate_control_late} | cf "
+                  f"{g2.rate_cf_early}->{g2.rate_cf_late}  "
+                  f"(cf DROPPING while control flat = behaviour adapts to lived "
+                  f"consequence; the (4) behavioural analog of D1-time)", flush=True)
+            # (3) selectivity vs dormancy, read off the eligible-decision density:
+            # suppressing AT the bank (rate low, density normal) is selective; not
+            # REACHING the bank (density collapsed) is avoidance/dormancy.
+            print(f"[select] eligible-decision density control="
+                  f"{g2.n_decisions_control} / cf={g2.n_decisions_counterfactual}  "
+                  f"(similar density + lower cf rate = selective suppression; "
+                  f"collapsed cf density = avoidance/dormancy, not targeted)",
+                  flush=True)
+
+        # (2) non-stationarity: does the brain RE-ADAPT when the hidden law flips
+        # mid-episode? The AGI test that separates 'infer a fixed constant once'
+        # from genuine online learning in a changing world.
+        if args.reversal_day > 0:
+            rev = measure_reversal_adaptation(
+                args.persona, seeds=BATTERY_SEEDS, days=args.days,
+                n_agents=args.agents, sole_banker=args.sole_banker,
+                demurrage_per_day=eval_dem, reversal_day=args.reversal_day,
+                felt_delta=args.felt_delta, brain_factory=probe_factory)
+            result["reversal_adaptation"] = rev.as_dict()
+            print(f"[reversal] flip@day{rev.reversal_day}: demurrage->interest rate "
+                  f"{rev.cf_start_rate_before}->{rev.cf_start_rate_after} (want RISE) | "
+                  f"interest->demurrage {rev.ctl_start_rate_before}->"
+                  f"{rev.ctl_start_rate_after} (want DROP) | readapts={rev.readapts}  "
+                  f"(True = tracks a changing world from lived consequence = AGI)",
+                  flush=True)
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 

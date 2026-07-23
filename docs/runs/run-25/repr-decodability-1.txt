@@ -1,0 +1,11 @@
+[collect] sandbox obs under control+demurrage, seeds=[1000, 1001, 1002, 1003], days=20, n_savers=5, demurrage_per_day=0.25
+[collect] 7680 observations  (control=3840, demurrage=3840)
+[encode] backbone d_model=256
+
+=== regime decodability (balanced accuracy, held-out 30%) ===
+  raw encode_state (pre-norm) : 0.944
+  normed (LayerNorm'd; what the policy reads) : 0.942
+  shuffled-label control : 0.517  (chance ~0.5)
+
+[reading]
+  normed ~ raw (drop +0.001), both > chance: regime IS present and LayerNorm keeps it -> A1's POWERED-NO is about the POLICY/credit, not the encoding. LayerNorm caveat closed.

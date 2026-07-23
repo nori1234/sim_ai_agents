@@ -1,0 +1,27 @@
+seeds=42..47  days=20  n_savers=5  demurrage=0.25  sole_banker=True
+
+=== (1) HARD threshold sweep (memoryless step: deposit iff money>=T) ===
+    T  control     cf  density  norm_cont
+    8      645    199      844     +0.528
+   10      645    199      844     +0.528
+   12      645    199      844     +0.528
+   14      570    153      723     +0.577
+   16      474     93      567     +0.672
+   20      363     60      423     +0.716
+   24      240     45      285     +0.684
+   30      157     32      189     +0.661
+
+=== (2) SOFT threshold sweep (sigmoid boundary at T=12, vary tau) ===
+  tau->0 recovers the hard step; larger tau = fuzzier boundary (what RL realistically learns)
+  tau  control     cf  density  norm_cont
+  0.5      619    233      852     +0.453
+  1.0      627    241      868     +0.445
+  2.0      613    247      860     +0.426
+  4.0      612    242      854     +0.433
+  8.0      617    237      854     +0.445
+ 16.0      615    228      843     +0.459
+
+best hard threshold: T=20  norm_contingency=+0.716 (floor as-built T=12)
+Read: if the SOFT sweep keeps norm_contingency near the hard value even at large tau,
+the policy's soft boundary is NOT the bottleneck -- the plateau is elsewhere
+(actuation/optimisation). If soft collapses it, sharpness IS the wall.

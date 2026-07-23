@@ -1,94 +1,100 @@
 # セッション引き継ぎ (HANDOFF)
 
-> **系の全体像（3リポジトリ＝1つの系・器官マップ・ロードマップ）は [`docs/SYSTEM.md`](SYSTEM.md) が真実の単一ソース。**
-> この HANDOFF は sim(世界)側の運用引き継ぎ、SYSTEM.md は3リポ横断の背骨。
+> 系の全体像（3リポ＝1つの系・器官マップ）は [`docs/SYSTEM.md`](SYSTEM.md) が単一ソース。
+> ここは運用引き継ぎ。叙述と深掘りは [`GROUNDING.md`](GROUNDING.md) 冒頭。**最終更新: 2026-07-22**。
 
-次のエージェント向けの現状引き継ぎ。**最終更新: 2026-07-21**(run #19 直後・run #20 訓練中)。
-古くなっていたら、この日付以降の `main` の履歴・issue #99/#130 のコメントが正。
+## 最上位の枠組み
 
-## 体制と役割
+**AGI ← 接地 ← (3) エピソード内のレジーム推論 ＋ (4) その行動化。**
+接地の操作的定義＝「隠された世界の法則を、自分が生きた*不可逆な帰結*から推論し、行動を変える
+（訓練の再生でない）」。知覚は解決済（符号化に随伴性 94% 保持＝decodability probe）。**壁は
+(3)+(4)**。以降すべてはこの一点に奉仕する。
 
-- **あなた(エージェント)= engine チーム。** このリポ(`sim_ai_agents`)が担当領域。
-- **brain チーム** = 別リポ `llm_model_agi`(private・このセッションからは読めない)を
-  持つ別のエージェント。**通信はユーザーが両者のメッセージを手で中継**する。
-  返信ドラフトはコードブロックで囲って渡すとコピペしやすい。
-- brain チームはこのリポを WebFetch で直接読む(レート制限あり)。だから
-  **一次資料は必ずリポに置く**: 測定結果は `docs/runs/<name>/`(README+生出力)、
-  経緯は issue #130、地図は issue #99。チャットは要約+ポインタに徹する。
-- **事実と意見は必ず切り分けて書く**(ユーザーの標準要求。報告・issue・
-  メッセージすべてで)。
+## 合否メトリクス ＝ G2（最重要・これで全アームを採点）
 
-## 不変の規律(CLAUDE.md も参照)
+- **G1（excess / norm_contingency）は反射で通過可能**と実証。盲目 floor は `money≥12→預金` の
+  記憶なし規則で、しきい値を上げるだけ (T=20) で G1 **+0.716**＝floor(+0.52)超え。⇒「excess>0」は
+  接地を証明しない。floor の随伴性は**軌道乖離 100%・レジーム検出 0%**（同一富ビン内の預金率は
+  両regime同一、cf は demurrage で貧しくなり決定点が低ビンに寄るだけ）。
+- **G2 ＝ 富マッチ随伴性**（同一富ビンでの預金率差 control−cf）。記憶なし方策は **G2≤~0**（純富規則で
+  ≡0、実 floor は decide 優先度×regime の小残差で ≈−0.05〜−0.09、**決して正にならない**）。判別子：
+  しきい値 12→20 で G1↑・**G2 据置**。∴ **正の G2 は反射で到達不能＝真の接地**（＝北極星そのもの）。
+- 実装済：`money_matched_contingency` / `measure_money_matched_contingency`
+  (`emergence/grounding.py`)、battery 配線 (`scripts/train_neural_grounding.py` の `[G2]` 行・
+  `battery.json.money_matched_contingency`)、`tests/test_money_matched_contingency.py`。
+- 一次資料 **`docs/runs/metric-trajectory-confound-1/`**。
 
-1. **マージ手順**: squash-merge → 直後に dev ブランチで `scripts/sync-branch.sh`。
-   これを終えるまでマージ完了ではない(Stop フックが Unverified を出す)。
-2. **決定論ベースライン**: opt-in レイヤー全OFFで `tests/test_baseline_contract.py`
-   がバイト不変。新機構は必ずフラグ裏・既定OFF。
-3. **事前登録の尊重**: grounding の判定ルール・タスクのマージンは、結果を見てから
-   黙って回さない。変えるなら brain チームと「新しい事前登録ラウンド」として合意。
+## 現在地
 
-## 研究の現在地(Thread J = 本線)
+記憶+credit+最適化 族は **G1≈+0.09 で頭打ち**（v2a #29 が天井、`docs/runs/run-31-40-sweep/` 9セル：
+LSH増bitは0へsmear・軟化criticは密度↔ノイズ・GAE平坦）。**族は正しい問題を解いていなかった**
+（floor は履歴推論せず反射で +0.52）。∴ 標的を G2、機構を (3)+(4) へ移した。
 
-接地はまだ未確認。だが run #14→#19 で**ブロッカーが1つずつ潰され、原因が測定として特定**
-された。順に:
+## 実験結果 grid #41–#48（8並列・完了）＝ 壁は (3)推論 と判明（`docs/runs/grid-41-48-mechanism-task/`）
 
-- **タスク較正(#15)**: `control-margin-1` が「control側の預金牽引は弱い」説を反証
-  (+4.35σ・巨大)。小さいのは cf側の**随伴性マージン**(≡`advantage_cf`)だけ。
-  `demurrage_per_day` を計器全体に配管し、事前登録ルール([+0.5,+1.0]σの最小rate)で
-  **0.25/day** に較正(`contingency-calib-1`、+0.53σ)。run #15 は POWERED-NO。
-- **計測バグ(#16)**: 初のS4計器付き run で `probe_teacher_n=0` が一発で露見——
-  ドライバは `agents[0]`=**sole banker**(構造上預金できない)の脳を採点していた。
-  **#14/#15 は公正タスクテストとして無効**。ドライバ修正=計測脳は sandbox saver
-  `agents[1]`(計器の慣行と一致)。
-- **初の有効判定(#17)**: POWERED-NO・`n_conclusive` 初の 20/20。S4を機序として定量化——
-  バッチ内リターンは ±10〜140 で暴れ、随伴性の報酬差は ±0.60/ep。depositの正規化後
-  advantage は ≈0(−0.0116)、生クレジットは逆順にすら見える=**採点マージン上の
-  信号対雑音比**が唯一のブロッカー(表現0.81–0.98・動機+0.53σ・探索密は全て健全)。
-- **分散低減(#18-19)**: brain の `adv_baseline="episode"`(エピソード区間の平均を
-  正規化前に引く)で信号が復活。200ep(#19)で**depositの使用advantageが初めてregime分離**
-  (cf −0.12 / control ≈0、中盤 −0.23/+0.05)。だが行動は平坦のまま。
-- **今の綱引き(#19が示した次の壁)**: `probe_teacher_n 435 ≈ probe_self_n 443`——
-  学習の半分が**regime盲目の親(HeuristicBrain)へのBC**で、両regime密に預金を実演する
-  ので、疎で正しいPG勾配を打ち負かす。これは issue #10 R2(盲目teacherのアンカー問題)
-  そのもの。**親の実体は `money>=12→deposit` の手書きif-elseで、`deposit_rate`/
-  `demurrage` を一切見ない**(接地は原理的にBCからは来ない)。
-- **実行中 run #20**: brain の `bc_weight_decay_steps`(BC annealing=issue #10(b))で
-  親離れをスケジュール化。離乳後に行動がregime分離するかが焦点。
-- 一次資料: `docs/runs/run-1[5-9]/`(各 README+probe_analysis+battery.json)、
-  `control-margin-1`・`contingency-calib-1`、叙述は `docs/GROUNDING.md`、経緯は #130。
+機構×課題×belief強度×days の8アーム、全て **G2≈0・UNDETERMINED＝接地せず**。決定打は **D1**：
+B2信念ヘッドを `_priv` で直接BCE教師しても、eval の **belief_decode_accuracy=0.501（偶然）／
+平均信念 control 0.500 / cf 0.501＝両regime無分離**。∴ **記憶recall特徴（`mean_reward_deposit`等）
+は今エピソードのレジーム証拠を学習可能な形で運んでいない＝(3)推論が失敗**。
+- #41 v2a base: G2 +0.007、預金率 0.665/0.660（両regime同率＝再生）。
+- #44 v2a+B2 C1: 密度崩壊（発火1.5–19%）、G1 −0.079（やや逆）。C1は設計通り反射不能→推論
+  できず"預金を止めるだけ"。
+- **根本原因（8本分析で確定）＝state-keyed recall は構造的にレジーム盲目**：想起は state類似で引く
+  ＝レジーム非依存なので control/cf が同一バケット→混合平均→信号ゼロ。レジームは「自分が・この一生
+  で」という**時間的/自伝的構造**にしか無く、recall はそれを捨てる。∴ recall基盤の B2/critic 亜種は
+  再走させない。
+- **手段ランク（目標＝D1>0.5 の信念分離）**：
+  - **M2（実装済・#49-51走行中）**：felt な帰結を観測に露出（`obs.economy.deposit_yield`＝demurrage−/
+    interest+）。方策が推論せず*反応*できるか＝**定義A判別**（#49 memoryless+felt が肝）。engine フラグ、
+    tokenizer 自動露出、determinism 不変。
+  - **M6（実装済・走行中）**：`obs_window` で系列backbone に直近K観測を食わせ**軌道を積分**＝最も
+    native。窓per-episodeリセット・on-policy一貫（obs_tok保存）・既定1でbyte-identical・テスト有。
+  - **M1（未実装）**：リカレント信念、**M4（未実装）**：自伝的記憶キー。
+- **定義判断が保留**：接地＝A「felt帰結への反応で可」／B「隠れ法則の推論を要求」。#49(M2 memoryless)と
+  M6 の結果で、どちらの定義でも動くかをデータで切り分ける。判定は常に **G2＋D1**。
 
-**次の分岐(run #20 の結果次第)**:
-(a) run #20 で分離が出れば延長/多seed で再現性、その後 vanity/exposure 軸へ。
-(b) 出なければ次の綱引き容疑(探索エントロピー、自己試行の預金サンプルが疎)へ。
-(c) 抜本策として issue #10(c) の**接地した scripted teacher**(controlでだけ預ける
-regime分岐付きの親)で「BC経由で接地が伝わるか(教示チャネルの天井)」を測る、
-または (d) 本物のLLM親——ただし CI 訓練ループは CPU・LLM未接続なので要環境整備。
+## 全方位アーム（4介入点・全て G2 採点）
 
-## 実行の要点(グラウンディング計測)
+- **C1 反射不能タスク**（engine）：demurrage の帰結を観測可能な spendable money から切断し、regime を
+  履歴からしか推論できなくする（＝floor の G1 も 0 に落ちる課題）。**次に実装**、torch-free で floor 検証可。
+- **A1 リカレント信念**（brain・メタRL/RL²）：エピソード内 (obs,act,rew) を要約する走る状態を方策へ。
+- **B1 情報探索の内発報酬**：regime 不確実性↓ の行動に報酬＝能動的実験者。
+- **D1 内部信念プローブ**（診断）：隠れ状態から regime をデコード＝**(3)推論と(4)行動化を分離**。
+- 降格：記憶の風味違い（bit数 / critic mix）は圧力なしにアーキだけ弄り反射のまま＝低EV。
 
-- S6: `python3 scripts/deposit_oracle.py --persona guardian [--sole-banker]
-  [--deposit-weight λ]`(秒・決定論・torch不要)。
-- 訓練+バッテリ: `neural-train-battery.yml` を workflow_dispatch
-  (`sandbox=true, sole_banker=true`、hparams は JSON で渡す)。brain の脳は
-  この CI 内で pip install されて動く(brain 側環境からは engine に届かない)。
-- プリフライト: `train_neural_grounding.py --preflight-only`(torch 不要)。
+## 体制（スコープ）— 旧「brain は読めない別チーム」は無効
 
-## バックログの状態(詳細は #99 の最新コメント)
+このセッションは **3リポ全部を担当ブランチ `claude/investigation-t0zm4z` で保有・編集**する：
+`sim_ai_agents`(engine/世界)・`llm_model_agi`(brain)・`agent_agi`(memory)。3つとも `/home/user/` に
+clone 済・import 可。手動中継は不要。ユーザー（研究ディレクター）に合意を取るのは**両リポの共有
+標的を変える時だけ**（例：G1→G2 のメトリクス変更）。
 
-- オープン 19 issue、**今すぐ閉じられるものは無い**(8件は first-slice 済みで
-  残スコープ追跡中: #35 #40 #86 #96 #97 #105 #109 #111)。
-- 経済成熟クラスタ未着手: #21 #31 #32 #45。セキュリティ #41 → #50(ブロック)。
-  #160(Actions SHA ピン)は**この実行環境からは不可能**(egress proxy がスコープ外
-  api.github.com を 403)——通常の GitHub アクセスがある環境でやる。
-- インフラは整備済み: Dependabot 全消化、CI マトリクス 3.10–3.14、Docker は
-  `python:3.14-slim`(CI 検証済み)。
+## 不変の規律（CLAUDE.md も参照）
 
-## このセッションで学んだ落とし穴
+1. **決定論ベースライン**：opt-in 全OFF で `tests/test_baseline_contract.py` がバイト不変。新機構は
+   必ずフラグ裏・既定OFF（zero-init encoder・損失+0.0 で担保）。
+2. **マージ**：squash-merge → 直後に dev で `scripts/sync-branch.sh`（終えるまで未完）。
+3. **事前登録の尊重**：判定ルール・タスクのマージンは、結果を見てから黙って回さない。
+4. **事実と意見は必ず切り分けて書く**（ユーザー標準要求）。
 
-- **機序の「もっともらしい説」は実測で潰す**: 鋳造 backfill 説(当方)も
-  ゼロ平均仮定(brain側)も両方外れ、レバーを1つずつ潰す実測だけが預金チェーンに
-  到達した。GROUNDING.md には訂正履歴ごと残している——上書きで消さないこと。
-- PR ブランチは必ず最新 `origin/main` から切る(過去に2回、別 PR のブランチ上に
-  積んで剥がす羽目になった)。
-- 大きい tool-result は `/root/.claude/.../tool-results/*.txt` に落ちるので
-  jq で抽出する。CI ログのアーカイブは `scripts/archive_ci_run.py`。
+## 実行
+
+- 訓練+バッテリ：`neural-train-battery.yml` を workflow_dispatch。`sandbox=true, sole_banker=true,
+  demurrage_per_day=0.25`。3リポの ref はいずれも `@claude/investigation-t0zm4z`。
+- v2a hparams：`{"memory":"episodic","memory_into_policy":true,"memory_key_mode":"state_lsh",
+  "memory_lsh_bits":12}`（+B2 は `"belief_head":true`）。`build_brain` が hparams→AgentConfig を
+  汎用転送するので新フラグはコード変更なしで流れる。
+- torch-free 診断（各 数秒〜分）：`scripts/threshold_landscape.py`・`money_matched_contingency.py`・
+  `deposit_oracle.py`・`train_neural_grounding.py --preflight-only`。
+- 既知インフラ修正：`encode_state` に `F.layer_norm`（表現発散→NaN→無言 heuristic フォールバックの
+  根治、RNG seed固定・例外可視化込み）／memory recall O(全件)→O(tag)。**無言フォールバックを疑ったらここ**。
+- 大きい tool-result は `/root/.claude/.../tool-results/*.txt` に落ちる → jq/python で抽出。
+
+## 一次資料
+
+**`docs/runs/metric-trajectory-confound-1/`（最新 frontier）**・`run-31-40-sweep/`・
+`run-28-30-memory-critic/`・`run-25/`。叙述＝`GROUNDING.md` 冒頭（訂正履歴ごと保存、上書き消去しない）。
+経緯＝issue #130、地図＝#99。記憶設計＝`agent_agi/docs/10`、critic＝`llm_model_agi/docs/PRIVILEGED_CRITIC.md`。
+過去の run 詳細（#14–25 の逐次ブロッカー潰し）は各 `docs/runs/` と GROUNDING.md に格納済。
+事業的・思想的な *why*（フィジカルAI 4層の堀＝接地機構／離散→連続の質的断絶）＝
+`docs/notes/why-grounding-is-the-moat.md`。

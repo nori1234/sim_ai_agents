@@ -60,6 +60,13 @@ class NeuralDevelopmentalBrain(AgentBrain):
         self._hparams = hparams
         self._dev = None                 # the DevelopmentalAgent; lazy-built
         self._broken = False             # latched once deps/build fail → straight to fallback
+        self._last_error = None          # the exception that latched _broken (else None)
+        # Privileged-critic training channel (llm_model_agi docs/PRIVILEGED_CRITIC.md):
+        # the driver sets the ground-truth regime here per episode; decide() forwards
+        # it to the brain's VALUE-only privileged input. None = ordinary baseline
+        # (deploy/eval never sets it, so no leak to the acting policy).
+        self._priv_regime = None
+        self.last_belief = None          # D1: B2 belief head's last inferred P(cf)
         self._prev_obs = None            # last observation, for the reward delta
         # The brain side's learn() may optionally return a diagnostics dict (e.g.
         # {"grad_steps": int, "lr": float}) for hparam tuning (the lr-decay
@@ -87,25 +94,54 @@ class NeuralDevelopmentalBrain(AgentBrain):
             return self._fallback.decide(agent, observation)
         try:
             self._ensure()
-            # 1) Learn from what the *previous* action did to the world.
-            if self._learn and self._prev_obs is not None:
+            # Forward the privileged regime (training-only) to the VALUE head. Safe
+            # no-op unless the brain was built with privileged_critic; the acting
+            # policy never reads it (set on the brain's _priv, consumed only in the
+            # value-path of learn()/_update_batch).
+            if self._priv_regime is not None and hasattr(self._dev, "_priv"):
+                self._dev._priv = self._priv_regime
+            # 1) Learn from what the *previous* action did to the world. When
+            #    frozen (learn=False), still ACCUMULATE episodic memory via
+            #    observe() — remembering is perception, not learning — so a
+            #    memory-consuming policy can recall this world's own outcomes
+            #    within its life at eval (v1). No-op when the brain has no memory.
+            if self._prev_obs is not None:
                 from ._neural_reward import survival_reward
                 reward = survival_reward(self._prev_obs, observation,
                                          self._reward_weights)
-                info = self._dev.learn(observation, reward)  # curiosity is added internally
-                if isinstance(info, dict):
-                    self.last_learn_info = info
+                if self._learn:
+                    info = self._dev.learn(observation, reward)  # curiosity added internally
+                    if isinstance(info, dict):
+                        self.last_learn_info = info
+                elif hasattr(self._dev, "observe"):
+                    self._dev.observe(reward)   # eval: memory only, no RL update
             # 2) Choose an action (early stages imitate the teacher; later autonomous).
             #    `agent` is passed so the brain's EngineTeacher can call
             #    teacher.decide(agent, obs) for imitation (contract decision (a)).
             spec = self._dev.act(observation, agent)
+            # D1: surface the B2 belief head's inferred P(counterfactual) for the
+            # belief probe (None unless the brain has a belief_head).
+            self.last_belief = getattr(self._dev, "_last_belief", None)
             self._prev_obs = observation
             # 3) Map the policy's output spec onto a concrete engine Action.
             from agent.adapters.emergence import to_engine_action  # type: ignore
             return to_engine_action(spec, agent, observation)
-        except Exception:
+        except Exception as exc:
             # Any failure (missing deps, bad checkpoint, runtime error) → never
             # crash the run; latch so we don't keep retrying a hopeless import.
+            # But DON'T swallow the cause silently: a bare latch here turned a
+            # mid-training NaN / a missing-extra ImportError into an
+            # indistinguishable "[fatal] not live" with no traceback (engine runs
+            # #21/#22). Record the full traceback on the instance and emit it once
+            # to stderr, so the trainer's fatal message can name the real reason.
+            import traceback
+            self._last_error = traceback.format_exc()
+            first_break = self._broken is False
             self._broken = True
             self._dev = None
+            if first_break:
+                import sys
+                print("[neural] backend failed — falling back to heuristic. "
+                      "Underlying error:\n" + self._last_error,
+                      file=sys.stderr, flush=True)
             return self._fallback.decide(agent, observation)
