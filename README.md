@@ -1,3 +1,7 @@
+> ⚠️ **このリポジトリは private monorepo [`nori1234/felt`](https://github.com/nori1234/felt) に統合されました。**
+> 読み取り専用アーカイブです。開発は felt 側で継続します（このリポの全履歴は subtree で felt に保持済み）。
+> 統合直前の状態は `pre-monorepo` タグを参照。
+
 # Emergence World
 
 > 🌍 **役割: 世界／訓練場 (world)** — 3リポジトリからなる1つの系の中心。脳
