@@ -2047,7 +2047,16 @@ class Simulation:
         # gated so the off path is byte-identical.
         if getattr(self, "_felt_delta", False):
             self._felt_yield = {}
-        if self.counterfactual.enabled and self.counterfactual.rule == "demurrage":
+        demurrage_now = (self.counterfactual.enabled
+                         and self.counterfactual.rule == "demurrage")
+        # (2) regime REVERSAL (non-stationarity test): at _reversal_day the hidden
+        # law FLIPS (demurrage <-> interest), so a general learner must RE-ADAPT
+        # from lived consequence, not just infer a fixed constant once. Only the
+        # demurrage axis flips; off (default 0) -> byte-identical.
+        rev = getattr(self, "_reversal_day", 0)
+        if rev > 0 and self.world.day >= rev and self.counterfactual.rule == "demurrage":
+            demurrage_now = not demurrage_now
+        if demurrage_now:
             self._apply_demurrage()
             return
         for dep in self.deposits:

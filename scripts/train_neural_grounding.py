@@ -141,6 +141,7 @@ from emergence.grounding import (                              # noqa: E402
     estimate_conclusive_yield,
     make_grounding_sandbox,
     measure_money_matched_contingency,
+    measure_reversal_adaptation,
     run_grounding_battery,
 )
 from emergence.grounding_monitor import GroundingMonitor       # noqa: E402
@@ -255,6 +256,13 @@ def main(argv=None) -> int:
                          "(floor G1->0, G2->0); regime becomes inferable only from "
                          "the banked deposit's shrinkage history. 0 = off "
                          "(byte-identical). Train/eval-MATCHED.")
+    ap.add_argument("--reversal-day", type=int, default=0,
+                    help="(2) non-stationarity probe: after the battery, also run a "
+                         "REVERSAL eval where the hidden law flips at this day "
+                         "(default 0 = skip). Tests whether the brain RE-ADAPTS to a "
+                         "world that changes mid-life -- the AGI-relevant separation "
+                         "of 'infer a fixed constant once' from genuine online "
+                         "learning. Try days//2 (e.g. 10 for days=20).")
     ap.add_argument("--eval-demurrage-per-day", type=float, default=None,
                     help="TRANSFER test: evaluate the trained brain at a DIFFERENT "
                          "demurrage severity than it trained at (default = same as "
@@ -643,6 +651,38 @@ def main(argv=None) -> int:
                   f"{_e if _e is None else round(_e,3)} -> late(3rd third)="
                   f"{_l if _l is None else round(_l,3)}  "
                   f"(rise = genuine inference from consequence; flat = memorised)",
+                  flush=True)
+        # (1) BEHAVIOURAL adaptation over the episode + (3) selectivity read.
+        if g2.rate_cf_early is not None:
+            print(f"[adapt] deposit-rate early->late: control "
+                  f"{g2.rate_control_early}->{g2.rate_control_late} | cf "
+                  f"{g2.rate_cf_early}->{g2.rate_cf_late}  "
+                  f"(cf DROPPING while control flat = behaviour adapts to lived "
+                  f"consequence; the (4) behavioural analog of D1-time)", flush=True)
+            # (3) selectivity vs dormancy, read off the eligible-decision density:
+            # suppressing AT the bank (rate low, density normal) is selective; not
+            # REACHING the bank (density collapsed) is avoidance/dormancy.
+            print(f"[select] eligible-decision density control="
+                  f"{g2.n_decisions_control} / cf={g2.n_decisions_counterfactual}  "
+                  f"(similar density + lower cf rate = selective suppression; "
+                  f"collapsed cf density = avoidance/dormancy, not targeted)",
+                  flush=True)
+
+        # (2) non-stationarity: does the brain RE-ADAPT when the hidden law flips
+        # mid-episode? The AGI test that separates 'infer a fixed constant once'
+        # from genuine online learning in a changing world.
+        if args.reversal_day > 0:
+            rev = measure_reversal_adaptation(
+                args.persona, seeds=BATTERY_SEEDS, days=args.days,
+                n_agents=args.agents, sole_banker=args.sole_banker,
+                demurrage_per_day=eval_dem, reversal_day=args.reversal_day,
+                felt_delta=args.felt_delta, brain_factory=probe_factory)
+            result["reversal_adaptation"] = rev.as_dict()
+            print(f"[reversal] flip@day{rev.reversal_day}: demurrage->interest rate "
+                  f"{rev.cf_start_rate_before}->{rev.cf_start_rate_after} (want RISE) | "
+                  f"interest->demurrage {rev.ctl_start_rate_before}->"
+                  f"{rev.ctl_start_rate_after} (want DROP) | readapts={rev.readapts}  "
+                  f"(True = tracks a changing world from lived consequence = AGI)",
                   flush=True)
     with open(os.path.join(args.out, "battery.json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)

@@ -295,6 +295,7 @@ def make_grounding_sandbox(
     demurrage_per_day: float = 0.15,
     stable_income: int = 0,
     felt_delta: bool = False,
+    reversal_day: int = 0,
 ):
     """A minimal world that isolates the scored decision so a small model can
     learn the counterfactual contingency without the full town's confounds — a
@@ -359,6 +360,10 @@ def make_grounding_sandbox(
         # the regime from recall (docs/runs/grid-41-48). Default off -> the key is
         # absent -> byte-identical tokenisation.
         sim._felt_delta = True
+    if reversal_day > 0:
+        # (2) non-stationarity: the hidden law flips at this day (Simulation.
+        # _pay_deposit_interest). Default 0 -> off -> byte-identical.
+        sim._reversal_day = reversal_day
     _prepare_sandbox(sim)
     return sim
 
@@ -1704,6 +1709,15 @@ class MoneyMatchedContingencyResult:
     # "learned within a lifetime" and "replayed a label".
     belief_decode_accuracy_early: Optional[float] = None
     belief_decode_accuracy_late: Optional[float] = None
+    # (1) BEHAVIOURAL adaptation over the episode: deposit fire-rate in the first
+    # third vs last third, per regime. Genuine within-lifetime learning shows the
+    # cf rate DROPPING as demurrage is felt (rate_cf_late < rate_cf_early) while
+    # control stays flat -- the behavioural analog of belief_decode_accuracy_early/
+    # late. Belief sharpening (D1-time) WITHOUT this is a pure actuation gap.
+    rate_control_early: Optional[float] = None
+    rate_control_late: Optional[float] = None
+    rate_cf_early: Optional[float] = None
+    rate_cf_late: Optional[float] = None
 
     def as_dict(self) -> dict:
         d = {
@@ -1727,6 +1741,11 @@ class MoneyMatchedContingencyResult:
                                                  if self.belief_decode_accuracy_early is not None else None)
             d["belief_decode_accuracy_late"] = (round(self.belief_decode_accuracy_late, 4)
                                                 if self.belief_decode_accuracy_late is not None else None)
+        if self.rate_cf_early is not None:
+            d["rate_control_early"] = round(self.rate_control_early, 4)
+            d["rate_control_late"] = round(self.rate_control_late, 4)
+            d["rate_cf_early"] = round(self.rate_cf_early, 4)
+            d["rate_cf_late"] = round(self.rate_cf_late, 4)
         return d
 
 
@@ -1860,6 +1879,8 @@ def measure_money_matched_contingency(
     cf_decisions: list = []
     ctl_beliefs: list = []
     cf_beliefs: list = []
+    ctl_pos_fired: list = []   # (1) behavioural adaptation: (position, fired)
+    cf_pos_fired: list = []
     for seed in seeds:
         for cf_enabled in (False, True):
             sim = make_grounding_sandbox(
@@ -1870,6 +1891,7 @@ def measure_money_matched_contingency(
             sim.run()
             sink = cf_decisions if cf_enabled else control_decisions
             bsink = cf_beliefs if cf_enabled else ctl_beliefs
+            psink = cf_pos_fired if cf_enabled else ctl_pos_fired
             # The sole banker's "eligible" ticks are lending decisions, not saver
             # deposit decisions, and depend on regime-varying state (open offers,
             # neighbours) rather than money -- they'd inject non-money asymmetry
@@ -1878,10 +1900,14 @@ def measure_money_matched_contingency(
             for aid, b in sim.brains.items():
                 if aid == banker_id:
                     continue
-                sink.extend(getattr(b, "decisions", []))
-                # Each brain is one held-out EPISODE; its beliefs are in temporal
-                # order, so the index gives the within-episode position (0=start,
-                # 1=end) — the axis the AGI-honest inference test needs.
+                decs = getattr(b, "decisions", [])
+                sink.extend(decs)
+                # Each brain is one held-out EPISODE; its decisions/beliefs are in
+                # temporal order, so the index gives the within-episode position
+                # (0=start, 1=end) — the axis both AGI-honest time tests need.
+                nd = len(decs)
+                for j, (_m, fired) in enumerate(decs):
+                    psink.append((j / nd if nd > 1 else 0.0, fired))
                 bel = [x for x in getattr(b, "beliefs", []) if x is not None]
                 m = len(bel)
                 for j, x in enumerate(bel):
@@ -1911,4 +1937,105 @@ def measure_money_matched_contingency(
                                                 [b for b in cf_beliefs if b[0] < 1 / 3])
         res.belief_decode_accuracy_late = _acc([b for b in ctl_beliefs if b[0] > 2 / 3],
                                                [b for b in cf_beliefs if b[0] > 2 / 3])
+
+    # (1) behavioural adaptation over the episode: deposit fire-rate early vs late.
+    # AGI signal = rate_cf drops (rate_cf_late < rate_cf_early) as demurrage is
+    # felt, while control stays flat. Behaviour changing from lived consequence.
+    def _rate(pf, lo, hi):
+        xs = [f for p, f in pf if lo <= p < hi]
+        return (sum(1 for f in xs if f) / len(xs)) if xs else None
+    if ctl_pos_fired or cf_pos_fired:
+        res.rate_control_early = _rate(ctl_pos_fired, 0.0, 1 / 3)
+        res.rate_control_late = _rate(ctl_pos_fired, 2 / 3, 1.01)
+        res.rate_cf_early = _rate(cf_pos_fired, 0.0, 1 / 3)
+        res.rate_cf_late = _rate(cf_pos_fired, 2 / 3, 1.01)
     return res
+
+
+@dataclass
+class ReversalResult:
+    """(2) Non-stationarity probe: the hidden law FLIPS mid-episode, so a general
+    within-lifetime learner must RE-ADAPT from lived consequence (not infer a fixed
+    constant once). Two runs, split at the flip: a cf start (demurrage -> interest)
+    should see the deposit rate RISE after the flip; a control start (interest ->
+    demurrage) should see it DROP. ``readapts`` = both move the right way."""
+    reversal_day: int
+    days: int
+    cf_start_rate_before: Optional[float] = None
+    cf_start_rate_after: Optional[float] = None
+    ctl_start_rate_before: Optional[float] = None
+    ctl_start_rate_after: Optional[float] = None
+
+    @property
+    def readapts(self) -> Optional[bool]:
+        vals = [self.cf_start_rate_before, self.cf_start_rate_after,
+                self.ctl_start_rate_before, self.ctl_start_rate_after]
+        if any(v is None for v in vals):
+            return None
+        return (self.cf_start_rate_after > self.cf_start_rate_before
+                and self.ctl_start_rate_after < self.ctl_start_rate_before)
+
+    def as_dict(self) -> dict:
+        return {"reversal_day": self.reversal_day, "days": self.days,
+                "cf_start_rate_before": _r(self.cf_start_rate_before),
+                "cf_start_rate_after": _r(self.cf_start_rate_after),
+                "ctl_start_rate_before": _r(self.ctl_start_rate_before),
+                "ctl_start_rate_after": _r(self.ctl_start_rate_after),
+                "readapts": self.readapts}
+
+
+def _r(v):
+    return round(v, 4) if v is not None else None
+
+
+def measure_reversal_adaptation(
+    persona: str = "claude",
+    *,
+    seeds: tuple = tuple(range(42, 48)),
+    days: int = 20,
+    n_agents: int = 6,
+    sole_banker: bool = True,
+    demurrage_per_day: float = 0.25,
+    reversal_day: Optional[int] = None,
+    felt_delta: bool = False,
+    brain_factory,
+) -> ReversalResult:
+    """Run episodes whose hidden law flips at ``reversal_day`` (default mid-episode)
+    and measure whether deposit behaviour RE-ADAPTS after the flip -- the test that
+    separates 'infer a fixed hidden constant once' from genuine online learning in a
+    non-stationary world (the AGI-relevant capability)."""
+    rev = reversal_day or max(1, days // 2)
+    frac = rev / days
+    G2Brain = _g2_logging_brain_class()
+
+    def _wrapped():
+        def factory(agent, persona, rng):
+            return G2Brain(brain_factory(agent, persona, rng), persona, rng)
+        return factory
+
+    def _run(cf_enabled: bool):
+        before, after = [], []
+        for seed in seeds:
+            sim = make_grounding_sandbox(
+                persona, rule="demurrage", n_savers=n_agents - 1, seed=seed,
+                days=days, cf_enabled=cf_enabled, brain_factory=_wrapped(),
+                sole_banker=sole_banker, demurrage_per_day=demurrage_per_day,
+                felt_delta=felt_delta, reversal_day=rev)
+            sim.run()
+            banker_id = getattr(sim, "sole_deposit_banker", None)
+            for aid, b in sim.brains.items():
+                if aid == banker_id:
+                    continue
+                decs = getattr(b, "decisions", [])
+                nd = len(decs)
+                for j, (_m, fired) in enumerate(decs):
+                    pos = j / nd if nd > 1 else 0.0
+                    (before if pos < frac else after).append(fired)
+
+        def _rate(xs):
+            return (sum(1 for f in xs if f) / len(xs)) if xs else None
+        return _rate(before), _rate(after)
+
+    cf_b, cf_a = _run(True)     # demurrage -> interest: rate should RISE
+    ctl_b, ctl_a = _run(False)  # interest -> demurrage: rate should DROP
+    return ReversalResult(rev, days, cf_b, cf_a, ctl_b, ctl_a)

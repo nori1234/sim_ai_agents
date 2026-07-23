@@ -113,6 +113,14 @@ on:
           Train/eval-MATCHED. See docs/runs/metric-trajectory-confound-1.
         required: false
         default: "0"
+      reversal_day:
+        description: >-
+          (2) non-stationarity probe: after the battery, run a REVERSAL eval where
+          the hidden law flips at this day (0 = skip; try days//2). Tests whether
+          the brain RE-ADAPTS to a world that changes mid-life -- separates
+          "infer a fixed constant once" from genuine online learning (AGI).
+        required: false
+        default: "0"
       eval_demurrage_per_day:
         description: >-
           TRANSFER test: evaluate the trained brain at a DIFFERENT demurrage
@@ -345,6 +353,7 @@ jobs:
             --demurrage-per-day "$DEMURRAGE_PER_DAY" \
             ${{ inputs.eval_demurrage_per_day != '' && format('--eval-demurrage-per-day {0}', inputs.eval_demurrage_per_day) || '' }} \
             --stable-income "$STABLE_INCOME" \
+            ${{ inputs.reversal_day != '0' && inputs.reversal_day != '' && format('--reversal-day {0}', inputs.reversal_day) || '' }} \
             ${{ inputs.status_layer == 'true' && '--status' || '' }} \
             ${{ inputs.status_layer == 'false' && '--no-status' || '' }} \
             --regime-block-size "$REGIME_BLOCK_SIZE" \
